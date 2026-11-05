@@ -145,7 +145,13 @@ main() {
     step "Aurora's download source"
     detail "pacman learns where to find Aurora and, later, its updates."
     if grep -qx '\[aurora\]' "$CONF"; then
-        done_step "Already set up"
+        # A section left by an older address or a test server is pointed back at Aurora's own.
+        if sed -n '/^\[aurora\]$/{n;p}' "$CONF" | grep -qxF "Server = $SERVER"; then
+            done_step "Already set up"
+        else
+            sudo sed -i "/^\[aurora\]\$/{n;s#^Server = .*#Server = $SERVER#}" "$CONF"
+            done_step "Pointed at Aurora's address"
+        fi
     else
         printf '\n[aurora]\nServer = %s\n' "$SERVER" | sudo tee -a "$CONF" > /dev/null
         done_step "Added to $CONF"
