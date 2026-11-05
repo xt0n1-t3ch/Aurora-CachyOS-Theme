@@ -7,7 +7,7 @@
 # (docs/releasing.md).
 
 pkgname=aurora-theme
-pkgver=1.0.0
+pkgver=1.1.0
 pkgrel=1
 pkgdesc='A macOS Tahoe-inspired desktop for CachyOS and KDE Plasma 6, with the shortcuts you know from Windows'
 arch=('x86_64')
@@ -41,7 +41,7 @@ install=aurora-theme.install
 # few that are machine code instead.
 options=('!debug' '!strip')
 source=("aurora-$pkgver.tar.gz::$url/releases/download/v$pkgver/aurora-$pkgver.tar.gz")
-sha256sums=('505618588da7e82bb247136b48160e0a3f4d05b18f007993ca935bb5ccf86290')
+sha256sums=('719c4374e9940b76c46cf5432c5816412e246a681c7551061c98cfd071bfa2a6')
 
 prepare() {
     cd "aurora-$pkgver/cli"
