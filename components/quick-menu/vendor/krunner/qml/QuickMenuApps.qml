@@ -7,8 +7,8 @@
 // models Kickoff uses (org.kde.plasma.private.kicker), so new apps and launches show up as they do there. An app
 // dragged onto another of its section takes that one's place, and the section keeps that order. A right-click (or the
 // Menu key) opens an app's menu: Open, its jump list, Pin to Top (the Pinned section above Suggestions), Pin to Dock,
-// Remove from Suggestions, and Plasma's Edit Application and Uninstall. "All Applications" at the top lists every app
-// alphabetically under its first letter, like Windows' All apps, and "Back" returns to the sections.
+// Remove from Suggestions, and Plasma's Edit Application and Uninstall. The grid button beside ⋯ shows All Applications:
+// every app under its first letter, like Windows' All apps, with Back where a section has Show More.
 import QtCore
 import QtQuick
 import QtQuick.Controls as QQC2
@@ -339,56 +339,37 @@ Flickable {
         topPadding: Kirigami.Units.mediumSpacing
         bottomPadding: Kirigami.Units.mediumSpacing
 
-        // The switch between the sections and All Applications, at the right end like Windows' "All" button.
-        Item {
-            width: content.width
-            height: Kirigami.Units.gridUnit * 1.8
+        // All Applications' heading, drawn like a section's: its title, and Back where a section has Show More. The
+        // way in is the grid button beside ⋯ in the search row.
+        RowLayout {
+            x: view.sidePadding
+            width: content.width - 2 * view.sidePadding
+            height: Kirigami.Units.gridUnit * 2.2
+            visible: view.allApps
 
             QQC2.Label {
-                anchors.left: parent.left
-                anchors.leftMargin: view.sidePadding
-                anchors.verticalCenter: parent.verticalCenter
-                visible: view.allApps
+                Layout.fillWidth: true
                 text: i18nc("@title Quick Menu's list of every app", "All Applications")
                 font.weight: Font.Bold
-                font.pixelSize: Kirigami.Theme.defaultFont.pixelSize * 1.15
                 color: Qt.rgba(1, 1, 1, 0.95)
+                elide: Text.ElideRight
                 textFormat: Text.PlainText
             }
-
-            Rectangle {
-                id: allButton
-                anchors.right: parent.right
-                anchors.rightMargin: view.sidePadding
-                anchors.verticalCenter: parent.verticalCenter
-                width: allLabel.implicitWidth + Kirigami.Units.gridUnit * 1.2
-                height: Kirigami.Units.gridUnit * 1.4
-                radius: height / 2
-                color: allHover.hovered ? Qt.rgba(1, 1, 1, 0.2) : Qt.rgba(1, 1, 1, 0.1)
-                border.color: Qt.rgba(1, 1, 1, 0.14)
+            QQC2.Label {
+                text: i18nc("@action:button back from Quick Menu's list of every app", "Back")
+                font.weight: Font.DemiBold
+                color: back.hovered ? Qt.lighter(Kirigami.Theme.highlightColor, 1.6) : Qt.lighter(Kirigami.Theme.highlightColor, 1.35)
+                textFormat: Text.PlainText
                 Accessible.role: Accessible.Button
-                Accessible.name: allLabel.text
-                Accessible.onPressAction: view.showAllApps(!view.allApps)
+                Accessible.name: text
+                Accessible.onPressAction: view.showAllApps(false)
 
-                Behavior on color {
-                    ColorAnimation { duration: Kirigami.Units.shortDuration }
-                }
-
-                QQC2.Label {
-                    id: allLabel
-                    anchors.centerIn: parent
-                    text: view.allApps ? i18nc("@action:button back from Quick Menu's list of every app", "‹  Back")
-                                       : i18nc("@action:button Quick Menu's list of every app", "All Applications  ›")
-                    font.weight: Font.DemiBold
-                    color: Qt.rgba(1, 1, 1, 0.92)
-                    textFormat: Text.PlainText
-                }
                 HoverHandler {
-                    id: allHover
+                    id: back
                     cursorShape: Qt.PointingHandCursor
                 }
                 TapHandler {
-                    onTapped: view.showAllApps(!view.allApps)
+                    onTapped: view.showAllApps(false)
                 }
             }
         }
@@ -411,7 +392,8 @@ Flickable {
                 width: content.width
 
                 Rectangle {
-                    visible: section.index > 0
+                    // Under All Applications' heading the first letter has a divider too.
+                    visible: section.index > 0 || view.allApps
                     x: view.sidePadding
                     width: parent.width - 2 * view.sidePadding
                     height: 1

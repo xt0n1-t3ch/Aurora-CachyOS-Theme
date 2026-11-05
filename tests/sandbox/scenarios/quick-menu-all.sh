@@ -23,31 +23,36 @@ WIN=125
 tap $WIN; waitfor 2
 shot quick-menu-all-1-apps
 
-# find_switch SHOT: prints the middle of the switch: the first row of near-white label pixels in the right half of the
-# centred panel, in the band just under the search field (the panel spans the middle quarter of the screen).
-find_switch() {
+# find_button SHOT: prints a point inside the All Applications button: the topmost near-white run in the search row's
+# right end below the panel's rim (the panel sits a quarter of the way down, centred) is the top of the left of the two rings; ⋯ is the right
+# one. The point is the run's middle, a few pixels down.
+find_button() {
     python3 -I - "$1" <<'PY'
 import sys
 from PIL import Image
 im = Image.open(sys.argv[1]).convert("RGB")
 w, h = im.size
-best = None
-for y in range(h * 33 // 100, h * 40 // 100):
-    xs = [x for x in range(w // 2, w * 5 // 8) if min(im.getpixel((x, y))) > 215]
-    if len(xs) > 12:
-        best = ((xs[0] + xs[-1]) // 2, y)
-        break
-print(*(best or (0, 0)))
+for y in range(h * 27 // 100, h * 35 // 100):
+    xs = [x for x in range(w * 55 // 100, w * 66 // 100) if min(im.getpixel((x, y))) > 150]
+    if xs:
+        run = [xs[0]]
+        for x in xs[1:]:
+            if x - run[-1] > 2:
+                break
+            run.append(x)
+        # The panel's rim is a long line; a ring's top is a short run.
+        if len(run) <= 20:
+            print((run[0] + run[-1]) // 2, y + 6)
+            sys.exit()
+print("0 0")
 PY
 }
-read -r AX AY <<< "$(find_switch "$SBX/shots/quick-menu-all-1-apps.png")"
+read -r AX AY <<< "$(find_button "$SBX/shots/quick-menu-all-1-apps.png")"
 echo "all applications at $AX $AY" >> "$SBX/logs/quick-menu-all.txt"
 key move "$AX" "$AY" wait 300 down wait 60 up wait 400
 waitfor 2
 shot quick-menu-all-2-list
-# Back is narrower than All Applications, so it is found again.
-read -r AX AY <<< "$(find_switch "$SBX/shots/quick-menu-all-2-list.png")"
-echo "back at $AX $AY" >> "$SBX/logs/quick-menu-all.txt"
+# The same button, filled now, goes back.
 key move "$AX" "$AY" wait 300 down wait 60 up wait 400
 waitfor 2
 shot quick-menu-all-3-back

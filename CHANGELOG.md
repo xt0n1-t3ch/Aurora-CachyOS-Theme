@@ -27,8 +27,8 @@ it changes. A change that needs a fresh install, or that an earlier backup canno
   and Baloo also read.
 - The sidebar's folders unfold: a folder you added shows a chevron that opens its subfolders, and Favorites,
   Locations and Tags fold away under their titles. Both are remembered.
-- Quick Menu's All Applications: the button at the top lists every app once under its first letter, like Windows' All
-  apps list, and Back returns to the sections.
+- Quick Menu's All Applications: the grid button beside ⋯ lists every app once under its first letter, like Windows'
+  All apps list, under a heading that reads like a section's, with Back where a section has Show More.
 - The toolbar's Group menu (by name, kind, date modified or size), a Share menu, and a More menu with hidden files,
   previews, sort, Get Info and Add to Sidebar.
 - Windows open, close, minimize and restore with Aurora Motion, a KWin effect in macOS's manner: a short scale and

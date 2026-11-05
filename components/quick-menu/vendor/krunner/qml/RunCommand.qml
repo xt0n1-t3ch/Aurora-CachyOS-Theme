@@ -362,6 +362,56 @@ Item {
                 }
             }
 
+            // All Applications: a ring like ⋯ beside it, with four squares for the app grid; filled while the list shows.
+            T.AbstractButton {
+                id: allAppsButton
+                readonly property int cell: Math.max(3, Math.round(width / 6))
+                visible: root.mode === "apps"
+                implicitWidth: Math.round(root.headerHeight * 0.5)
+                implicitHeight: implicitWidth
+                checkable: true
+                checked: apps.allApps
+                Accessible.name: checked ? i18nc("@action:button back from Quick Menu's list of every app", "Back to Suggestions")
+                                         : i18nc("@action:button Quick Menu's list of every app", "All Applications")
+                QQC2.ToolTip.visible: hovered
+                QQC2.ToolTip.text: Accessible.name
+                background: Rectangle {
+                    radius: width / 2
+                    color: allAppsButton.checked ? Qt.rgba(1, 1, 1, 0.9)
+                                                 : Qt.rgba(1, 1, 1, allAppsButton.hovered || allAppsButton.down ? 0.14 : 0)
+                    border.width: 1.5
+                    border.color: Qt.rgba(1, 1, 1, allAppsButton.checked ? 0.9 : 0.66)
+
+                    Behavior on color {
+                        ColorAnimation { duration: Kirigami.Units.shortDuration }
+                    }
+                }
+                contentItem: Item {
+                    Grid {
+                        anchors.centerIn: parent
+                        columns: 2
+                        spacing: Math.max(2, Math.round(allAppsButton.cell / 2))
+                        Repeater {
+                            model: 4
+                            Rectangle {
+                                width: allAppsButton.cell
+                                height: width
+                                radius: Math.max(1, width / 4)
+                                color: allAppsButton.checked ? Qt.rgba(0, 0, 0, 0.75) : Qt.rgba(1, 1, 1, 0.8)
+                            }
+                        }
+                    }
+                }
+                HoverHandler {
+                    cursorShape: Qt.PointingHandCursor
+                }
+                // The binding to apps.allApps stays: the click asks the view, and the view's state checks the button.
+                onClicked: {
+                    apps.showAllApps(!apps.allApps)
+                    checked = Qt.binding(() => apps.allApps)
+                }
+            }
+
             // Tahoe's ⋯: a ring with three dots, opening KRunner's own controls.
             T.AbstractButton {
                 id: moreButton

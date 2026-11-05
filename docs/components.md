@@ -62,9 +62,10 @@ KRunner from plasma-workspace 6.8.2 (`upstream/`, `vendor/`, `quick-menu.patch`)
 frameless glass window floating a quarter of the way down the active screen. With nothing typed it shows the
 Applications view: Suggestions (the apps used most, from Plasma's activity statistics through Kicker's
 `RecentUsageModel`) and Plasma's menu in Tahoe's sections (`quickmenu.js`: categories keyed by their `.directory`
-icon, merged, de-duplicated, sorted), one row of five per section until "Show More". "All Applications" at the top
-lists every app once under its first letter, accents filed under the plain letter and digits and signs under "#" first
-(`alphabeticalSections()`, like Windows' All apps), and "Back" returns. The arrow keys walk the grid, the
+icon, merged, de-duplicated, sorted), one row of five per section until "Show More". The grid button beside ⋯ in the search
+row opens All Applications: every app once under its first letter, accents filed under the plain letter and digits and signs under "#" first
+(`alphabeticalSections()`, like Windows' All apps), under a heading drawn like a section's with Back where a
+section has Show More; the button, filled while the list shows, also goes back. The arrow keys walk the grid, the
 pointer selects only when it really moves, Return launches. An app dragged onto another of its section takes that
 app's place, and the section keeps that order (`~/.config/aurora/quick-menu.conf`; Suggestions stay ordered by
 use). A right-click on an app, or the Menu key or Shift+F10 on the selected one, opens its menu (`QuickMenuPopup.qml`,
