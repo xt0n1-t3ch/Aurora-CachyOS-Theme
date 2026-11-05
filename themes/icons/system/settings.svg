@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+ <defs>
+  <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4c4c54"/><stop offset=".55" stop-color="#232328"/><stop offset="1" stop-color="#141417"/></linearGradient>
+  <radialGradient id="glow" cx="512" cy="530" r="430" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#2f6bff" stop-opacity=".62"/><stop offset=".45" stop-color="#5e5ce6" stop-opacity=".22"/><stop offset="1" stop-color="#5e5ce6" stop-opacity="0"/></radialGradient>
+  <linearGradient id="sheen" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".2"/><stop offset=".42" stop-color="#fff" stop-opacity="0"/></linearGradient>
+  <radialGradient id="drop" cx="512" cy="560" r="360" gradientUnits="userSpaceOnUse"><stop offset=".72" stop-color="#000" stop-opacity=".5"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient>
+  <linearGradient id="metal" x1="300" y1="200" x2="740" y2="860" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#ffffff"/><stop offset=".45" stop-color="#dcdce2"/><stop offset="1" stop-color="#8e8e96"/></linearGradient>
+  <linearGradient id="well" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#16161a"/><stop offset="1" stop-color="#3c3c43"/></linearGradient>
+  <linearGradient id="ring" x1="380" y1="390" x2="650" y2="660" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#7fdcff"/><stop offset=".5" stop-color="#0a84ff"/><stop offset="1" stop-color="#6e5bff"/></linearGradient>
+  <linearGradient id="hub" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#a5a5ad"/></linearGradient>
+ </defs>
+ <path d="M284.3288,100 H739.6712 C841.6050264,100 924,182.3949736 924,284.3288 V739.6712 C924,841.6050264 841.6050264,924 739.6712,924 H284.3288 C182.3949736,924 100,841.6050264 100,739.6712 V284.3288 C100,182.3949736 182.3949736,100 284.3288,100 Z" fill="url(#bg)"/>
+ <path d="M284.3288,100 H739.6712 C841.6050264,100 924,182.3949736 924,284.3288 V739.6712 C924,841.6050264 841.6050264,924 739.6712,924 H284.3288 C182.3949736,924 100,841.6050264 100,739.6712 V284.3288 C100,182.3949736 182.3949736,100 284.3288,100 Z" fill="url(#glow)"/>
+ <path d="M284.3288,100 H739.6712 C841.6050264,100 924,182.3949736 924,284.3288 V739.6712 C924,841.6050264 841.6050264,924 739.6712,924 H284.3288 C182.3949736,924 100,841.6050264 100,739.6712 V284.3288 C100,182.3949736 182.3949736,100 284.3288,100 Z" fill="url(#sheen)"/>
+ <circle cx="512" cy="548" r="360" fill="url(#drop)"/>
+ <path d="M458.6,257.4 L470.0,200.8 L554.0,200.8 L565.4,257.4 A268,268 0 0 1 597.0,265.8 L597.0,265.8 L635.2,222.5 L708.0,264.5 L689.6,319.3 A268,268 0 0 1 712.7,342.4 L712.7,342.4 L767.5,324.0 L809.5,396.8 L766.2,435.0 A268,268 0 0 1 774.6,466.6 L774.6,466.6 L831.2,478.0 L831.2,562.0 L774.6,573.4 A268,268 0 0 1 766.2,605.0 L766.2,605.0 L809.5,643.2 L767.5,716.0 L712.7,697.6 A268,268 0 0 1 689.6,720.7 L689.6,720.7 L708.0,775.5 L635.2,817.5 L597.0,774.2 A268,268 0 0 1 565.4,782.6 L565.4,782.6 L554.0,839.2 L470.0,839.2 L458.6,782.6 A268,268 0 0 1 427.0,774.2 L427.0,774.2 L388.8,817.5 L316.0,775.5 L334.4,720.7 A268,268 0 0 1 311.3,697.6 L311.3,697.6 L256.5,716.0 L214.5,643.2 L257.8,605.0 A268,268 0 0 1 249.4,573.4 L249.4,573.4 L192.8,562.0 L192.8,478.0 L249.4,466.6 A268,268 0 0 1 257.8,435.0 L257.8,435.0 L214.5,396.8 L256.5,324.0 L311.3,342.4 A268,268 0 0 1 334.4,319.3 L334.4,319.3 L316.0,264.5 L388.8,222.5 L427.0,265.8 A268,268 0 0 1 458.6,257.4 Z" fill="url(#metal)" stroke="#ffffff" stroke-opacity=".7" stroke-width="3" stroke-linejoin="round"/>
+ <circle cx="512" cy="520" r="196" fill="url(#well)" stroke="#000" stroke-opacity=".28" stroke-width="5"/>
+ <circle cx="512" cy="520" r="132" fill="none" stroke="url(#ring)" stroke-width="58" stroke-opacity=".22"/>
+ <circle cx="512" cy="520" r="132" fill="none" stroke="url(#ring)" stroke-width="30"/>
+ <circle cx="512" cy="520" r="72" fill="url(#hub)"/>
+ <circle cx="512" cy="520" r="24" fill="#2c2c30"/>
+ <path d="M285.1577,101.5 H738.8423 C840.4050081,101.5 922.5,183.59499189999997 922.5,285.1577 V738.8423 C922.5,840.4050081 840.4050081,922.5 738.8423,922.5 H285.1577 C183.59499189999997,922.5 101.5,840.4050081 101.5,738.8423 V285.1577 C101.5,183.59499189999997 183.59499189999997,101.5 285.1577,101.5 Z" fill="none" stroke="#fff" stroke-opacity=".16" stroke-width="3"/>
+</svg>

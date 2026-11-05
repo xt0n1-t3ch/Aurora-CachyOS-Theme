@@ -1,0 +1,16 @@
+# Aurora installs per user: the package holds the files, `aurora` sets up the desktop of whoever runs it.
+
+post_install() {
+    echo ':: Aurora is installed. Run `aurora` as your own user (not with sudo) to set up your desktop,'
+    echo '   then log out and back in.'
+}
+
+post_upgrade() {
+    echo ':: Aurora was updated. Run `aurora install --yes` as your own user to apply the new version,'
+    echo '   then log out and back in.'
+}
+
+pre_remove() {
+    echo ':: Before removing the package, run `aurora uninstall` as each user who installed Aurora, so their'
+    echo '   desktop goes back to how it was.'
+}

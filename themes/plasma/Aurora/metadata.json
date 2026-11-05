@@ -1,0 +1,22 @@
+{
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "xt0n1"
+            },
+            {
+                "Email": "vinceliuice@hotmail.com",
+                "Name": "Vince Liuice"
+            }
+        ],
+        "Category": "Plasma 6.0 theme",
+        "Description": "Aurora's glass: a see-through menu bar, the glass Dock and popups",
+        "EnabledByDefault": true,
+        "Id": "Aurora",
+        "License": "GPL-3.0",
+        "Name": "Aurora",
+        "Version": "6.2.0",
+        "Website": "https://github.com/xt0n1-t3ch/Aurora-CachyOS-Theme"
+    },
+    "X-Plasma-API": "5.0"
+}

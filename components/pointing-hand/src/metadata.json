@@ -1,0 +1,8 @@
+{
+    "KPlugin": {
+        "Id": "aurora-pointer",
+        "Name": "Pointing hand over window buttons",
+        "Description": "The pointing hand over the buttons of window decorations",
+        "EnabledByDefault": true
+    }
+}

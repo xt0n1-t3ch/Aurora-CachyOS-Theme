@@ -1,0 +1,12 @@
+# The Control Center's shared building blocks; Tokens is the singleton that holds its look.
+singleton Tokens 1.0 Tokens.qml
+Glass 1.0 Glass.qml
+GlassBlur 1.0 GlassBlur.qml
+Symbol 1.0 Symbol.qml
+ToggleCircle 1.0 ToggleCircle.qml
+ModulePill 1.0 ModulePill.qml
+RoundButton 1.0 RoundButton.qml
+SliderModule 1.0 SliderModule.qml
+Switch 1.0 Switch.qml
+DetailPanel 1.0 DetailPanel.qml
+ListRow 1.0 ListRow.qml

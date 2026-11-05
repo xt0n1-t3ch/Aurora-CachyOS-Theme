@@ -1,0 +1,23 @@
+# SPDX-FileCopyrightText: 2026 xt0n1 (https://github.com/xt0n1-t3ch)
+# SPDX-License-Identifier: GPL-3.0-only
+# How to credit Aurora. GitHub shows it as "Cite this repository"; scripts/release.sh writes the version and date.
+cff-version: 1.2.0
+message: "If you use, share or build on Aurora, please credit it as below."
+title: "Aurora"
+abstract: "A macOS Tahoe-inspired desktop for CachyOS and KDE Plasma 6, with the shortcuts you know from Windows."
+type: software
+authors:
+  - alias: "xt0n1"
+    website: "https://github.com/xt0n1-t3ch"
+repository-code: "https://github.com/xt0n1-t3ch/Aurora-CachyOS-Theme"
+license: GPL-3.0-only
+version: "0.0.0"
+keywords:
+  - kde-plasma
+  - plasma-6
+  - kde-theme
+  - macos-tahoe
+  - cachyos
+  - arch-linux
+  - linux-desktop
+  - kwin

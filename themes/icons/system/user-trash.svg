@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+ <defs>
+  <radialGradient id="ground" cx="512" cy="924" r="330" gradientTransform="matrix(1 0 0 .13 0 804)" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#000" stop-opacity=".5"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient>
+  <linearGradient id="glass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e8f3ff" stop-opacity=".46"/><stop offset=".55" stop-color="#bcd8ff" stop-opacity=".2"/><stop offset="1" stop-color="#e8f3ff" stop-opacity=".34"/></linearGradient>
+  <linearGradient id="gloss" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
+  <linearGradient id="rim" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".92"/><stop offset="1" stop-color="#d6e6ff" stop-opacity=".5"/></linearGradient>
+  <linearGradient id="paper" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#c7c7cc"/></linearGradient>
+ </defs>
+ <ellipse cx="512" cy="924" rx="330" ry="40" fill="url(#ground)"/>
+ <path d="M256,352 H768 L730,866 Q726,912 680,912 H344 Q298,912 294,866 Z" fill="url(#glass)" stroke="#fff" stroke-opacity=".62" stroke-width="7" stroke-linejoin="round"/>
+ <path d="M333.4,392 L360.6,858" stroke="#fff" stroke-opacity=".34" stroke-width="15" stroke-linecap="round"/><path d="M342.4,396 L368.6,858" stroke="#0b1a2e" stroke-opacity=".10" stroke-width="7" stroke-linecap="round"/><path d="M404.9,392 L421.1,858" stroke="#fff" stroke-opacity=".34" stroke-width="15" stroke-linecap="round"/><path d="M413.9,396 L429.1,858" stroke="#0b1a2e" stroke-opacity=".10" stroke-width="7" stroke-linecap="round"/><path d="M476.3,392 L481.7,858" stroke="#fff" stroke-opacity=".34" stroke-width="15" stroke-linecap="round"/><path d="M485.3,396 L489.7,858" stroke="#0b1a2e" stroke-opacity=".10" stroke-width="7" stroke-linecap="round"/><path d="M547.7,392 L542.3,858" stroke="#fff" stroke-opacity=".34" stroke-width="15" stroke-linecap="round"/><path d="M556.7,396 L550.3,858" stroke="#0b1a2e" stroke-opacity=".10" stroke-width="7" stroke-linecap="round"/><path d="M619.1,392 L602.9,858" stroke="#fff" stroke-opacity=".34" stroke-width="15" stroke-linecap="round"/><path d="M628.1,396 L610.9,858" stroke="#0b1a2e" stroke-opacity=".10" stroke-width="7" stroke-linecap="round"/><path d="M690.6,392 L663.4,858" stroke="#fff" stroke-opacity=".34" stroke-width="15" stroke-linecap="round"/><path d="M699.6,396 L671.4,858" stroke="#0b1a2e" stroke-opacity=".10" stroke-width="7" stroke-linecap="round"/>
+ <path d="M286,384 L318,880" stroke="url(#gloss)" stroke-width="26" stroke-linecap="round"/>
+ <rect x="226" y="300" width="572" height="64" rx="32" fill="url(#rim)" stroke="#fff" stroke-opacity=".95" stroke-width="4"/>
+ <rect x="256" y="318" width="512" height="30" rx="15" fill="#0b1626" fill-opacity=".32"/>
+</svg>

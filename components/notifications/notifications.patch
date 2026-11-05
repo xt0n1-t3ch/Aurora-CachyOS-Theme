@@ -1,0 +1,704 @@
+diff -ruN a/CMakeLists.txt b/CMakeLists.txt
+--- a/CMakeLists.txt	2026-11-04 14:31:44.760490227 -0500
++++ b/CMakeLists.txt	2026-11-04 14:40:28.059333592 -0500
+@@ -40,6 +40,9 @@
+     components/SpeedChart.qml
+     components/Summary.qml
+     components/ThumbnailStrip.qml
++    components/BannerGlass.qml
++    components/BannerBlur.qml
++    components/BannerBlurImpl.qml
+     PATH components
+ )
+ 
+@@ -67,6 +70,9 @@
+     NotificationPopup.qml
+ )
+ 
++# Aurora: the Control Center's glass shader, for the banner (components/BannerGlass.qml).
++qt_target_qml_sources(org.kde.plasma.notifications RESOURCES shaders/glass.frag.qsb)
++
+ qt_generate_wayland_protocol_client_sources(org.kde.plasma.notifications
+     PRIVATE_CODE
+     FILES
+diff -ruN a/components/BannerBlurImpl.qml b/components/BannerBlurImpl.qml
+--- a/components/BannerBlurImpl.qml	1969-12-31 19:00:00.000000000 -0500
++++ b/components/BannerBlurImpl.qml	2026-11-04 14:37:48.084320129 -0500
+@@ -0,0 +1,10 @@
++/*
++    SPDX-FileCopyrightText: 2026 xt0n1-t3ch
++    SPDX-License-Identifier: GPL-2.0-only OR GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
++*/
++import QtQuick
++import org.aurora.glass
++
++BlurBehind {
++    saturation: 1.6
++}
+diff -ruN a/components/BannerBlur.qml b/components/BannerBlur.qml
+--- a/components/BannerBlur.qml	1969-12-31 19:00:00.000000000 -0500
++++ b/components/BannerBlur.qml	2026-11-04 14:37:48.075480242 -0500
+@@ -0,0 +1,11 @@
++/*
++    SPDX-FileCopyrightText: 2026 xt0n1-t3ch
++    SPDX-License-Identifier: GPL-2.0-only OR GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
++*/
++// Frosts every BannerGlass in this window through org.aurora.glass. Without that module the banner is only
++// tinted, so the import lives in a file of its own that this Loader may fail to load.
++import QtQuick
++
++Loader {
++    source: Qt.resolvedUrl("BannerBlurImpl.qml")
++}
+diff -ruN a/components/BannerGlass.qml b/components/BannerGlass.qml
+--- a/components/BannerGlass.qml	1969-12-31 19:00:00.000000000 -0500
++++ b/components/BannerGlass.qml	2026-11-04 15:05:48.334944382 -0500
+@@ -0,0 +1,36 @@
++/*
++    SPDX-FileCopyrightText: 2026 xt0n1-t3ch
++    SPDX-License-Identifier: GPL-2.0-only OR GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
++*/
++// The notification banner's Liquid Glass, the same material as the Control Center's modules (its Glass.qml and
++// glass.frag): frosted by KWin behind its rounded shape (BannerBlur finds it through glassBlur), tinted, with a rim
++// lit from above and a soft shadow drawn into the window's transparent margin.
++import QtQuick
++
++Item {
++    id: glass
++
++    property real radius: 22
++    readonly property bool glassBlur: true
++
++    ShaderEffect {
++        readonly property real pad: Math.ceil(shadowSize * 1.6)
++        z: -1
++        x: -pad
++        y: -pad
++        width: glass.width + 2 * pad
++        height: glass.height + 2 * pad
++        property size boxSize: Qt.size(glass.width, glass.height)
++        property real radius: glass.radius
++        // Darker and denser than the Control Center's modules: a banner lands on any window, white pages included,
++        // and its white text has to stay readable there, as macOS's notification material does.
++        property vector4d tint: Qt.vector4d(0.13, 0.13, 0.15, 0.78)
++        property vector4d rimLight: Qt.vector4d(1, 1, 1, 0.55)
++        property vector4d rimShade: Qt.vector4d(1, 1, 1, 0.09)
++        property real rimWidth: 1.0
++        property real sheen: 0.06
++        property real shadowAlpha: 0.22
++        property real shadowSize: 12
++        fragmentShader: Qt.resolvedUrl("../shaders/glass.frag.qsb")
++    }
++}
+diff -ruN a/delegates/DelegatePopup.qml b/delegates/DelegatePopup.qml
+--- a/delegates/DelegatePopup.qml	2026-11-04 14:31:57.540382202 -0500
++++ b/delegates/DelegatePopup.qml	2026-11-04 15:03:52.115238168 -0500
+@@ -1,15 +1,20 @@
+ /*
+     SPDX-FileCopyrightText: 2018-2019 Kai Uwe Broulik <kde@privat.broulik.de>
+     SPDX-FileCopyrightText: 2024 Marco Martin <mart@kde.org>
++    SPDX-FileCopyrightText: 2026 xt0n1-t3ch
+ 
+     SPDX-License-Identifier: GPL-2.0-only OR GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
+ */
+ 
++// Aurora: the popup laid out like a macOS banner. The app icon sits large at the leading edge, the title is
++// bold with the time at the trailing end of its line, the body follows, and a notification's own image is a
++// thumbnail at the trailing edge. The app name is the title only when the notification has none, as macOS does
++// (Apple HIG, Notifications: "the system displays your app name if you don't provide a title").
++
+ import QtQuick
+ import QtQuick.Layouts
+ 
+ import org.kde.plasma.components as PlasmaComponents3
+-import org.kde.plasma.extras as PlasmaExtras
+ import org.kde.kirigami as Kirigami
+ import org.kde.kquickcontrolsaddons as KQuickControlsAddons
+ 
+@@ -18,156 +23,151 @@
+ 
+ import "../components" as Components
+ 
+-
+ BaseDelegate {
+     id: delegateRoot
+ 
+-    Layout.preferredWidth: (footerLoader.item as Item)?.implicitWidth ?? -1
+-
+     body: bodyLabel
+-    icon: icon
++    icon: thumbnail
+     footer: footerLoader.item as Item
+     columns: 3
++    rowSpacing: 2
++    columnSpacing: Kirigami.Units.gridUnit * 0.65
+ 
+     Accessible.role: Accessible.Notification
+ 
+-    readonly property int __firstColumn: modelInterface.urgency === NotificationManager.Notifications.CriticalUrgency ? 1 : 0
++    readonly property color primaryText: "#ffffff"
++    readonly property color secondaryText: Qt.rgba(1, 1, 1, 0.55)
+ 
+-    PlasmaExtras.PlasmoidHeading {
+-        id: heading
+-        topInset: 0
+-        Layout.fillWidth: true
+-        Layout.columnSpan: delegateRoot.__firstColumn + 2
+-        bottomPadding: 0
+-        // We want the close button borders to touch popup borders
+-        leftPadding: Layout.mirrored ? -delegateRoot.modelInterface.popupLeftPadding : 0
+-        rightPadding: Layout.mirrored ? 0 : -delegateRoot.modelInterface.popupRightPadding
+-
+-        // HACK PlasmoidHeading is a QQC2 Control which accepts left mouse button by default,
+-        // which breaks the popup default action mouse handler, cf. QTBUG-89785
+-        Component.onCompleted: Notifications.InputDisabler.makeTransparentForInput(this)
++    // The app's icon, or the notification's own when the app has none.
++    Kirigami.Icon {
++        id: appIcon
++        Layout.row: 0
++        Layout.column: 0
++        Layout.rowSpan: 2
++        Layout.alignment: Qt.AlignVCenter
++        implicitWidth: Kirigami.Units.iconSizes.medium
++        implicitHeight: Kirigami.Units.iconSizes.medium
++        source: delegateRoot.modelInterface.applicationIconSource || delegateRoot.modelInterface.icon || "preferences-desktop-notification"
++        smooth: true
++    }
+ 
+-        contentItem: Components.NotificationHeader {
+-            modelInterface: delegateRoot.modelInterface
+-        }
++    // Plasma's title logic (job states included), read by the visible title below.
++    Components.Summary {
++        id: summary
++        visible: false
++        modelInterface: delegateRoot.modelInterface
+     }
+ 
+-    // Horizontal timeout indicator
+-    Item {
++    RowLayout {
++        Layout.row: 0
++        Layout.column: 1
++        // Without a thumbnail the title line runs to the banner's edge, so the time sits at the trailing corner.
++        Layout.columnSpan: thumbnail.visible ? 1 : 2
+         Layout.fillWidth: true
+-        Layout.row: 1
+-        Layout.columnSpan: delegateRoot.__firstColumn + 2
+-        // Hug the top, left, and right
+-        Layout.topMargin: -((delegateRoot.rowSpacing * 2) + height)
+-        Layout.leftMargin: -delegateRoot.modelInterface.popupLeftPadding
+-        Layout.rightMargin: -delegateRoot.modelInterface.popupRightPadding
+-        implicitHeight: 2
+-        implicitWidth: -1
+-        visible: !criticalNotificationIndicator.visible && Notifications.Globals.notificationSettings.showPopupTimeout
+-
+-        Rectangle {
+-            readonly property real completionFraction: {
+-                if (delegateRoot.modelInterface.timeout === 0) {
+-                    return 0
+-                }
++        spacing: Kirigami.Units.smallSpacing
+ 
+-                return delegateRoot.modelInterface.remainingTime / delegateRoot.modelInterface.timeout
+-            }
+-
+-            height: parent.height
+-            width: Math.round(parent.width * completionFraction)
+-            anchors.left: parent.left
+-
+-            color: Kirigami.Theme.highlightColor
++        PlasmaComponents3.Label {
++            id: titleLabel
++            Layout.fillWidth: true
++            text: summary.text || delegateRoot.modelInterface.applicationName
++            textFormat: Text.PlainText
++            font.weight: Font.DemiBold
++            color: delegateRoot.primaryText
++            elide: Text.ElideRight
++            maximumLineCount: 1
+         }
+-    }
+-
+-    Rectangle {
+-        id: criticalNotificationIndicator
+-        Layout.fillHeight: true
+-        Layout.leftMargin: Layout.mirrored ? 0 : -delegateRoot.modelInterface.popupLeftPadding
+-        Layout.rightMargin: Layout.mirrored ? -delegateRoot.modelInterface.popupRightPadding : 0
+-        Layout.topMargin: -delegateRoot.rowSpacing
+-        Layout.bottomMargin: -delegateRoot.rowSpacing
+-        Layout.rowSpan: 3
+-
+-        implicitWidth: 4
+-        height: parent.height
+-        color: Kirigami.Theme.neutralTextColor
+-        visible: delegateRoot.modelInterface.urgency === NotificationManager.Notifications.CriticalUrgency
+-    }
+ 
+-    Components.Summary {
+-        id: summary
+-        // Base layout intentionally has no row spacing, so add top padding here when needed
+-        Layout.topMargin: delegateRoot.hasBodyText || icon.visible ? Kirigami.Units.smallSpacing : 0
+-        Layout.fillWidth: true
+-        Layout.row: 2
+-        Layout.column: delegateRoot.__firstColumn
+-        Layout.columnSpan: icon.visible ? 1 : 2
+-        modelInterface: delegateRoot.modelInterface
++        PlasmaComponents3.Label {
++            id: ageLabel
++            property string ageText: ""
++            text: ageText
++            visible: text !== ""
++            font: Kirigami.Theme.smallFont
++            color: delegateRoot.secondaryText
++
++            function update(): void {
++                const time = delegateRoot.modelInterface.time;
++                const job = delegateRoot.modelInterface.jobState;
++                if (!time || isNaN(time.getTime()) || job === NotificationManager.Notifications.JobStateRunning
++                        || job === NotificationManager.Notifications.JobStateSuspended) {
++                    ageText = "";
++                    return;
++                }
++                const minutes = Math.floor((Date.now() - time.getTime()) / 60000);
++                if (minutes < 1) {
++                    ageText = i18ndc("plasma_applet_org.kde.plasma.notifications", "Notification age, as macOS writes it", "now");
++                } else if (minutes < 60) {
++                    ageText = i18ndcp("plasma_applet_org.kde.plasma.notifications", "Notification was added minutes ago, keep short", "%1 min ago", "%1 min ago", minutes);
++                } else {
++                    ageText = Qt.formatTime(time, Qt.locale().timeFormat(Locale.ShortFormat).replace(/.ss?/i, ""));
++                }
++            }
+ 
+-        KQuickControlsAddons.MouseEventListener {
+-            anchors.fill: parent
+-            visible: delegateRoot.modelInterface.hasDefaultAction && !delegateRoot.hasBodyText
+-            onClicked: delegateRoot.modelInterface.defaultActionInvoked();
++            Component.onCompleted: update()
++            Connections {
++                target: delegateRoot.modelInterface
++                function onTimeChanged(): void { ageLabel.update(); }
++            }
++            Connections {
++                target: Notifications.Globals
++                function onTimeChanged(): void { ageLabel.update(); }
++            }
+         }
+     }
+ 
+-    Components.Icon {
+-        id: icon
+-        // Base layout intentionally has no row spacing, so add top padding here
+-        Layout.topMargin: Kirigami.Units.smallSpacing
+-        Layout.row: 2
+-        Layout.column: delegateRoot.__firstColumn + 1
+-        Layout.rowSpan: 2
+-        modelInterface: delegateRoot.modelInterface
+-    }
+-
+     KQuickControlsAddons.MouseEventListener {
+-        // Base layout intentionally has no row spacing, so add top padding here when needed
+-        Layout.topMargin: summary.visible ? 0 : Kirigami.Units.smallSpacing
++        Layout.row: 1
++        Layout.column: 1
++        Layout.columnSpan: thumbnail.visible ? 1 : 2
+         Layout.fillWidth: true
+-        Layout.fillHeight: true
+-        Layout.row: summary.visible ? 3 : 2
+-        Layout.column: delegateRoot.__firstColumn
+-        Layout.columnSpan: icon.visible ? 1 : 2
+-        Layout.maximumHeight: Kirigami.Units.gridUnit * delegateRoot.modelInterface.maximumLineCount
+-        // The body doesn't need to influence the implicit width in any way, this avoids a binding loop
+-        implicitWidth: -1
+-        implicitHeight: scroll.implicitHeight
++        Layout.maximumHeight: bodyMetrics.lineSpacing * 4
++        implicitWidth: -1 // the body does not drive the width, which avoids a binding loop
++        implicitHeight: Math.min(bodyLabel.implicitHeight, bodyMetrics.lineSpacing * 4)
+         visible: delegateRoot.hasBodyText
++        clip: true
+         onClicked: {
+             if (delegateRoot.modelInterface.hasDefaultAction && !delegateRoot.hoveredLink) {
+                 delegateRoot.modelInterface.defaultActionInvoked();
+             }
+         }
+-        PlasmaComponents3.ScrollView {
+-            id: scroll
+-            anchors.fill: parent
+-            contentWidth: bodyLabel.width
+-
+-            // This avoids a binding loop
+-            PlasmaComponents3.ScrollBar.vertical.visible: delegateRoot.modelInterface.maximumLineCount > 0 && bodyLabel.implicitHeight > parent.Layout.maximumHeight
+-            PlasmaComponents3.ScrollBar.horizontal.visible: false
+-
+-            Components.Body {
+-                id: bodyLabel
+-                width: scroll.width - scroll.PlasmaComponents3.ScrollBar.vertical.width
+-                modelInterface: delegateRoot.modelInterface
+-                Accessible.ignored: true // ignore HTML body in favor of Accessible.description on delegateRoot
+-            }
++
++        FontMetrics {
++            id: bodyMetrics
++            font: bodyLabel.font
+         }
++
++        Components.Body {
++            id: bodyLabel
++            width: parent.width
++            opacity: 0.88
++            modelInterface: delegateRoot.modelInterface
++            Accessible.ignored: true // ignore HTML body in favor of Accessible.description on delegateRoot
++        }
++    }
++
++    // A notification's own picture (a screenshot, an album cover), as a thumbnail at the trailing edge.
++    Components.Icon {
++        id: thumbnail
++        Layout.row: 0
++        Layout.column: 2
++        Layout.rowSpan: 2
++        Layout.alignment: Qt.AlignVCenter
++        implicitWidth: Kirigami.Units.iconSizes.large
++        implicitHeight: Kirigami.Units.iconSizes.large
++        modelInterface: delegateRoot.modelInterface
++        // Without an app icon the leading icon already shows the notification's own, so it is not shown twice.
++        source: delegateRoot.modelInterface.applicationIconSource
++                && delegateRoot.modelInterface.icon !== delegateRoot.modelInterface.applicationIconSource ? delegateRoot.modelInterface.icon : null
+     }
+ 
+     Components.FooterLoader {
+         id: footerLoader
+-        Layout.fillWidth: true
+-        Layout.row: 4
+-        Layout.column: delegateRoot.__firstColumn
++        Layout.row: 2
++        Layout.column: 1
+         Layout.columnSpan: 2
++        Layout.fillWidth: true
++        Layout.topMargin: item ? Kirigami.Units.smallSpacing : 0
+         modelInterface: delegateRoot.modelInterface
+-        iconContainerItem: icon
++        iconContainerItem: thumbnail
+     }
+ }
+-
+diff -ruN a/global/Globals.qml b/global/Globals.qml
+--- a/global/Globals.qml	2026-11-04 14:32:01.179351479 -0500
++++ b/global/Globals.qml	2026-11-04 14:40:28.059066094 -0500
+@@ -182,11 +182,15 @@
+     // Make it wider when on the top or the bottom center, since there's more horizontal
+     // space available without looking weird
+     // On mobile however we don't really want to have larger notifications
+-    property int popupWidth: (popupLocation & Qt.AlignHCenter) && !Kirigami.Settings.isMobile ? Kirigami.Units.gridUnit * 22 : Kirigami.Units.gridUnit * 18
+-    property int popupEdgeDistance: Kirigami.Units.gridUnit * 2
++    // Aurora: popups are macOS banners (NotificationPopup.qml) of 356 px at the default font, drawn inside a
++    // transparent margin of gridUnit * 0.8 for their shadow; edge distance and spacing count that margin in, so a
++    // banner sits about 18 px from the screen edges and 8 px from the next banner, as on macOS.
++    readonly property int bannerMargin: Kirigami.Units.gridUnit * 0.8
++    property int popupWidth: Math.round(Kirigami.Units.gridUnit * 19.75)
++    property int popupEdgeDistance: Kirigami.Units.smallSpacing
+     // Reduce spacing between popups when centered so the stack doesn't intrude into the
+     // view as much
+-    property int popupSpacing: (popupLocation & Qt.AlignHCenter) && !Kirigami.Settings.isMobile ? Kirigami.Units.smallSpacing : Kirigami.Units.gridUnit
++    property int popupSpacing: Kirigami.Units.smallSpacing * 2 - 2 * bannerMargin
+ 
+     // How much vertical screen real estate the notification popups may consume
+     readonly property real popupMaximumScreenFill: 0.8
+diff -ruN a/NotificationPopup.qml b/NotificationPopup.qml
+--- a/NotificationPopup.qml	2026-11-04 14:31:47.400467896 -0500
++++ b/NotificationPopup.qml	2026-11-04 14:39:57.410576711 -0500
+@@ -13,6 +13,7 @@
+ import org.kde.notificationmanager as NotificationManager
+ import plasma.applet.org.kde.plasma.notifications as NotificationsApplet
+ 
++import "components" as Components
+ import "delegates" as Delegates
+ 
+ NotificationsApplet.NotificationWindow {
+@@ -21,6 +22,16 @@
+     property int popupWidth
+     property bool showPopupTimeout
+ 
++    // Aurora: a macOS banner of popupWidth, on glass, inside a transparent margin that holds its shadow and
++    // the close button that overhangs its top-left corner on hover. The window takes input only over the banner.
++    readonly property int bannerMargin: Kirigami.Units.gridUnit * 0.8
++    readonly property int bannerRadius: Kirigami.Units.gridUnit * 1.2
++    readonly property int bannerPaddingH: Kirigami.Units.gridUnit * 0.75
++    readonly property int bannerPaddingV: Kirigami.Units.gridUnit * 0.65
++    readonly property bool showControls: focusListener.containsMouse
++    inputRect: Qt.rect(bannerMargin - closeButton.overhang, bannerMargin - closeButton.overhang,
++                       popupWidth + 2 * closeButton.overhang, height - 2 * bannerMargin + 2 * closeButton.overhang)
++
+     // Maximum width the popup can take to not break out of the screen geometry.
+     readonly property int availableWidth: NotificationsApplet.Globals.screenRect.width - NotificationsApplet.Globals.popupEdgeDistance * 2 - leftPadding - rightPadding
+ 
+@@ -61,8 +72,19 @@
+         id: focusListener
+         property bool wantsFocus: false
+ 
+-        implicitWidth: Math.min(Math.max(notificationPopup.minimumContentWidth, notificationItem.Layout.preferredWidth), Math.max(notificationPopup.minimumContentWidth, notificationPopup.maximumContentWidth))
+-        implicitHeight: notificationItem.implicitHeight
++        implicitWidth: notificationPopup.popupWidth + 2 * notificationPopup.bannerMargin
++        implicitHeight: notificationItem.implicitHeight + 2 * (notificationPopup.bannerPaddingV + notificationPopup.bannerMargin)
++
++        Components.BannerGlass {
++            id: banner
++            x: notificationPopup.bannerMargin
++            y: notificationPopup.bannerMargin
++            width: notificationPopup.popupWidth
++            height: parent.height - 2 * notificationPopup.bannerMargin
++            radius: notificationPopup.bannerRadius
++        }
++
++        Components.BannerBlur {}
+ 
+         acceptedButtons: Qt.AllButtons
+         hoverEnabled: true
+@@ -119,12 +141,11 @@
+         }
+ 
+         DraggableDelegate {
+-            anchors {
+-                fill: parent
+-                topMargin: notificationPopup.modelInterface.closable || notificationPopup.modelInterface.dismissable || notificationPopup.modelInterface.configurable ? -notificationPopup.topPadding : 0
+-            }
+-            leftPadding: 0
+-            rightPadding: 0
++            anchors.fill: banner
++            leftPadding: notificationPopup.bannerPaddingH
++            rightPadding: notificationPopup.bannerPaddingH
++            topPadding: notificationPopup.bannerPaddingV
++            bottomPadding: notificationPopup.bannerPaddingV
+             hoverEnabled: true
+             draggable: notificationItem.modelInterface.notificationType != NotificationManager.Notifications.JobType
+             onDismissRequested: NotificationsApplet.Globals.popupNotificationsModel.close(NotificationsApplet.Globals.popupNotificationsModel.index(notificationItem.modelInterface.index, 0))
+@@ -201,10 +222,10 @@
+                     maximumLineCount: 8
+                     bodyCursorShape: modelInterface.hasDefaultAction ? Qt.PointingHandCursor : 0
+ 
+-                    popupLeftPadding: notificationPopup.leftPadding
+-                    popupTopPadding: notificationPopup.topPadding
+-                    popupRightPadding: notificationPopup.rightPadding
+-                    popupBottomPadding: notificationPopup.bottomPadding
++                    popupLeftPadding: notificationPopup.bannerPaddingH
++                    popupTopPadding: notificationPopup.bannerPaddingV
++                    popupRightPadding: notificationPopup.bannerPaddingH
++                    popupBottomPadding: notificationPopup.bannerPaddingV
+ 
+                     // When notification is updated, restart hide timer
+                     onTimeChanged: {
+@@ -224,5 +245,68 @@
+                 }
+             }
+         }
++
++        // macOS shows the close button on hover, overhanging the banner's top-left corner.
++        BannerButton {
++            id: closeButton
++            x: banner.x - overhang
++            y: banner.y - overhang
++            visible: notificationPopup.modelInterface.closable
++            shown: notificationPopup.showControls
++            iconName: "window-close-symbolic"
++            text: i18nd("plasma_applet_org.kde.plasma.notifications", "Close")
++            onClicked: notificationPopup.modelInterface.closeClicked()
++        }
++
++        // Plasma's per-app settings stay one click away, at the opposite corner.
++        BannerButton {
++            x: banner.x + banner.width - width + overhang
++            y: banner.y - overhang
++            visible: notificationPopup.modelInterface.configurable
++            shown: notificationPopup.showControls
++            iconName: "configure-symbolic"
++            text: notificationPopup.modelInterface.configureActionLabel || i18nd("plasma_applet_org.kde.plasma.notifications", "Configure")
++            onClicked: notificationPopup.modelInterface.configureClicked()
++        }
++    }
++
++    component BannerButton: Rectangle {
++        id: button
++        readonly property int overhang: Math.round(width / 3)
++        property string iconName
++        property string text
++        signal clicked
++
++        width: Kirigami.Units.iconSizes.small + Kirigami.Units.smallSpacing * 2
++        height: width
++        radius: width / 2
++        color: buttonArea.containsMouse ? Qt.rgba(0.30, 0.30, 0.33, 0.96) : Qt.rgba(0.20, 0.20, 0.22, 0.94)
++        border.color: Qt.rgba(1, 1, 1, 0.16)
++        border.width: 1
++        property bool shown
++        opacity: shown ? 1 : 0
++        enabled: opacity > 0
++        Behavior on opacity {
++            NumberAnimation { duration: Kirigami.Units.shortDuration; easing.type: Easing.OutCubic }
++        }
++        Accessible.role: Accessible.Button
++        Accessible.name: text
++
++        Kirigami.Icon {
++            anchors.centerIn: parent
++            width: Math.round(parent.width * 0.55)
++            height: width
++            source: button.iconName
++            color: "#ffffff"
++            isMask: true
++        }
++
++        MouseArea {
++            id: buttonArea
++            anchors.fill: parent
++            hoverEnabled: true
++            cursorShape: Qt.PointingHandCursor
++            onClicked: button.clicked()
++        }
+     }
+-}
++}
+\ No newline at end of file
+diff -ruN a/notificationwindow.cpp b/notificationwindow.cpp
+--- a/notificationwindow.cpp	2026-11-04 14:32:06.241308766 -0500
++++ b/notificationwindow.cpp	2026-11-04 14:40:10.506142350 -0500
+@@ -6,11 +6,15 @@
+ #include "notificationwindow.h"
+ 
+ #include <KWindowSystem>
++#include <QRegion>
++#include <QResizeEvent>
+ #include <KX11Extras>
+ #include <PlasmaQuick/PlasmaShellWaylandIntegration>
+ 
++// Aurora: the banner draws its own glass (NotificationPopup.qml), so the window takes no theme frame: an image
++// path the theme does not have leaves PlasmaWindow without background, margins or shadow.
+ NotificationWindow::NotificationWindow()
+-    : PlasmaQuick::PlasmaWindow()
++    : PlasmaQuick::PlasmaWindow(QStringLiteral("aurora/no-frame"))
+ {
+     PlasmaShellWaylandIntegration::get(this)->setRole(QtWayland::org_kde_plasma_surface::role_notification);
+     PlasmaShellWaylandIntegration::get(this)->setTakesFocus(false);
+@@ -83,3 +87,27 @@
+ }
+ 
+ #include "moc_notificationwindow.cpp"
++
++QRectF NotificationWindow::inputRect() const
++{
++    return m_inputRect;
++}
++
++void NotificationWindow::setInputRect(const QRectF &rect)
++{
++    if (m_inputRect == rect) {
++        return;
++    }
++    m_inputRect = rect;
++    setMask(QRegion(rect.toAlignedRect()));
++    Q_EMIT inputRectChanged();
++}
++
++void NotificationWindow::resizeEvent(QResizeEvent *event)
++{
++    PlasmaQuick::PlasmaWindow::resizeEvent(event);
++    // PlasmaWindow resets the mask from its (empty) frame when the frame changes size.
++    if (!m_inputRect.isEmpty()) {
++        setMask(QRegion(m_inputRect.toAlignedRect()));
++    }
++}
+diff -ruN a/notificationwindow.h b/notificationwindow.h
+--- a/notificationwindow.h	2026-11-04 14:32:06.752304456 -0500
++++ b/notificationwindow.h	2026-11-04 14:40:10.505941651 -0500
+@@ -13,6 +13,9 @@
+     QML_ELEMENT
+     Q_PROPERTY(bool takeFocus READ takeFocus WRITE setTakeFocus NOTIFY takeFocusChanged)
+     Q_PROPERTY(bool isCritical READ isCritical WRITE setIsCritical NOTIFY isCriticalChanged FINAL)
++    // Aurora: the part of the window that takes input (the banner); the transparent margin around it holds
++    // only the banner's shadow, so clicks there reach whatever is below.
++    Q_PROPERTY(QRectF inputRect READ inputRect WRITE setInputRect NOTIFY inputRectChanged FINAL)
+ public:
+     NotificationWindow();
+     ~NotificationWindow() override;
+@@ -23,14 +26,20 @@
+     bool isCritical() const;
+     void setIsCritical(bool critical);
+ 
++    QRectF inputRect() const;
++    void setInputRect(const QRectF &rect);
++
+ protected:
+     bool event(QEvent *e) override;
+     void moveEvent(QMoveEvent *) override;
++    void resizeEvent(QResizeEvent *) override;
+ Q_SIGNALS:
+     void takeFocusChanged();
+     void isCriticalChanged();
++    void inputRectChanged();
+ 
+ private:
+     bool m_takeFocus = false;
+     bool m_critical = false;
++    QRectF m_inputRect;
+ };
+diff -ruN a/shaders/glass.frag b/shaders/glass.frag
+--- a/shaders/glass.frag	1969-12-31 19:00:00.000000000 -0500
++++ b/shaders/glass.frag	2026-11-04 14:37:48.068480300 -0500
+@@ -0,0 +1,57 @@
++#version 440
++// SPDX-License-Identifier: GPL-3.0-only
++// Liquid Glass for one Control Center module: a tinted rounded body, a rim that is bright where it faces up and
++// faint where it faces down, and a soft shadow in the transparent margin around it. Output is premultiplied.
++// Build: qsb --qt6 -o package/contents/ui/shaders/glass.frag.qsb tools/shaders/glass.frag
++layout(location = 0) in vec2 qt_TexCoord0;
++layout(location = 0) out vec4 fragColor;
++
++layout(std140, binding = 0) uniform buf {
++    mat4 qt_Matrix;
++    float qt_Opacity;
++    vec2 boxSize;
++    float pad;
++    float radius;
++    vec4 tint;
++    vec4 rimLight;
++    vec4 rimShade;
++    float rimWidth;
++    float sheen;
++    float shadowAlpha;
++    float shadowSize;
++};
++
++float roundedBox(vec2 p, vec2 halfSize, float r)
++{
++    vec2 q = abs(p) - halfSize + vec2(r);
++    return length(max(q, vec2(0.0))) + min(max(q.x, q.y), 0.0) - r;
++}
++
++void main()
++{
++    vec2 full = boxSize + vec2(2.0 * pad);
++    vec2 p = qt_TexCoord0 * full - 0.5 * full;
++    float r = min(radius, 0.5 * min(boxSize.x, boxSize.y));
++    float d = roundedBox(p, 0.5 * boxSize, r);
++
++    float shadowDistance = roundedBox(p - vec2(0.0, 0.3 * shadowSize), 0.5 * boxSize, r);
++    float shadow = shadowAlpha * (1.0 - smoothstep(-0.4 * shadowSize, shadowSize, shadowDistance));
++    vec4 outside = vec4(0.0, 0.0, 0.0, shadow);
++
++    float coverage = clamp(0.5 - d, 0.0, 1.0);
++
++    float y = clamp((p.y + 0.5 * boxSize.y) / boxSize.y, 0.0, 1.0);
++    vec3 bodyRgb = tint.rgb + vec3(sheen * (1.0 - smoothstep(0.0, 0.75, y)));
++    vec4 body = vec4(bodyRgb * tint.a, tint.a);
++
++    vec2 q = abs(p) - 0.5 * boxSize + vec2(r);
++    vec2 s = vec2(p.x < 0.0 ? -1.0 : 1.0, p.y < 0.0 ? -1.0 : 1.0);
++    vec2 n = (q.x > 0.0 && q.y > 0.0) ? normalize(q) * s : (q.x > q.y ? vec2(s.x, 0.0) : vec2(0.0, s.y));
++    float facing = clamp(0.5 - 0.5 * n.y, 0.0, 1.0);
++    vec4 rimColour = mix(rimShade, rimLight, facing * facing);
++    float band = 1.0 - smoothstep(rimWidth - 0.6, rimWidth + 0.6, -d);
++    vec4 rim = vec4(rimColour.rgb * rimColour.a, rimColour.a) * band;
++
++    vec4 glass = rim + body * (1.0 - rim.a);
++    fragColor = (glass * coverage + outside * (1.0 - coverage)) * qt_Opacity;
++}
+Binary files a/shaders/glass.frag.qsb and b/shaders/glass.frag.qsb differ

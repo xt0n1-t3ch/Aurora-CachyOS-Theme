@@ -1,0 +1,24 @@
+{
+    "KPackageStructure": "Plasma/Applet",
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "xt0n1"
+            },
+            {
+                "Email": "chrtall@gmx.com",
+                "Name": "Christian Tallner"
+            }
+        ],
+        "Category": "Application Launchers",
+        "Description": "The menu behind the menu bar's logo: About This Computer, Settings, Sleep, Restart, Shut Down and Log Out",
+        "EnabledByDefault": true,
+        "Icon": "start-here-kde",
+        "Id": "org.aurora.logomenu",
+        "License": "LGPL-2.0",
+        "Name": "Logo Menu",
+        "Version": "6.0",
+        "Website": "https://github.com/xt0n1-t3ch/Aurora-CachyOS-Theme"
+    },
+    "X-Plasma-API-Minimum-Version": "6.0"
+}

@@ -1,0 +1,18 @@
+{
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "Aurora"
+            }
+        ],
+        "Category": "Date and Time",
+        "Description": "The macOS menu bar clock: date and time on one line, a calendar on click",
+        "Icon": "preferences-system-time",
+        "Id": "org.aurora.clock",
+        "License": "GPL-3.0-only",
+        "Name": "Menu Bar Clock",
+        "Version": "1.0.0"
+    },
+    "X-Plasma-API-Minimum-Version": "6.0",
+    "KPackageStructure": "Plasma/Applet"
+}

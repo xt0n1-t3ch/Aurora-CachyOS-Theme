@@ -1,0 +1,99 @@
+# Maintainer: xt0n1 <xt0n1@black-watch.net>
+#
+# Aurora, built: its parts are compiled here, against the Plasma, KWin and Qt of the machine that builds the package,
+# and ship in /usr/lib/aurora/prebuilt, next to the theme's files in /usr/share/aurora; the aurora command goes to /usr/bin. Each user then
+# runs `aurora`, which installs them into that user's home folder and compiles nothing. scripts/release.sh writes
+# pkgver and the checksum for every release; a new Plasma raises pkgrel and builds the parts again
+# (docs/releasing.md).
+
+pkgname=aurora-theme
+pkgver=1.0.0
+pkgrel=1
+pkgdesc='A macOS Tahoe-inspired desktop for CachyOS and KDE Plasma 6, with the shortcuts you know from Windows'
+arch=('x86_64')
+url='https://github.com/xt0n1-t3ch/Aurora-CachyOS-Theme'
+# Aurora's own code is GPL-3.0-only with the additional terms of NOTICE.md (LicenseRef-Aurora-Additional-Terms);
+# the parts built from Plasma's sources are GPL-2.0-or-later; the other projects and the README's pictures keep their
+# own licenses (NOTICE.md lists which covers what).
+license=('GPL-3.0-only' 'LicenseRef-Aurora-Additional-Terms' 'GPL-2.0-or-later' 'GPL-3.0-or-later' 'LGPL-3.0-only'
+         'MIT' 'CC-BY-SA-4.0')
+# installer/dependencies.txt (what Aurora runs with), then what the aurora command itself needs: the libraries it
+# links and the programs it runs. tests/release/test_pkgbuild.sh keeps these lists equal to the files.
+depends=(
+    'qt6-base' 'qt6-declarative' 'qt6-svg' 'qt6-tools' 'qt6-5compat' 'kconfig' 'kcoreaddons' 'kcrash' 'kdbusaddons'
+    'kglobalaccel' 'ki18n' 'kiconthemes' 'kio' 'kitemmodels' 'kjobwidgets' 'knotifications' 'kparts' 'kpackage'
+    'krunner' 'kservice' 'kstatusnotifieritem' 'kwindowsystem' 'kxmlgui' 'kcmutils' 'solid' 'kirigami'
+    'kirigami-addons' 'kdeclarative' 'ksvg' 'kquickcharts' 'plasma-workspace' 'plasma-activities' 'libplasma' 'kwin'
+    'kdecoration' 'layer-shell-qt' 'wayland' 'dolphin' 'kinfocenter' 'xdg-desktop-portal' 'xdg-desktop-portal-kde'
+    'plasma5support' 'milou' 'plasma-nm' 'plasma-pa' 'bluez-qt' 'powerdevil' 'kvantum' 'dconf' 'xsettingsd'
+    'fontconfig' 'inter-font' 'ttf-jetbrains-mono-nerd' 'systemd' 'dbus' 'python' 'python-pillow' 'glibc' 'libgcc'
+    'curl' 'tar'
+)
+# installer/build-dependencies.txt, and Rust for the aurora command.
+makedepends=('base-devel' 'git' 'cmake' 'ninja' 'extra-cmake-modules' 'qt6-shadertools' 'cargo')
+optdepends=(
+    'apple-fonts: SF Pro from Apple, used for the interface instead of Inter when installed'
+    'scx-scheds: the optional CPU scheduler tuning (aurora install --performance)'
+    'scx-tools: the optional CPU scheduler tuning (aurora install --performance)'
+)
+install=aurora-theme.install
+options=('!debug')
+source=("aurora-$pkgver.tar.gz::$url/releases/download/v$pkgver/aurora-$pkgver.tar.gz")
+sha256sums=('f4f47a08254814a95db56277cd5b20ad2d22f0eb0babbde90bfb01df4018d407')
+
+prepare() {
+    cd "aurora-$pkgver/cli"
+    export RUSTUP_TOOLCHAIN=${RUSTUP_TOOLCHAIN:-stable}
+    cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
+}
+
+build() {
+    cd "aurora-$pkgver/cli"
+    export RUSTUP_TOOLCHAIN=${RUSTUP_TOOLCHAIN:-stable}
+    export CARGO_TARGET_DIR=target
+    cargo build --frozen --release
+    # The parts, built for this machine's Plasma, KWin and Qt; build.sh fails when one of them does not build. Then
+    # only what the install copies goes into prebuilt/, with the icons and the GTK theme unpacked.
+    cd "$srcdir/aurora-$pkgver"
+    # build/ inside the sources, as in a checkout, so a compiler cache filled by any earlier build of these sources
+    # answers most of this one.
+    BUILD_DIR="$srcdir/aurora-$pkgver/build" installer/build.sh file-explorer window-buttons glass energy-page \
+        pointing-hand system-tray notifications quick-menu
+    BUILD_DIR="$srcdir/aurora-$pkgver/build" python3 -I installer/install.py export "$srcdir/prebuilt"
+}
+
+check() {
+    cd "aurora-$pkgver/cli"
+    export RUSTUP_TOOLCHAIN=${RUSTUP_TOOLCHAIN:-stable}
+    export CARGO_TARGET_DIR=target
+    cargo test --frozen
+}
+
+package() {
+    cd "aurora-$pkgver"
+    install -Dm755 cli/target/release/aurora "$pkgdir/usr/bin/aurora"
+    # What the install reads: the built parts (prebuilt/), the scripts, the themes, the tuning files, and the parts'
+    # sources for `aurora rebuild` (their CMake files build tests/ and tools/ too). Plasma's reference copies
+    # (upstream/), the measuring tools, the repository's tests, art and release tooling stay out.
+    local share="$pkgdir/usr/share/aurora"
+    install -d "$share/performance"
+    cp -a --no-preserve=ownership install.sh uninstall.sh VERSION LICENSE NOTICE.md components installer themes \
+        "$share/"
+    # The built parts are machine code, so they live in /usr/lib; install.sh finds them through the link.
+    install -d "$pkgdir/usr/lib/aurora"
+    cp -a --no-preserve=ownership "$srcdir/prebuilt" "$pkgdir/usr/lib/aurora/prebuilt"
+    ln -s /usr/lib/aurora/prebuilt "$share/prebuilt"
+    cp -a --no-preserve=ownership performance/system "$share/performance/"
+    rm -rf "$share"/components/*/upstream
+    install -d "$pkgdir/usr/share/doc/$pkgname"
+    cp -a --no-preserve=ownership README.md CHANGELOG.md docs "$pkgdir/usr/share/doc/$pkgname/"
+    install -Dm644 LICENSE NOTICE.md -t "$pkgdir/usr/share/licenses/$pkgname/"
+    # The loop variable must not be named `license`: makepkg reads that array after package() runs.
+    # LICENSE* also matches a LICENSES folder, like the Kali menu's.
+    local file
+    for file in components/*/LICENSE* themes/*/LICENSE themes/*/*/LICENSE; do
+        [ -e "$file" ] || continue
+        cp -a --no-preserve=ownership "$file" \
+            "$pkgdir/usr/share/licenses/$pkgname/$(dirname "$file" | tr / -)-$(basename "$file")"
+    done
+}

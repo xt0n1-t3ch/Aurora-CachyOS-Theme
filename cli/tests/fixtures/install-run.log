@@ -1,0 +1,79 @@
+
+[1m==> 1/6 Packages[0m
+every package is installed
+
+[1m==> 2/6 Themes[0m
+all present
+
+[1m==> 3/6 Building the parts for Plasma 6.8.2[0m
+file-explorer
+window-buttons: KDecoration 6.8.2
+glass
+energy-page
+pointing-hand: KWin 6.8.2
+system-tray: Plasma 6.8.2, from vendor/
+notifications: Plasma 6.8.2, from vendor/
+quick-menu: Plasma 6.8.2, from vendor/
+all parts built in /home/user/Aurora-CachyOS-Theme/build
+
+[1m==> 4/6 Installing into /home/user[0m
+backup kept: /home/user/.local/state/aurora/backups/20261104-060825 (the desktop from before the theme)
++ fc-cache -f /home/user/.local/share/fonts
++ /usr/bin/python3 -I /home/user/Aurora-CachyOS-Theme/themes/icons/build_icon_theme.py /home/user/.local/share/icons/Aurora-dark /home/user/.local/share/icons
++ /usr/bin/python3 -I /home/user/Aurora-CachyOS-Theme/themes/icons/status_glyphs.py /home/user/.local/share/icons/Aurora-dark
++ systemctl --user try-restart plasma-krunner.service
++ qdbus6 org.kde.KWin /Plugins org.kde.KWin.Plugins.LoadPlugin aurora-pointer
++ busctl --user call org.freedesktop.DBus /org/freedesktop/DBus org.freedesktop.DBus ReloadConfig
++ systemctl --user daemon-reload
++ systemctl --user try-restart plasma-krunner.service
++ kbuildsycoca6
+files installed
+
+[1m==> 5/6 System[0m
+nothing to change
+
+[1m==> 6/6 Look and panels[0m
++ kwriteconfig6 --file /home/user/.config/kdeglobals --group General --key font SF Pro Text,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1
++ kwriteconfig6 --file /home/user/.config/kdeglobals --group General --key menuFont SF Pro Text,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1
++ kwriteconfig6 --file /home/user/.config/kdeglobals --group General --key toolBarFont SF Pro Text,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1
++ kwriteconfig6 --file /home/user/.config/kdeglobals --group General --key smallestReadableFont SF Pro Text,8,-1,5,400,0,0,0,0,0,0,0,0,0,0,1
++ kwriteconfig6 --file /home/user/.config/kdeglobals --group WM --key activeFont SF Pro Text,10,-1,5,600,0,0,0,0,0,0,0,0,0,0,1
++ kwriteconfig6 --file /home/user/.config/kdeglobals --group Locale --key BinaryUnitDialect 2
++ kwriteconfig6 --file /home/user/.config/dolphinrc --group DetailsMode --key IconSize 16
++ kwriteconfig6 --file /home/user/.config/dolphinrc --group DetailsMode --key PreviewSize 16
++ kwriteconfig6 --file /home/user/.config/Kvantum/kvantum.kvconfig --group General --key theme Aurora
++ kwriteconfig6 --file /home/user/.config/plasmanotifyrc --group Notifications --key PopupPosition BottomRight
++ plasma-apply-colorscheme Aurora
+The requested theme "Aurora" is already set as the theme for the current Plasma session.
++ plasma-apply-desktoptheme Aurora
+The requested theme "Aurora" is already set as the theme for the current Plasma session.
++ /usr/lib/plasma-changeicons Aurora-dark
++ plasma-apply-cursortheme --size 24 macOS
+The requested theme “macOS” is already set as the theme for the current Plasma session.
++ dbus-send --session --type=signal /KGlobalSettings org.kde.KGlobalSettings.notifyChange int32:1 int32:0
++ dbus-send --session --type=signal /KGlobalSettings org.kde.KGlobalSettings.notifyChange int32:2 int32:0
++ qdbus6 org.kde.kded6 /modules/gtkconfig org.kde.GtkConfig.setGtkTheme Aurora
++ /usr/bin/python3 -I /home/user/Aurora-CachyOS-Theme/themes/gtk/gtk_theme.py /home/user /home/user/Aurora-CachyOS-Theme/build/gtk/Aurora /home/user/.local/share/icons/Aurora-dark
+GTK: Aurora + its window button capsule; 34 traffic-light rules replaced
++ kwriteconfig6 --file /home/user/.config/konsolerc --group Desktop Entry --key DefaultProfile Aurora.profile
++ kwriteconfig6 --file /home/user/.local/state/konsolestaterc --group MainWindow --key State --delete
++ kwriteconfig6 --file /home/user/.config/kwinrc --group org.kde.kdecoration2 --key library org.aurora.decoration
++ kwriteconfig6 --file /home/user/.config/kwinrc --group org.kde.kdecoration2 --key theme 
++ kwriteconfig6 --file /home/user/.config/kwinrc --group org.kde.kdecoration2 --key ButtonsOnLeft 
++ kwriteconfig6 --file /home/user/.config/kwinrc --group org.kde.kdecoration2 --key ButtonsOnRight IAX
++ kwriteconfig6 --file /home/user/.config/kwinrc --group org.kde.kdecoration2 --key BorderSize None
++ kwriteconfig6 --file /home/user/.config/kwinrc --group org.kde.kdecoration2 --key BorderSizeAuto false
++ kwriteconfig6 --file /home/user/.config/kwinrc --group ModifierOnlyShortcuts --key Meta --delete
++ /usr/bin/python3 -I /home/user/Aurora-CachyOS-Theme/components/windows-key/windows_key.py quick-menu
++ kwriteconfig6 --file /home/user/.config/kwinrc --group Windows --key ElectricBorderPushbackPixels 0
++ qdbus6 org.kde.KWin /KWin reconfigure
++ kbuildsycoca6
++ busctl --user call org.kde.kglobalaccel /kglobalaccel org.kde.KGlobalAccel setShortcut asaiu 4 org.kde.dolphin.desktop _launch Dolphin Launch Dolphin 0 6
++ busctl --user call org.kde.kglobalaccel /kglobalaccel org.kde.KGlobalAccel doRegister as 4 file-explorer.desktop _launch File Explorer Launch File Explorer
++ busctl --user call org.kde.kglobalaccel /kglobalaccel org.kde.KGlobalAccel setShortcut asaiu 4 file-explorer.desktop _launch File Explorer Launch File Explorer 1 268435525 6
+look applied
+panels kept: the menu bar and the Dock are already there (install.py panels --force rebuilds them)
+
+[1m==> Done[0m
+Log out and back in once, so KWin and every app start with the new look.
+To go back: ./uninstall.sh

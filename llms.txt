@@ -1,0 +1,36 @@
+# Aurora
+
+> Aurora is a macOS Tahoe-inspired desktop theme for KDE Plasma 6 on CachyOS and other Arch-based systems. It adds a menu bar, a Dock, Quick Menu, a Control Center, notification banners, a Finder-style file manager and glass window buttons, keeps the shortcuts people know from Windows, and installs and uninstalls with one command.
+
+Key facts:
+
+- Install it with one command, `bash <(curl -fsSL https://raw.githubusercontent.com/xt0n1-t3ch/Aurora-CachyOS-Theme/main/get.sh)`: it adds Aurora's signed pacman repository, installs the aurora-theme package (its parts come built) and opens `aurora`, which asks one question, the menu bar's logo. From the source: `git clone https://github.com/xt0n1-t3ch/Aurora-CachyOS-Theme` and `./install.sh`.
+- Remove it with `aurora uninstall` or `./uninstall.sh`: the install saves every setting before it changes it.
+- It needs KDE Plasma 6 on Wayland and was tested with Plasma 6.8.2, KWin 6.8.2 and Qt 6.12.0.
+- The Windows key opens Quick Menu, Win+E opens File Explorer, the window buttons are in Windows order, and menus show shortcuts as Ctrl+C.
+- Nothing in KWin is patched and no packaged file is edited. Plasma's own parts are rebuilt with a patch; after a Plasma, KWin or Qt update they step aside until `aurora rebuild` builds them again.
+- Aurora is made by xt0n1. Its own code is GPL-3.0-only with additional terms that keep the author attribution (NOTICE.md).
+
+## Docs
+
+- [README](https://raw.githubusercontent.com/xt0n1-t3ch/Aurora-CachyOS-Theme/main/README.md): what Aurora looks like, its features, install and update commands, shortcuts, dependencies, removal and license
+- [Install](https://raw.githubusercontent.com/xt0n1-t3ch/Aurora-CachyOS-Theme/main/docs/install.md): each install step, what it changes, and how to check the result
+- [Updates](https://raw.githubusercontent.com/xt0n1-t3ch/Aurora-CachyOS-Theme/main/docs/update.md): keeping the parts working after a Plasma, KWin or Qt update
+- [Removal](https://raw.githubusercontent.com/xt0n1-t3ch/Aurora-CachyOS-Theme/main/docs/restore.md): putting the previous desktop back, all of it or one part
+- [Architecture](https://raw.githubusercontent.com/xt0n1-t3ch/Aurora-CachyOS-Theme/main/docs/architecture.md): how each part hooks into Plasma, KWin, systemd and D-Bus, and every file the install adds
+- [Components](https://raw.githubusercontent.com/xt0n1-t3ch/Aurora-CachyOS-Theme/main/docs/components.md): each part: what it does, its source, build, tests and install
+- [Building](https://raw.githubusercontent.com/xt0n1-t3ch/Aurora-CachyOS-Theme/main/docs/build.md): what installer/build.sh builds and how to build one part by hand
+- [Performance tuning](https://raw.githubusercontent.com/xt0n1-t3ch/Aurora-CachyOS-Theme/main/docs/performance.md): the optional scheduler, memory and zram settings and the measurements behind them
+
+## Development
+
+- [Tests](https://raw.githubusercontent.com/xt0n1-t3ch/Aurora-CachyOS-Theme/main/tests/index.md): every test, the command that runs it and its result
+- [Sandbox](https://raw.githubusercontent.com/xt0n1-t3ch/Aurora-CachyOS-Theme/main/docs/sandbox.md): the nested Plasma session the scenarios run in
+- [Releasing](https://raw.githubusercontent.com/xt0n1-t3ch/Aurora-CachyOS-Theme/main/docs/releasing.md): versions, the changelog, release files and the AUR package
+
+## Optional
+
+- [Changelog](https://raw.githubusercontent.com/xt0n1-t3ch/Aurora-CachyOS-Theme/main/CHANGELOG.md): what changed in each version
+- [Decisions](https://raw.githubusercontent.com/xt0n1-t3ch/Aurora-CachyOS-Theme/main/docs/decisions.md): the design and project decisions and their reasons
+- [License and attribution](https://raw.githubusercontent.com/xt0n1-t3ch/Aurora-CachyOS-Theme/main/NOTICE.md): the license of each part and the attribution terms
+- [Everything above in one file](https://raw.githubusercontent.com/xt0n1-t3ch/Aurora-CachyOS-Theme/main/llms-full.txt): the text of every document listed here

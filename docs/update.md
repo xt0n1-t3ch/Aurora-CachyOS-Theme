@@ -1,0 +1,49 @@
+[Aurora](../README.md) / [Documentation](index.md) / Updates
+
+# After a system update
+
+CachyOS updates with `sudo pacman -Syu` (or `paru`). The theme's compiled parts are built for the installed Plasma,
+KWin, KDecoration and Qt. When those change, each part steps aside by itself and the stock component takes over:
+
+| Changed package | What happens until the rebuild |
+| --- | --- |
+| plasma-workspace or qt6-base | at login the tray and the notifications applet are renamed `*.paused` and Plasma loads its own; Quick Menu's launcher starts `/usr/bin/krunner` |
+| kdecoration | the window buttons are paused at login; KWin uses Breeze |
+| kwin | KWin refuses the pointer plugin (no hand over window buttons) |
+
+Nothing breaks; the desktop only loses the theme's look of those parts. To bring them back:
+
+```bash
+~/.local/share/aurora/rebuild.sh      # runs ./install.sh --rebuild in the checkout; then log out and in
+```
+
+It checks the packages, builds every part for the new versions ([build.md](build.md)), installs the built parts
+beside what they were built for, refreshes the root links and loads the pointer plugin. Settings and panels stay as
+they are.
+
+## When a patch no longer applies
+
+`build.sh` builds a Plasma part for a new Plasma version from that version's own sources with the part's patch. If the
+new Plasma changed the same lines, the patch fails, the part is skipped and Plasma keeps its own. To port it:
+
+1. Fetch the new upstream files into `components/<part>/upstream/` (the same sparse clone as `build.sh`, folders in its
+   `sparse_paths`).
+2. Port `vendor/` onto them: keep the theme's changes (they are marked `Aurora:` in comments) and take every
+   upstream change. Update the version in the component's `project(... VERSION ...)`.
+3. Regenerate the patch as the difference from `upstream/` to `vendor/` (`diff -ruN` of two copies named `a` and `b`,
+   leaving out the binary `*.qsb`), then check that `patch -p1` on a fresh copy of `upstream/`, plus the `.qsb`,
+   reproduces `vendor/` exactly.
+4. Run the part's tests and sandbox scenario, then `installer/build.sh <part>` and `install.py components`.
+
+## The themes
+
+Aurora's themes live in `themes/` and change like any other file: edit, reinstall what the install copies
+(`install.py files`), test in the sandbox, commit. The base icons are a built archive
+(`themes/icons/base/Aurora-base.tar.xz`, made reproducibly with `tar --sort=name --mtime`).
+
+## A new Plasma for the package
+
+The aurora-theme package carries its parts built for one Plasma, KWin and Qt. When Arch or CachyOS ships a new one,
+raise `pkgrel` in `packaging/aur/PKGBUILD`, build the package again on an up-to-date machine and publish it to the
+pacman repository ([releasing.md](releasing.md)); until then, each user's login script sets aside the parts built for
+the older version and Plasma uses its own, and `aurora rebuild` builds them for a user who does not want to wait.

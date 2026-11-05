@@ -1,0 +1,2817 @@
+diff -ruN -x '*.qsb' a/CMakeLists.txt b/CMakeLists.txt
+--- a/CMakeLists.txt	2026-11-04 22:29:45.208282077 -0500
++++ b/CMakeLists.txt	2026-11-04 22:57:08.778055130 -0500
+@@ -15,6 +15,19 @@
+ add_executable(krunner ${krunner_SRCS})
+ 
+ ecm_add_qml_module(krunner URI "org.kde.krunner.private.view" QML_FILES qml/RunCommand.qml DEPENDENCIES org.kde.plasma.core)
++# Aurora: Quick Menu's parts beside RunCommand.qml, and the glass shader it shares with the Control Center.
++ecm_target_qml_sources(krunner PATH qml SOURCES
++    qml/QuickMenuApps.qml
++    qml/QuickMenuBlur.qml
++    qml/QuickMenuGlass.qml
++    qml/QuickMenuPopup.qml
++    qml/QuickMenuRail.qml
++    qml/QuickMenuResult.qml
++    qml/QuickMenuScrollBar.qml
++    qml/QuickMenuTile.qml
++    qml/quickmenu.js
++)
++qt_target_qml_sources(krunner RESOURCES qml/shaders/glass.frag.qsb)
+ 
+ target_link_libraries(krunner PRIVATE
+     Qt::Quick
+diff -ruN -x '*.qsb' a/qml/QuickMenuApps.qml b/qml/QuickMenuApps.qml
+--- a/qml/QuickMenuApps.qml	1969-12-31 19:00:00.000000000 -0500
++++ b/qml/QuickMenuApps.qml	2026-11-04 22:57:04.481050752 -0500
+@@ -0,0 +1,428 @@
++/*
++    SPDX-FileCopyrightText: 2026 xt0n1-t3ch
++    SPDX-License-Identifier: GPL-2.0-or-later
++*/
++// Quick Menu's Applications view: Suggestions (the apps used most, from Plasma's activity statistics), then every
++// app of Plasma's menu in Tahoe's sections, one row each until "Show More". The menu and the statistics are the
++// models Kickoff uses (org.kde.plasma.private.kicker), so new apps and launches show up as they do there. An app
++// dragged onto another of its section takes that one's place, and the section keeps that order. A right-click (or the
++// Menu key) opens an app's menu: Open, its jump list, Pin to Top (the Pinned section above Suggestions), Pin to Dock,
++// Remove from Suggestions, and Plasma's Edit Application and Uninstall.
++import QtCore
++import QtQuick
++import QtQuick.Controls as QQC2
++import QtQuick.Layouts
++import org.kde.kirigami as Kirigami
++import org.kde.plasma.private.kicker as Kicker
++import org.kde.plasma.workspace.dbus as DBus
++import "quickmenu.js" as QuickMenu
++
++Flickable {
++    id: view
++
++    property int columns: 5
++    property int tileWidth: Math.round(iconSize * 1.9)
++    property int iconSize: Kirigami.Units.iconSizes.huge
++    property int sidePadding: Kirigami.Units.gridUnit
++
++    property var sections: []
++    // Section title -> shown in full.
++    property var expanded: ({})
++    // {section, index} of the app the arrow keys stand on, or null while the search field has them.
++    property var current: null
++    // The view scrolls to the current app only when the keys moved it; the pointer is already on it.
++    property bool followKeys: false
++    // Where the pointer last was: Qt sends hover moves when the grid moves under a resting pointer, and only a
++    // pointer that really moved may take the selection.
++    property var lastPointer: null
++    readonly property bool hasContent: sections.length > 0
++
++    signal launched()
++
++    // Kicker::FavoriteIdRole, the desktop file id, and Kicker::ActionListRole, the app's actions
++    // (plasma-workspace applets/kicker/actionlist.h, Plasma 6.8: Qt::UserRole + 3 and + 9).
++    readonly property int favoriteIdRole: Qt.UserRole + 3
++    readonly property int actionListRole: Qt.UserRole + 9
++    // The launchers of the Dock (the task manager on the bottom panel), read from Plasma when Quick Menu opens.
++    property var dockLaunchers: []
++
++    contentWidth: width
++    contentHeight: content.implicitHeight
++    clip: true
++    boundsBehavior: Flickable.StopAtBounds
++    QQC2.ScrollBar.vertical: QuickMenuScrollBar {}
++
++    // The order the apps of each section were dragged into, {section title: [app ids]}, kept in
++    // ~/.config/aurora/quick-menu.conf. Suggestions are ordered by use and cannot be dragged.
++    Settings {
++        id: saved
++        location: StandardPaths.writableLocation(StandardPaths.GenericConfigLocation) + "/aurora/quick-menu.conf"
++        category: "Applications"
++        property string order: "{}"
++        // The apps pinned with "Pin to Top", as a JSON list of app ids in their order.
++        property string pinned: "[]"
++    }
++
++    function savedPins() {
++        try {
++            const pins = JSON.parse(saved.pinned)
++            return Array.isArray(pins) ? pins : []
++        } catch (error) {
++            return []
++        }
++    }
++
++    function savedOrders() {
++        try {
++            return JSON.parse(saved.order) || {}
++        } catch (error) {
++            return {}
++        }
++    }
++
++    // The app at `from` was dropped on the app at `to` of the same section: it takes that place, for good.
++    function moveApp(sectionIndex, from, to) {
++        const section = sections[sectionIndex]
++        if (!section || !section.reorderable) {
++            return
++        }
++        if (section.pinned) {
++            saved.pinned = JSON.stringify(QuickMenu.reorder(section.apps.map(entry => entry.id), from, to))
++            saved.sync()
++            current = null
++            rebuild()
++            return
++        }
++        const orders = savedOrders()
++        orders[section.title] = QuickMenu.reorder(section.apps.map(entry => entry.id), from, to)
++        saved.order = JSON.stringify(orders)
++        saved.sync()
++        current = null
++        rebuild()
++    }
++
++    Kicker.RootModel {
++        id: menu
++        appNameFormat: 0
++        flat: true
++        sorted: true
++        showSeparators: false
++        showTopLevelItems: false
++        showAllApps: false
++        showAllAppsCategorized: false
++        showRecentApps: false
++        showRecentDocs: false
++        showRecentFolders: false
++        showPowerSession: false
++        showFavoritesPlaceholder: false
++        highlightNewlyInstalledApps: false
++        onCountChanged: Qt.callLater(view.rebuild)
++        onModelReset: Qt.callLater(view.rebuild)
++    }
++    Kicker.RecentUsageModel {
++        id: popular
++        ordering: 1 // Popular
++        shownItems: Kicker.RecentUsageModel.OnlyApps
++        // The statistics arrive after start-up and change with every launch.
++        onCountChanged: Qt.callLater(view.rebuild)
++    }
++
++    function entriesOf(model, limit) {
++        const entries = []
++        for (let row = 0; model && row < model.count && entries.length < limit; ++row) {
++            const index = model.index(row, 0)
++            const name = String(model.data(index, Qt.DisplayRole) || "")
++            if (name.length > 0) {
++                entries.push({id: String(model.data(index, favoriteIdRole) || name), name: name,
++                              icon: model.data(index, Qt.DecorationRole), model: model, row: row})
++            }
++        }
++        return entries
++    }
++
++    function rebuild() {
++        const categories = []
++        for (let row = 0; row < menu.count; ++row) {
++            const index = menu.index(row, 0)
++            categories.push({icon: String(menu.data(index, Qt.DecorationRole) || ""), name: String(menu.data(index, Qt.DisplayRole) || ""),
++                             apps: entriesOf(menu.modelForRow(row), Infinity)})
++        }
++        const built = QuickMenu.buildSections(categories, savedOrders())
++        // Three rows at most behind Show More: the apps used most, not a second full list.
++        const suggested = entriesOf(popular, 3 * columns)
++        if (suggested.length > 0) {
++            built.unshift({title: i18nc("@title Quick Menu section of the apps used most", "Suggestions"), apps: suggested,
++                           suggestions: true})
++        }
++        const pinned = QuickMenu.pinnedSection(categories, savedPins())
++        if (pinned) {
++            pinned.title = i18nc("@title Quick Menu section of the apps pinned to the top", "Pinned")
++            built.unshift(pinned)
++        }
++        sections = built
++        if (current && current.section >= sections.length) {
++            current = null
++        }
++    }
++
++    // Back to a fresh view each time Quick Menu opens: all sections folded, nothing selected, at the top.
++    function reset() {
++        expanded = ({})
++        current = null
++        lastPointer = null
++        contentY = 0
++        appMenu.close()
++        rebuild()
++        readDock()
++    }
++
++    // Asks Plasma for the Dock's launchers, so the menu knows whether to pin or unpin.
++    function readDock() {
++        shell(QuickMenu.dockReadScript(), text => dockLaunchers = QuickMenu.launchers(text))
++    }
++
++    // Runs a Plasma shell script (org.kde.PlasmaShell.evaluateScript) and hands what it printed to `done`.
++    function shell(script, done) {
++        if (!script) {
++            return
++        }
++        DBus.SessionBus.asyncCall({service: "org.kde.plasmashell", path: "/PlasmaShell", iface: "org.kde.PlasmaShell",
++                                   member: "evaluateScript", arguments: [script]},
++                                  reply => done(String(reply.value && reply.value.value !== undefined ? reply.value.value : reply.value)),
++                                  error => console.warn("Quick Menu: Plasma did not run the script:", error.message))
++    }
++
++    // The app shown at `appIndex` of section `sectionIndex`, or null.
++    function entryAt(sectionIndex, appIndex) {
++        const section = sections[sectionIndex]
++        return section ? QuickMenu.visibleApps(section, !!expanded[section.title], columns)[appIndex] || null : null
++    }
++
++    // Opens the menu of an app at (x, y) in this view's coordinates; `byKey` when the keyboard asked for it.
++    function openMenu(sectionIndex, appIndex, x, y, byKey) {
++        const entry = entryAt(sectionIndex, appIndex)
++        if (!entry) {
++            return
++        }
++        const actions = entry.model.data(entry.model.index(entry.row, 0), actionListRole)
++        const items = QuickMenu.menuItems({suggested: entry.model === popular, pinned: savedPins().indexOf(entry.id) >= 0,
++                                           inDock: dockLaunchers.indexOf(entry.id) >= 0, actions: actions || []})
++        current = {section: sectionIndex, index: appIndex}
++        appMenu.openAt(entry, items, x, y, byKey === true)
++    }
++
++    // The Menu key or Shift+F10 opens the menu of the app the arrow keys stand on, under it.
++    function openMenuForCurrent() {
++        if (!current) {
++            return false
++        }
++        const tile = tileAt(current.section, current.index)
++        const corner = tile ? tile.mapToItem(view, tile.width / 2, tile.height * 0.8) : Qt.point(width / 2, height / 2)
++        openMenu(current.section, current.index, corner.x, corner.y, true)
++        return true
++    }
++
++    function tileAt(sectionIndex, appIndex) {
++        const sectionItem = sectionRepeater.itemAt(sectionIndex)
++        return sectionItem ? sectionItem.tileAt(appIndex) : null
++    }
++
++    function runMenuAction(entry, action) {
++        switch (action.kind) {
++        case "open":
++            if (entry.model.trigger(entry.row, "", null)) {
++                launched()
++            }
++            break
++        case "plasma":
++            if (entry.model.trigger(entry.row, action.action.actionId, action.action.actionArgument)) {
++                launched()
++            }
++            break
++        case "pin":
++            saved.pinned = JSON.stringify(QuickMenu.togglePin(savedPins(), entry.id))
++            saved.sync()
++            current = null
++            rebuild()
++            break
++        case "dock":
++            shell(QuickMenu.dockScript(entry.id, dockLaunchers.indexOf(entry.id) < 0), () => readDock())
++            break
++        case "forget":
++            // Kicker's "Forget Application": the app leaves Suggestions until it is used again.
++            entry.model.trigger(entry.row, "forget", null)
++            current = null
++            break
++        }
++    }
++
++    // The menu stays where it opened, so scrolling the view closes it.
++    onMovingChanged: if (moving) appMenu.close()
++
++    QuickMenuPopup {
++        id: appMenu
++        parent: view
++        onChosen: (entry, action) => view.runMenuAction(entry, action)
++    }
++
++    function visibleCounts() {
++        return sections.map(section => QuickMenu.visibleApps(section, !!expanded[section.title], columns).length)
++    }
++
++    // Returns false when the keys leave the grid upwards, back to the search field.
++    function moveCurrent(key) {
++        followKeys = true
++        current = QuickMenu.move(visibleCounts(), current, key, columns)
++        return current !== null
++    }
++
++    function launch(sectionIndex, appIndex) {
++        const section = sections[sectionIndex]
++        const entry = section ? QuickMenu.visibleApps(section, !!expanded[section.title], columns)[appIndex] : null
++        if (entry && entry.model.trigger(entry.row, "", null)) {
++            launched()
++        }
++    }
++
++    function launchCurrent() {
++        if (current) {
++            launch(current.section, current.index)
++        }
++    }
++
++    function toggle(title) {
++        const next = Object.assign({}, expanded)
++        next[title] = !next[title]
++        expanded = next
++        // Folding a section can hide the app the keys stood on: keep them on its last shown app.
++        if (current && sections[current.section].title === title) {
++            current = {section: current.section, index: Math.min(current.index, visibleCounts()[current.section] - 1)}
++        }
++    }
++
++    function reveal(item) {
++        const top = item.mapToItem(content, 0, 0).y
++        if (top < contentY) {
++            contentY = Math.max(0, top - Kirigami.Units.smallSpacing)
++        } else if (top + item.height > contentY + height) {
++            contentY = Math.min(contentHeight - height, top + item.height - height + Kirigami.Units.smallSpacing)
++        }
++    }
++
++    Behavior on contentY {
++        enabled: !view.moving
++        NumberAnimation { duration: Kirigami.Units.shortDuration; easing.type: Easing.OutCubic }
++    }
++
++    Column {
++        id: content
++        width: view.width
++        topPadding: Kirigami.Units.mediumSpacing
++        bottomPadding: Kirigami.Units.mediumSpacing
++
++        Repeater {
++            id: sectionRepeater
++            model: view.sections
++
++            delegate: Column {
++                id: section
++
++                required property var modelData
++                required property int index
++                readonly property bool open: !!view.expanded[modelData.title]
++
++                function tileAt(appIndex) {
++                    return tiles.itemAt(appIndex)
++                }
++
++                width: content.width
++
++                Rectangle {
++                    visible: section.index > 0
++                    x: view.sidePadding
++                    width: parent.width - 2 * view.sidePadding
++                    height: 1
++                    color: Qt.rgba(1, 1, 1, 0.12)
++                }
++
++                RowLayout {
++                    x: view.sidePadding
++                    width: parent.width - 2 * view.sidePadding
++                    height: Kirigami.Units.gridUnit * 2.2
++
++                    QQC2.Label {
++                        Layout.fillWidth: true
++                        text: section.modelData.title
++                        font.weight: Font.Bold
++                        color: Qt.rgba(1, 1, 1, 0.95)
++                        elide: Text.ElideRight
++                        textFormat: Text.PlainText
++                    }
++                    QQC2.Label {
++                        visible: QuickMenu.canExpand(section.modelData, view.columns)
++                        text: section.open ? i18nc("@action:button fold a Quick Menu section", "Show Less")
++                                           : i18nc("@action:button unfold a Quick Menu section", "Show More")
++                        font.weight: Font.DemiBold
++                        color: more.hovered ? Qt.lighter(Kirigami.Theme.highlightColor, 1.6) : Qt.lighter(Kirigami.Theme.highlightColor, 1.35)
++                        textFormat: Text.PlainText
++                        Accessible.role: Accessible.Button
++                        Accessible.name: text
++                        Accessible.onPressAction: view.toggle(section.modelData.title)
++
++                        HoverHandler {
++                            id: more
++                            cursorShape: Qt.PointingHandCursor
++                        }
++                        TapHandler {
++                            onTapped: view.toggle(section.modelData.title)
++                        }
++                    }
++                }
++
++                Flow {
++                    x: view.sidePadding
++                    width: view.columns * view.tileWidth
++
++                    Repeater {
++                        id: tiles
++                        model: QuickMenu.visibleApps(section.modelData, section.open, view.columns)
++
++                        delegate: QuickMenuTile {
++                            id: tile
++                            required property var modelData
++                            required property int index
++                            width: view.tileWidth
++                            iconSize: view.iconSize
++                            icon: modelData.icon
++                            label: modelData.name
++                            position: index
++                            draggable: section.modelData.reorderable === true
++                            dropKey: "aurora-quick-menu-section-" + section.index
++                            onMoved: (from, to) => view.moveApp(section.index, from, to)
++                            onMenuRequested: position => {
++                                const point = view.mapFromGlobal(position.x, position.y)
++                                view.openMenu(section.index, index, point.x, point.y)
++                            }
++                            current: !!view.current && view.current.section === section.index && view.current.index === index
++                            onCurrentChanged: if (current && view.followKeys) view.reveal(tile)
++                            onActivated: view.launch(section.index, index)
++                            onPointed: position => {
++                                const moved = view.lastPointer && (position.x !== view.lastPointer.x || position.y !== view.lastPointer.y)
++                                view.lastPointer = position
++                                if (moved) {
++                                    view.followKeys = false
++                                    view.current = {section: section.index, index: index}
++                                }
++                            }
++                        }
++                    }
++                }
++
++                Item {
++                    width: 1
++                    height: Kirigami.Units.mediumSpacing
++                }
++            }
++        }
++    }
++}
+diff -ruN -x '*.qsb' a/qml/QuickMenuBlur.qml b/qml/QuickMenuBlur.qml
+--- a/qml/QuickMenuBlur.qml	1969-12-31 19:00:00.000000000 -0500
++++ b/qml/QuickMenuBlur.qml	2026-11-04 22:56:30.594339582 -0500
+@@ -0,0 +1,12 @@
++/*
++    SPDX-FileCopyrightText: 2026 xt0n1-t3ch
++    SPDX-License-Identifier: GPL-2.0-or-later
++*/
++// KWin's blur behind Quick Menu's glass (org.aurora.glass, the Control Center's module). RunCommand.qml loads it
++// through a Loader, so Quick Menu still opens, unblurred, if the module is missing.
++import QtQuick
++import org.aurora.glass
++
++BlurBehind {
++    saturation: 1.6
++}
+diff -ruN -x '*.qsb' a/qml/QuickMenuGlass.qml b/qml/QuickMenuGlass.qml
+--- a/qml/QuickMenuGlass.qml	1969-12-31 19:00:00.000000000 -0500
++++ b/qml/QuickMenuGlass.qml	2026-11-04 22:56:30.594648380 -0500
+@@ -0,0 +1,37 @@
++/*
++    SPDX-FileCopyrightText: 2026 xt0n1-t3ch
++    SPDX-License-Identifier: GPL-2.0-or-later
++*/
++// Quick Menu's Liquid Glass, the material of the Control Center and the notification banners (glass.frag): frosted by
++// KWin behind its rounded shape (the BlurBehind in RunCommand.qml finds it through glassBlur), tinted, with a rim
++// lit from above and a soft shadow drawn into the window's transparent margin.
++import QtQuick
++
++Item {
++    id: glass
++
++    property real radius: 26
++    property real shadowSize: 18
++    readonly property bool glassBlur: true
++
++    ShaderEffect {
++        readonly property real pad: Math.ceil(glass.shadowSize * 1.6)
++        z: -1
++        x: -pad
++        y: -pad
++        width: glass.width + 2 * pad
++        height: glass.height + 2 * pad
++        property size boxSize: Qt.size(glass.width, glass.height)
++        property real radius: glass.radius
++        // Between the Control Center's clear modules and the banners' dense glass (0.78): Quick Menu floats over
++        // whatever is open, white pages included, and its white text has to stay readable there.
++        property vector4d tint: Qt.vector4d(0.12, 0.12, 0.14, 0.74)
++        property vector4d rimLight: Qt.vector4d(1, 1, 1, 0.5)
++        property vector4d rimShade: Qt.vector4d(1, 1, 1, 0.08)
++        property real rimWidth: 1.0
++        property real sheen: 0.05
++        property real shadowAlpha: 0.32
++        property real shadowSize: glass.shadowSize
++        fragmentShader: Qt.resolvedUrl("shaders/glass.frag.qsb")
++    }
++}
+diff -ruN -x '*.qsb' a/qml/quickmenu.js b/qml/quickmenu.js
+--- a/qml/quickmenu.js	1969-12-31 19:00:00.000000000 -0500
++++ b/qml/quickmenu.js	2026-11-04 22:57:08.778412588 -0500
+@@ -0,0 +1,303 @@
++/*
++    SPDX-FileCopyrightText: 2026 xt0n1-t3ch
++    SPDX-License-Identifier: GPL-2.0-or-later
++*/
++// Quick Menu's Applications view as macOS Tahoe draws it: Suggestions first, then the apps by section, one row of
++// each until "Show More". The catalog is Plasma's own menu (Kicker's RootModel); a menu category is keyed by its
++// icon from /usr/share/desktop-directories, which does not change with the language.
++.pragma library
++
++// Plasma menu category icon (without "-symbolic") -> the Tahoe section it joins.
++const SECTION_OF = {
++    "applications-office": "Productivity & Finance",
++    "applications-graphics": "Creativity",
++    "applications-internet": "Internet",
++    "applications-multimedia": "Entertainment",
++    "applications-games": "Games",
++    "applications-development": "Developer Tools",
++    "applications-education": "Education",
++    "applications-science": "Education",
++    "applications-system": "Utilities",
++    "applications-utilities": "Utilities",
++    "preferences-system": "Utilities",
++    "help-about": "Utilities",
++    "applications-other": "Other",
++};
++// Tahoe's own order; a menu of its own (a "Wine" folder) keeps its name and comes just before Other.
++const ORDER = ["Productivity & Finance", "Creativity", "Internet", "Entertainment", "Games", "Developer Tools",
++               "Education", "Utilities"];
++const LAST = "Other";
++
++function sectionTitle(icon, name) {
++    return SECTION_OF[String(icon).replace(/-symbolic$/, "")] || name;
++}
++
++function rank(title) {
++    const known = ORDER.indexOf(title);
++    if (known >= 0) {
++        return [0, known, ""];
++    }
++    return title === LAST ? [2, 0, ""] : [1, 0, title.toLocaleLowerCase()];
++}
++
++function compareRanks(a, b) {
++    for (let i = 0; i < a.length; ++i) {
++        if (a[i] !== b[i]) {
++            return a[i] < b[i] ? -1 : 1;
++        }
++    }
++    return 0;
++}
++
++// order: the app ids of a section in the order the user dragged them into. Apps it names come first, in that
++// order; apps it does not name (installed since) follow in their own order; ids of apps that are gone are skipped.
++function applyOrder(apps, order) {
++    if (!order || order.length === 0) {
++        return apps;
++    }
++    const position = new Map(order.map((id, i) => [id, i]));
++    const named = apps.filter(entry => position.has(entry.id)).sort((a, b) => position.get(a.id) - position.get(b.id));
++    return named.concat(apps.filter(entry => !position.has(entry.id)));
++}
++
++// ids with the one at `from` moved to `to`, the place of the app it was dropped on; a move outside the list or onto
++// itself changes nothing.
++function reorder(ids, from, to) {
++    if (from === to || from < 0 || to < 0 || from >= ids.length || to >= ids.length) {
++        return ids.slice();
++    }
++    const next = ids.slice();
++    const moved = next.splice(from, 1)[0];
++    next.splice(to, 0, moved);
++    return next;
++}
++
++// categories: [{icon, name, apps: [{id, name, ...}]}] -> [{title, apps, reorderable}], merged, without duplicates,
++// alphabetical unless `orders` ({section title: [app ids]}) holds an order the user dragged the apps into.
++function buildSections(categories, orders) {
++    const byTitle = new Map();
++    for (const category of categories) {
++        const title = sectionTitle(category.icon, category.name);
++        let section = byTitle.get(title);
++        if (!section) {
++            section = {title: title, apps: [], ids: new Set()};
++            byTitle.set(title, section);
++        }
++        for (const entry of category.apps) {
++            if (!section.ids.has(entry.id)) {
++                section.ids.add(entry.id);
++                section.apps.push(entry);
++            }
++        }
++    }
++    const sections = [...byTitle.values()].filter(section => section.apps.length > 0);
++    for (const section of sections) {
++        section.apps.sort((a, b) => a.name.localeCompare(b.name, undefined, {sensitivity: "base"}));
++        section.apps = applyOrder(section.apps, (orders || {})[section.title]);
++        section.reorderable = true;
++        delete section.ids;
++    }
++    return sections.sort((a, b) => compareRanks(rank(a.title), rank(b.title)));
++}
++
++// The apps pinned with "Pin to Top", in pin order, as the first section of Quick Menu; null when none of them is
++// installed. Like Windows' pinned apps, they stay there whatever their category or how often they are used.
++function pinnedSection(categories, pins) {
++    const byId = new Map();
++    for (const category of categories) {
++        for (const entry of category.apps) {
++            if (!byId.has(entry.id)) {
++                byId.set(entry.id, entry);
++            }
++        }
++    }
++    const apps = (pins || []).filter(id => byId.has(id)).map(id => byId.get(id));
++    return apps.length > 0 ? {title: "Pinned", apps: apps, pinned: true, reorderable: true} : null;
++}
++
++// The pin list with `id` pinned at the end, or unpinned when it was there.
++function togglePin(pins, id) {
++    return pins.indexOf(id) >= 0 ? pins.filter(pin => pin !== id) : pins.concat([id]);
++}
++
++// Plasma's actions that Aurora leaves out: its pins (Kicker only offers them inside a panel widget) and Kicker's
++// forget actions, which "Remove from Suggestions" replaces; "Forget All Applications" would empty Suggestions from
++// one app's menu.
++const REPLACED_ACTIONS = ["addToTaskManager", "addToDesktop", "addToPanel", "hideApplication", "forget", "forgetAll"];
++
++// Symbolic icons for Plasma's own actions, by action id; any other action gets its icon's symbolic version.
++const ACTION_ICONS = {editApplication: "document-edit-symbolic", manageApplication: "edit-delete-symbolic"};
++// The icon shown when an action's own symbolic icon does not exist, by action id.
++const FALLBACK_ICONS = {
++    _kicker_jumpListAction: "window-new-symbolic",
++    _kicker_recentDocument: "text-x-generic-symbolic",
++};
++
++// The right-click menu of an app, top to bottom. `app` says whether the app is in Suggestions, pinned and in the
++// Dock, and holds Plasma's actions for it (Kicker's ActionListRole: jump list items, Edit Application, Uninstall).
++// Each item is {label, icon, fallback, action}, {title: true, label} for a heading such as Kicker's "Recent Files", or
++// {separator: true}; icons are symbolic, as in macOS Tahoe's menus, and there is never a separator at an end or two
++// in a row.
++function menuItems(app) {
++    const plasma = (app.actions || []).filter(action => REPLACED_ACTIONS.indexOf(action.actionId) < 0);
++    const isJump = action => action.actionId === "_kicker_jumpListAction";
++    const entry = (label, icon, action, fallback) =>
++        ({label: label, icon: icon, fallback: fallback || "", action: action});
++    const plasmaItem = action => {
++        if (action.type === "separator") {
++            return {separator: true};
++        }
++        if (action.type === "title") {
++            return {title: true, label: action.text};
++        }
++        const icon = ACTION_ICONS[action.actionId] || (action.icon ? action.icon + "-symbolic" : "");
++        return entry(action.text, icon, {kind: "plasma", action: action}, FALLBACK_ICONS[action.actionId]);
++    };
++    const items = [entry("Open", "external-link-symbolic", {kind: "open"})];
++    plasma.filter(action => action.type !== "separator" && isJump(action))
++        .forEach(action => items.push(plasmaItem(action)));
++    items.push({separator: true});
++    items.push(app.pinned ? entry("Unpin from Top", "window-unpin-symbolic", {kind: "pin"})
++                          : entry("Pin to Top", "view-pin-symbolic", {kind: "pin"}));
++    items.push(entry(app.inDock ? "Unpin from Dock" : "Pin to Dock", "dock-symbolic", {kind: "dock"}));
++    if (app.suggested) {
++        items.push(entry("Remove from Suggestions", "view-hidden-symbolic", {kind: "forget"}));
++    }
++    items.push({separator: true});
++    plasma.filter(action => !isJump(action)).forEach(action => items.push(plasmaItem(action)));
++    return items.filter((item, i, all) => !item.separator
++                        || (i > 0 && !all[i - 1].separator && all.slice(i + 1).some(next => !next.separator)));
++}
++
++// The Dock's launchers, from the shell's answer to the reading script (several Docks are separated by "|").
++function launchers(text) {
++    return String(text || "").split(/[|,]/).map(part => part.trim()).filter(part => part.length > 0);
++}
++
++// The Plasma script that pins `id` to every Dock (at its end) or unpins it, for org.kde.PlasmaShell.evaluateScript.
++// Empty when `id` is not a desktop file id, so nothing but a launcher name can reach the script.
++function dockScript(id, pin) {
++    if (!/^applications:[A-Za-z0-9._+-]+\.desktop$/.test(id)) {
++        return "";
++    }
++    return "var id = '" + id + "'; var changed = 0;\n"
++        + "panels().forEach(function (p) { p.widgets('org.kde.plasma.icontasks').forEach(function (w) {\n"
++        + "  w.currentConfigGroup = ['General'];\n"
++        + "  var list = String(w.readConfig('launchers', '')).split(',')\n"
++        + "      .filter(function (l) { return l.length > 0 && l !== id; });\n"
++        + (pin ? "  list.push(id);\n" : "")
++        + "  w.writeConfig('launchers', list.join(',')); changed++; }); });\n"
++        + "print(changed);";
++}
++
++// The Plasma script that prints every Dock's launchers, for launchers().
++function dockReadScript() {
++    return "var out = []; panels().forEach(function (p) { p.widgets('org.kde.plasma.icontasks').forEach(function (w) {"
++        + " w.currentConfigGroup = ['General']; out.push(String(w.readConfig('launchers', ''))); }); });"
++        + " print(out.join('|'));";
++}
++
++function visibleApps(section, expanded, columns) {
++    return expanded ? section.apps : section.apps.slice(0, columns);
++}
++
++function canExpand(section, columns) {
++    return section.apps.length > columns;
++}
++
++// counts: how many apps each section shows; current: {section, index} or null for the search field.
++// Left and right walk the apps in reading order across sections; up and down keep the column, landing on the
++// nearest app of a shorter row. Up from the first row leaves the grid (null); the edges otherwise hold.
++function move(counts, current, key, columns) {
++    const sections = counts.map((count, section) => ({section: section, count: count})).filter(s => s.count > 0);
++    if (sections.length === 0) {
++        return null;
++    }
++    if (!current) {
++        return key === "down" || key === "right" ? {section: sections[0].section, index: 0} : null;
++    }
++    const at = sections.findIndex(s => s.section === current.section);
++    const here = sections[at];
++    const column = current.index % columns;
++    const row = Math.floor(current.index / columns);
++    const lastRow = Math.floor((here.count - 1) / columns);
++    const clamp = (s, r) => ({section: s.section, index: Math.min(r * columns + column, s.count - 1)});
++
++    if (key === "right") {
++        if (current.index + 1 < here.count) {
++            return {section: here.section, index: current.index + 1};
++        }
++        return at + 1 < sections.length ? {section: sections[at + 1].section, index: 0} : current;
++    }
++    if (key === "left") {
++        if (current.index > 0) {
++            return {section: here.section, index: current.index - 1};
++        }
++        return at > 0 ? {section: sections[at - 1].section, index: sections[at - 1].count - 1} : current;
++    }
++    if (key === "down") {
++        if (row < lastRow) {
++            return clamp(here, row + 1);
++        }
++        return at + 1 < sections.length ? clamp(sections[at + 1], 0) : current;
++    }
++    if (key === "up") {
++        if (row > 0) {
++            return clamp(here, row - 1);
++        }
++        if (at === 0) {
++            return null;
++        }
++        const previous = sections[at - 1];
++        return clamp(previous, Math.floor((previous.count - 1) / columns));
++    }
++    return current;
++}
++
++// The power rail's menus (QuickMenuRail.qml), from what Plasma's session manager allows (its can* properties). Items have
++// the menu's {label, icon, fallback, action} form; the action names the entry for runSessionAction().
++function accountItems(can) {
++    const items = [];
++    if (can.canLock) {
++        items.push({label: "Lock", icon: "system-lock-screen-symbolic", fallback: "system-lock-screen", action: "lock"});
++    }
++    if (can.canSwitchUser) {
++        items.push({label: "Switch User", icon: "system-switch-user-symbolic", fallback: "system-switch-user", action: "switch-user"});
++    }
++    if (can.canLogout) {
++        items.push({label: "Log Out", icon: "system-log-out-symbolic", fallback: "system-log-out", action: "log-out"});
++    }
++    return items;
++}
++
++function powerItems(can) {
++    const items = [];
++    if (can.canSuspend) {
++        items.push({label: "Sleep", icon: "system-suspend-symbolic", fallback: "system-suspend", action: "sleep"});
++    }
++    if (can.canHibernate) {
++        items.push({label: "Hibernate", icon: "system-suspend-hibernate-symbolic", fallback: "system-suspend-hibernate", action: "hibernate"});
++    }
++    if (can.canReboot) {
++        items.push({label: "Restart", icon: "system-reboot-symbolic", fallback: "system-reboot", action: "restart"});
++    }
++    if (can.canShutdown) {
++        items.push({label: "Shut Down", icon: "system-shutdown-symbolic", fallback: "system-shutdown", action: "shut-down"});
++    }
++    return items;
++}
++
++// The session manager's method for each entry. Log Out, Restart and Shut Down go through Plasma's own prompt when the
++// user keeps it on (System Settings > Session > Desktop Session).
++const SESSION_METHODS = {"lock": "lock", "switch-user": "switchUser", "log-out": "requestLogout", "sleep": "suspend",
++                         "hibernate": "hibernate", "restart": "requestReboot", "shut-down": "requestShutdown"};
++
++// Calls `action`'s method on `session`; false, calling nothing, for an action it does not know.
++function runSessionAction(session, action) {
++    const method = SESSION_METHODS[action];
++    if (!method) {
++        return false;
++    }
++    session[method]();
++    return true;
++}
+diff -ruN -x '*.qsb' a/qml/QuickMenuPopup.qml b/qml/QuickMenuPopup.qml
+--- a/qml/QuickMenuPopup.qml	1969-12-31 19:00:00.000000000 -0500
++++ b/qml/QuickMenuPopup.qml	2026-11-04 22:56:30.596012463 -0500
+@@ -0,0 +1,220 @@
++/*
++    SPDX-FileCopyrightText: 2026 xt0n1-t3ch
++    SPDX-License-Identifier: GPL-2.0-or-later
++*/
++// The menu an app of the Applications view opens on a right-click or the Menu key, drawn like macOS Tahoe's context
++// menus: rounded dark glass with a soft shadow, a symbolic icon before each entry, the accent color under the
++// pointer. It lists the items quickmenu.js's menuItems() builds. The arrow keys move through it, Return chooses,
++// Escape or a click elsewhere closes it.
++import QtQuick
++import QtQuick.Controls as QQC2
++import org.kde.kirigami as Kirigami
++
++QQC2.Popup {
++    id: menu
++
++    // Each item is {label, icon, fallback, action}, {title: true, label} or {separator: true}.
++    property var items: []
++    // The app the menu is for, passed back with the chosen action.
++    property var entry: null
++    // The highlighted item, or -1.
++    property int currentIndex: -1
++
++    readonly property int rowHeight: Math.round(Kirigami.Units.gridUnit * 1.4)
++    readonly property int titleHeight: Math.round(Kirigami.Units.gridUnit * 1.2)
++    readonly property int separatorHeight: Kirigami.Units.smallSpacing * 2 + 1
++    readonly property int iconSize: Kirigami.Units.iconSizes.small
++    // Space between the row's edge and its icon, and between the icon and the label.
++    readonly property int rowPadding: Kirigami.Units.mediumSpacing + Kirigami.Units.smallSpacing
++    readonly property int iconGap: Kirigami.Units.mediumSpacing + Kirigami.Units.smallSpacing
++    readonly property TextMetrics metrics: TextMetrics {
++        font: Kirigami.Theme.defaultFont
++    }
++
++    signal chosen(var entry, var action)
++
++    padding: Kirigami.Units.smallSpacing + 1
++    // Qt keeps the menu inside the window by this much, should the placement below not manage it.
++    margins: Kirigami.Units.smallSpacing
++    focus: true
++    modal: false
++    closePolicy: QQC2.Popup.CloseOnEscape | QQC2.Popup.CloseOnPressOutside
++
++    // The menu's size for `list`, known before it opens, so openAt() can place it.
++    function measure(list) {
++        let widest = 0
++        let height = 0
++        for (const item of list) {
++            if (item.separator) {
++                height += separatorHeight
++                continue
++            }
++            metrics.text = item.label
++            widest = Math.max(widest, metrics.advanceWidth)
++            height += item.title ? titleHeight : rowHeight
++        }
++        const width = Math.max(Kirigami.Units.gridUnit * 9, Math.ceil(widest) + iconSize + iconGap + rowPadding * 2)
++        return Qt.size(width + leftPadding + rightPadding, height + topPadding + bottomPadding)
++    }
++
++    // Opens the menu for `app` at (x, y) of its parent: below and to the right of that point, as macOS does, or to
++    // its left or above it where the parent ends. `byKey` highlights the first entry, as Windows does for a menu
++    // opened from the keyboard.
++    function openAt(app, list, x, y, byKey) {
++        entry = app
++        items = list
++        currentIndex = byKey ? 0 : -1
++        const size = measure(list)
++        const gap = Kirigami.Units.smallSpacing
++        width = size.width
++        height = size.height
++        const left = x + size.width + gap <= parent.width ? x : x - size.width
++        const top = y + size.height + gap <= parent.height ? y : y - size.height
++        menu.x = Math.max(gap, Math.min(left, parent.width - size.width - gap))
++        menu.y = Math.max(gap, Math.min(top, parent.height - size.height - gap))
++        open()
++    }
++
++    // Whether the item at `index` can be chosen: separators and titles cannot.
++    function choosable(index) {
++        const item = items[index]
++        return !!item && !item.separator && !item.title
++    }
++
++    function step(direction) {
++        for (let i = 1; i <= items.length; ++i) {
++            const next = ((currentIndex + direction * i) % items.length + items.length) % items.length
++            if (choosable(next)) {
++                currentIndex = next
++                return
++            }
++        }
++    }
++
++    function choose(index) {
++        if (choosable(index)) {
++            close()
++            chosen(entry, items[index].action)
++        }
++    }
++
++    enter: Transition {
++        NumberAnimation {
++            property: "opacity"; from: 0; to: 1
++            duration: Kirigami.Units.shortDuration; easing.type: Easing.OutCubic
++        }
++    }
++    exit: Transition {
++        NumberAnimation {
++            property: "opacity"; from: 1; to: 0
++            duration: Kirigami.Units.shortDuration; easing.type: Easing.InCubic
++        }
++    }
++
++    background: Kirigami.ShadowedRectangle {
++        radius: Math.round(Kirigami.Units.gridUnit * 0.7)
++        color: Qt.rgba(0.16, 0.155, 0.19, 0.97)
++        border.width: 1
++        border.color: Qt.rgba(1, 1, 1, 0.13)
++        shadow.size: Kirigami.Units.gridUnit * 1.5
++        shadow.yOffset: Kirigami.Units.smallSpacing * 2
++        shadow.color: Qt.rgba(0, 0, 0, 0.45)
++    }
++
++    contentItem: Column {
++        focus: true
++        Keys.onUpPressed: menu.step(-1)
++        Keys.onDownPressed: menu.step(1)
++        Keys.onReturnPressed: menu.choose(menu.currentIndex)
++        Keys.onEnterPressed: menu.choose(menu.currentIndex)
++
++        Repeater {
++            model: menu.items
++
++            delegate: Item {
++                id: row
++
++                required property var modelData
++                required property int index
++                readonly property bool separator: modelData.separator === true
++                readonly property bool title: modelData.title === true
++                readonly property bool highlighted: menu.currentIndex === index
++
++                width: menu.availableWidth
++                height: separator ? menu.separatorHeight : title ? menu.titleHeight : menu.rowHeight
++
++                Rectangle {
++                    visible: row.separator
++                    anchors.verticalCenter: parent.verticalCenter
++                    x: menu.rowPadding
++                    width: parent.width - x * 2
++                    height: 1
++                    color: Qt.rgba(1, 1, 1, 0.12)
++                }
++
++                Rectangle {
++                    visible: !row.separator && row.highlighted
++                    anchors.fill: parent
++                    radius: Math.round(Kirigami.Units.gridUnit * 0.4)
++                    color: Kirigami.Theme.highlightColor
++                }
++
++                // A heading among Plasma's actions, such as "Recent Files": small and dim, like macOS's section titles.
++                QQC2.Label {
++                    visible: row.title
++                    anchors.verticalCenter: parent.verticalCenter
++                    x: menu.rowPadding
++                    width: parent.width - x * 2
++                    text: row.modelData.label || ""
++                    elide: Text.ElideRight
++                    textFormat: Text.PlainText
++                    font.pointSize: Kirigami.Theme.smallFont.pointSize
++                    font.weight: Font.DemiBold
++                    color: Qt.rgba(1, 1, 1, 0.5)
++                }
++
++                Kirigami.Icon {
++                    id: icon
++                    visible: !row.separator && !row.title
++                    anchors.verticalCenter: parent.verticalCenter
++                    x: menu.rowPadding
++                    width: menu.iconSize
++                    height: menu.iconSize
++                    source: row.modelData.icon || ""
++                    fallback: row.modelData.fallback || ""
++                    isMask: true
++                    color: label.color
++                }
++
++                QQC2.Label {
++                    id: label
++                    visible: !row.separator && !row.title
++                    anchors.verticalCenter: parent.verticalCenter
++                    x: icon.x + icon.width + menu.iconGap
++                    width: parent.width - x - menu.rowPadding
++                    text: row.modelData.label || ""
++                    elide: Text.ElideRight
++                    textFormat: Text.PlainText
++                    color: row.highlighted ? Kirigami.Theme.highlightedTextColor : Qt.rgba(1, 1, 1, 0.92)
++                }
++
++                MouseArea {
++                    anchors.fill: parent
++                    enabled: menu.choosable(row.index)
++                    hoverEnabled: true
++                    cursorShape: Qt.PointingHandCursor
++                    onEntered: menu.currentIndex = row.index
++                    onExited: if (menu.currentIndex === row.index) menu.currentIndex = -1
++                    onClicked: menu.choose(row.index)
++                }
++
++                Accessible.role: row.separator ? Accessible.Separator
++                               : row.title ? Accessible.StaticText : Accessible.MenuItem
++                Accessible.name: row.modelData.label || ""
++                Accessible.onPressAction: menu.choose(row.index)
++            }
++        }
++    }
++
++    onOpened: contentItem.forceActiveFocus()
++}
+diff -ruN -x '*.qsb' a/qml/QuickMenuRail.qml b/qml/QuickMenuRail.qml
+--- a/qml/QuickMenuRail.qml	1969-12-31 19:00:00.000000000 -0500
++++ b/qml/QuickMenuRail.qml	2026-11-04 22:57:04.480906873 -0500
+@@ -0,0 +1,171 @@
++/*
++    SPDX-FileCopyrightText: 2026 xt0n1 (https://github.com/xt0n1-t3ch)
++    SPDX-License-Identifier: GPL-2.0-or-later
++*/
++// The rail along the bottom of the Applications view, as in Windows 11's Start: the user's picture and name on the
++// left open the account menu (Lock, Switch User, Log Out), the power button on the right opens the power menu
++// (Sleep, Hibernate, Restart, Shut Down). Both menus are the Applications view's own menu (QuickMenuPopup.qml) and
++// list only what the session allows. Plasma's session manager does the work, with its own confirmation.
++import QtQuick
++import QtQuick.Controls as QQC2
++import QtQuick.Layouts
++import QtQuick.Templates as T
++
++import org.kde.coreaddons as KCoreAddons
++import org.kde.kirigami as Kirigami
++import org.kde.plasma.private.sessions as Sessions
++
++import "quickmenu.js" as QuickMenu
++
++Item {
++    id: rail
++
++    // The item the menus open in: the whole panel, so they can rise above the rail.
++    required property Item menuParent
++    // Asked before an action that leaves the desktop, so the panel can close first.
++    signal leaving()
++
++    implicitHeight: Math.round(Kirigami.Units.gridUnit * 3.2)
++
++    KCoreAddons.KUser {
++        id: user
++    }
++
++    Sessions.SessionManagement {
++        id: session
++    }
++
++    function run(action) {
++        rail.leaving()
++        QuickMenu.runSessionAction(session, action)
++    }
++
++    // Opens `list` above `button`, its left edge (or right edge, for the power menu) lined up with the button's.
++    function openMenu(button, list, alignRight) {
++        const corner = button.mapToItem(menuParent, alignRight ? button.width : 0, 0)
++        const size = menu.measure(list)
++        menu.openAt(null, list, alignRight ? corner.x - size.width : corner.x, corner.y - size.height - Kirigami.Units.smallSpacing, false)
++    }
++
++    QuickMenuPopup {
++        id: menu
++        parent: rail.menuParent
++        onChosen: (entry, action) => {
++            menu.close()
++            rail.run(action)
++        }
++    }
++
++    Rectangle {
++        id: hairline
++        x: Math.round(Kirigami.Units.gridUnit * 1.1)
++        width: parent.width - 2 * x
++        height: 1
++        color: Qt.rgba(1, 1, 1, 0.14)
++    }
++
++    RowLayout {
++        anchors {
++            fill: parent
++            topMargin: 1
++            leftMargin: Math.round(Kirigami.Units.gridUnit * 0.7)
++            rightMargin: Math.round(Kirigami.Units.gridUnit * 0.7)
++        }
++        spacing: Kirigami.Units.largeSpacing
++
++        // The account: picture and name, one rounded hover area, as Windows draws it.
++        T.AbstractButton {
++            id: account
++            Layout.alignment: Qt.AlignVCenter
++            implicitHeight: Math.round(Kirigami.Units.gridUnit * 2.3)
++            implicitWidth: accountRow.implicitWidth + 2 * Kirigami.Units.mediumSpacing
++            Accessible.name: i18n("Account: %1", nameLabel.text)
++            background: Rectangle {
++                radius: height / 2
++                color: Qt.rgba(1, 1, 1, account.down ? 0.16 : account.hovered ? 0.10 : 0)
++                Behavior on color { ColorAnimation { duration: Kirigami.Units.shortDuration } }
++            }
++            contentItem: RowLayout {
++                id: accountRow
++                spacing: Kirigami.Units.mediumSpacing + Kirigami.Units.smallSpacing
++                Item {
++                    Layout.preferredWidth: Math.round(Kirigami.Units.gridUnit * 1.75)
++                    Layout.preferredHeight: Layout.preferredWidth
++                    Rectangle {
++                        anchors.fill: parent
++                        radius: width / 2
++                        color: Kirigami.Theme.highlightColor
++                        visible: face.status !== Image.Ready
++                        Kirigami.Icon {
++                            anchors.centerIn: parent
++                            width: Math.round(parent.width * 0.62)
++                            height: width
++                            source: "user-symbolic"
++                            color: "white"
++                            isMask: true
++                        }
++                    }
++                    Kirigami.ShadowedImage {
++                        id: face
++                        anchors.fill: parent
++                        source: user.faceIconUrl
++                        radius: width / 2
++                        sourceSize: Qt.size(width * 2, height * 2)
++                        fillMode: Image.PreserveAspectCrop
++                        visible: status === Image.Ready
++                    }
++                }
++                QQC2.Label {
++                    id: nameLabel
++                    text: user.fullName || user.loginName
++                    color: Qt.rgba(1, 1, 1, 0.92)
++                    font.weight: Font.Medium
++                    textFormat: Text.PlainText
++                    elide: Text.ElideRight
++                    Layout.maximumWidth: Kirigami.Units.gridUnit * 12
++                }
++            }
++            HoverHandler {
++                cursorShape: Qt.PointingHandCursor
++            }
++            onClicked: rail.openMenu(account, QuickMenu.accountItems(session), false)
++        }
++
++        Item {
++            Layout.fillWidth: true
++        }
++
++        // The power button: a round glass button, as the Control Center's.
++        T.AbstractButton {
++            id: power
++            Layout.alignment: Qt.AlignVCenter
++            implicitWidth: Math.round(Kirigami.Units.gridUnit * 2.3)
++            implicitHeight: implicitWidth
++            Accessible.name: i18n("Power")
++            QQC2.ToolTip.visible: hovered && !menu.opened
++            QQC2.ToolTip.text: Accessible.name
++            QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
++            background: Rectangle {
++                radius: width / 2
++                color: Qt.rgba(1, 1, 1, power.down ? 0.18 : power.hovered ? 0.12 : 0.06)
++                border.width: 1
++                border.color: Qt.rgba(1, 1, 1, 0.10)
++                Behavior on color { ColorAnimation { duration: Kirigami.Units.shortDuration } }
++            }
++            contentItem: Item {
++                Kirigami.Icon {
++                    anchors.centerIn: parent
++                    width: Kirigami.Units.iconSizes.smallMedium
++                    height: width
++                    source: "system-shutdown-symbolic"
++                    color: Qt.rgba(1, 1, 1, 0.9)
++                    isMask: true
++                }
++            }
++            HoverHandler {
++                cursorShape: Qt.PointingHandCursor
++            }
++            onClicked: rail.openMenu(power, QuickMenu.powerItems(session), true)
++        }
++    }
++}
+diff -ruN -x '*.qsb' a/qml/QuickMenuResult.qml b/qml/QuickMenuResult.qml
+--- a/qml/QuickMenuResult.qml	1969-12-31 19:00:00.000000000 -0500
++++ b/qml/QuickMenuResult.qml	2026-11-04 22:29:45.209073783 -0500
+@@ -0,0 +1,184 @@
++/*
++    SPDX-FileCopyrightText: 2013-2014 Vishesh Handa <me@vhanda.in>
++    SPDX-FileCopyrightText: 2015-2016 Kai Uwe Broulik <kde@privat.broulik.de>
++    SPDX-FileCopyrightText: 2026 xt0n1-t3ch
++    SPDX-License-Identifier: LGPL-2.1-only OR LGPL-3.0-only OR LicenseRef-KDE-Accepted-LGPL
++*/
++// A search result as Tahoe's Spotlight lists it: icon, name and a quieter second line, the selected row filled
++// with the accent colour. It keeps Milou's ResultDelegate contract (actions, activeAction and the activate*Action
++// functions that Milou.ResultsView calls on Tab), its click-to-run and its drag-out of files and links.
++import QtQuick
++import QtQuick.Layouts
++import QtQuick.Templates as T
++import QtQuick.Controls as QQC2
++import org.kde.kirigami as Kirigami
++import org.kde.milou as Milou
++
++T.ItemDelegate {
++    id: result
++
++    required property int index
++    required property var model
++    required property var actions
++
++    property int activeAction: -1
++    readonly property bool isCurrent: ListView.isCurrentItem
++    readonly property color ink: isCurrent ? Kirigami.Theme.highlightedTextColor : Qt.rgba(1, 1, 1, 0.94)
++
++    width: ListView.view ? ListView.view.width - ListView.view.leftMargin - ListView.view.rightMargin : implicitWidth
++    implicitHeight: Math.max(Kirigami.Units.iconSizes.medium, labels.implicitHeight) + 2 * Kirigami.Units.mediumSpacing
++    hoverEnabled: true
++
++    Accessible.role: Accessible.ListItem
++    Accessible.name: title.text
++    Accessible.description: String(model.subtext || "")
++
++    onIsCurrentChanged: if (!isCurrent) activeAction = -1
++
++    function activateNextAction() {
++        if (activeAction === actionButtons.count - 1) {
++            return false
++        }
++        ++activeAction
++        return true
++    }
++    function activatePreviousAction() {
++        if (activeAction < 0) {
++            return false
++        }
++        --activeAction
++        return true
++    }
++    function activateLastAction() {
++        activeAction = actionButtons.count - 1
++    }
++
++    onClicked: {
++        ListView.view.currentIndex = index
++        ListView.view.runCurrentIndex()
++    }
++    onHoveredChanged: if (hovered) ListView.view.currentIndex = index
++
++    background: Rectangle {
++        radius: Kirigami.Units.cornerRadius * 2
++        color: result.isCurrent ? Kirigami.Theme.highlightColor : "transparent"
++    }
++
++    HoverHandler {
++        cursorShape: Qt.PointingHandCursor
++    }
++
++    Item {
++        id: dragHelper
++        Drag.dragType: Drag.Automatic
++        Drag.supportedActions: Qt.CopyAction | Qt.LinkAction
++        Drag.onDragFinished: {
++            Drag.mimeData = {}
++            Drag.imageSource = ""
++        }
++    }
++    DragHandler {
++        id: drag
++        target: null
++        grabPermissions: PointerHandler.TakeOverForbidden
++        onActiveChanged: if (active) {
++            icon.grabToImage(grab => {
++                const view = result.ListView.view
++                const mimeData = view.model.getMimeData(view.model.index(result.index, 0))
++                if (!mimeData) {
++                    return
++                }
++                dragHelper.Drag.imageSource = grab.url
++                dragHelper.Drag.mimeData = Milou.MouseHelper.generateMimeDataMap(mimeData)
++                dragHelper.Drag.active = drag.active
++            })
++        } else {
++            dragHelper.Drag.active = false
++        }
++    }
++
++    leftPadding: Kirigami.Units.mediumSpacing
++    rightPadding: Kirigami.Units.mediumSpacing
++
++    contentItem: RowLayout {
++        spacing: Kirigami.Units.largeSpacing
++
++        Kirigami.Icon {
++            id: icon
++            Layout.preferredWidth: Kirigami.Units.iconSizes.medium
++            Layout.preferredHeight: Kirigami.Units.iconSizes.medium
++            Layout.alignment: Qt.AlignVCenter
++            source: result.model.decoration
++            animated: false
++        }
++
++        ColumnLayout {
++            id: labels
++            Layout.fillWidth: true
++            spacing: 0
++
++            QQC2.Label {
++                id: title
++                Layout.fillWidth: true
++                text: result.model.display
++                color: result.ink
++                elide: Text.ElideMiddle
++                wrapMode: result.model.multiLine ? Text.WordWrap : Text.NoWrap
++                maximumLineCount: result.model.multiLine ? 20 : 1
++                // Multi-line answers (a calculation, a definition) come styled; one-liners are plain names.
++                textFormat: result.model.multiLine ? Text.StyledText : Text.PlainText
++            }
++            QQC2.Label {
++                Layout.fillWidth: true
++                visible: text.length > 0
++                text: String(result.model.subtext || "")
++                color: result.ink
++                opacity: 0.62
++                font: Kirigami.Theme.smallFont
++                elide: Text.ElideMiddle
++                maximumLineCount: 1
++                textFormat: Text.PlainText
++            }
++        }
++
++        Row {
++            Layout.alignment: Qt.AlignVCenter
++            spacing: Kirigami.Units.smallSpacing
++            visible: result.isCurrent && actionButtons.count > 0
++
++            Repeater {
++                id: actionButtons
++                model: result.actions
++
++                T.AbstractButton {
++                    id: actionButton
++                    required property var modelData
++                    required property int index
++                    width: Kirigami.Units.iconSizes.medium
++                    height: width
++                    Accessible.role: Accessible.Button
++                    Accessible.name: modelData.text || ""
++                    QQC2.ToolTip.visible: hovered
++                    QQC2.ToolTip.text: index === 0 ? i18ndc("milou", "placeholder is action e.g. run in terminal, in parenthesis is shortcut",
++                                                            "%1 (Shift+Return)", modelData.text || "")
++                                                   : (modelData.text || "")
++                    background: Rectangle {
++                        radius: width / 2
++                        color: Qt.rgba(1, 1, 1, result.activeAction === actionButton.index || actionButton.hovered ? 0.28 : 0.14)
++                    }
++                    contentItem: Kirigami.Icon {
++                        source: actionButton.modelData.iconSource || ""
++                        implicitWidth: Kirigami.Units.iconSizes.small
++                        implicitHeight: Kirigami.Units.iconSizes.small
++                        color: result.ink
++                        isMask: true
++                    }
++                    HoverHandler {
++                        cursorShape: Qt.PointingHandCursor
++                    }
++                    onClicked: result.ListView.view.runAction(index)
++                }
++            }
++        }
++    }
++}
+diff -ruN -x '*.qsb' a/qml/QuickMenuScrollBar.qml b/qml/QuickMenuScrollBar.qml
+--- a/qml/QuickMenuScrollBar.qml	1969-12-31 19:00:00.000000000 -0500
++++ b/qml/QuickMenuScrollBar.qml	2026-11-04 22:29:45.209073783 -0500
+@@ -0,0 +1,28 @@
++/*
++    SPDX-FileCopyrightText: 2026 xt0n1-t3ch
++    SPDX-License-Identifier: GPL-2.0-or-later
++*/
++// macOS's overlay scroll bar: a slim rounded thumb over the content, shown while scrolling or under the pointer and
++// faded out otherwise.
++import QtQuick
++import QtQuick.Templates as T
++import org.kde.kirigami as Kirigami
++
++T.ScrollBar {
++    id: bar
++
++    implicitWidth: Kirigami.Units.smallSpacing * 2 + padding * 2
++    padding: Kirigami.Units.smallSpacing / 2
++    minimumSize: 0.1
++    visible: size < 1
++
++    contentItem: Rectangle {
++        implicitWidth: Kirigami.Units.smallSpacing * (bar.hovered || bar.pressed ? 2 : 1.4)
++        radius: width / 2
++        color: Qt.rgba(1, 1, 1, bar.pressed ? 0.55 : 0.38)
++        opacity: bar.active || bar.hovered ? 1 : 0
++        Behavior on opacity {
++            NumberAnimation { duration: Kirigami.Units.longDuration }
++        }
++    }
++}
+diff -ruN -x '*.qsb' a/qml/QuickMenuTile.qml b/qml/QuickMenuTile.qml
+--- a/qml/QuickMenuTile.qml	1969-12-31 19:00:00.000000000 -0500
++++ b/qml/QuickMenuTile.qml	2026-11-04 22:56:30.597975363 -0500
+@@ -0,0 +1,151 @@
++/*
++    SPDX-FileCopyrightText: 2026 xt0n1-t3ch
++    SPDX-License-Identifier: GPL-2.0-or-later
++*/
++// One app of the Applications view: its large icon over its name, as Tahoe's Spotlight shows apps. One soft rounded
++// highlight marks the selected app, which the pointer takes only when it moves (an app that happens to lie under a
++// resting pointer when Quick Menu opens is not selected, so Return cannot launch it by surprise); the icon dips a
++// little while pressed. A draggable tile can be dragged onto another app of its section: its icon follows the
++// pointer, the app under it lights up, and the drop moves the app there.
++import QtQuick
++import QtQuick.Controls as QQC2
++import org.kde.kirigami as Kirigami
++
++Item {
++    id: tile
++
++    property var icon
++    property string label
++    property bool current: false
++    property int iconSize: Kirigami.Units.iconSizes.huge
++    // Its place in its section, whether it may be dragged, and the key only tiles of the same section share.
++    property int position: -1
++    property bool draggable: false
++    property string dropKey: ""
++    readonly property bool dragging: pointer.drag.active
++    readonly property bool dropTarget: drop.containsDrag && drop.drag.source !== tile
++
++    signal activated()
++    // An app of the same section, at `from`, was dropped on this one, at `to`.
++    signal moved(int from, int to)
++    // The pointer moved over the tile, at this global position (QuickMenuApps tells real motion from the hover
++    // events Qt sends when the content moves under a resting pointer).
++    signal pointed(point position)
++    // A right-click asked for the app's menu, at this global position.
++    signal menuRequested(point position)
++
++    implicitHeight: Kirigami.Units.largeSpacing + iconSize + Kirigami.Units.mediumSpacing + name.implicitHeight
++                    + Kirigami.Units.largeSpacing
++    // The dragged icon draws above the tiles after it in the grid.
++    z: dragging ? 10 : 0
++
++    Accessible.role: Accessible.Button
++    Accessible.name: label
++    Accessible.onPressAction: tile.activated()
++
++    Rectangle {
++        anchors.fill: parent
++        anchors.margins: Kirigami.Units.smallSpacing / 2
++        radius: Kirigami.Units.cornerRadius * 2.5
++        color: Qt.rgba(1, 1, 1, tile.dropTarget ? 0.22 : tile.current ? 0.16 : 0)
++        Behavior on color {
++            ColorAnimation { duration: Kirigami.Units.shortDuration }
++        }
++    }
++
++    Kirigami.Icon {
++        id: image
++        anchors.horizontalCenter: parent.horizontalCenter
++        y: Kirigami.Units.largeSpacing
++        width: tile.iconSize
++        height: tile.iconSize
++        source: tile.icon
++        animated: false
++        opacity: tile.dragging ? 0.35 : 1
++        scale: pointer.pressed ? 0.92 : 1
++        Behavior on scale {
++            NumberAnimation { duration: Kirigami.Units.shortDuration; easing.type: Easing.OutCubic }
++        }
++    }
++
++    QQC2.Label {
++        id: name
++        anchors.top: image.bottom
++        anchors.topMargin: Kirigami.Units.mediumSpacing
++        anchors.horizontalCenter: parent.horizontalCenter
++        width: parent.width - 2 * Kirigami.Units.smallSpacing
++        horizontalAlignment: Text.AlignHCenter
++        elide: Text.ElideRight
++        maximumLineCount: 1
++        textFormat: Text.PlainText
++        text: tile.label
++        color: Qt.rgba(1, 1, 1, 0.92)
++    }
++
++    // What follows the pointer while the app is dragged.
++    Kirigami.Icon {
++        id: ghost
++        x: image.x
++        y: image.y
++        width: tile.iconSize
++        height: tile.iconSize
++        visible: tile.dragging
++        source: tile.icon
++        animated: false
++        Drag.active: tile.dragging
++        Drag.source: tile
++        Drag.keys: [tile.dropKey]
++        Drag.hotSpot.x: width / 2
++        Drag.hotSpot.y: height / 2
++    }
++
++    DropArea {
++        id: drop
++        anchors.fill: parent
++        keys: [tile.dropKey]
++        onDropped: event => {
++            if (event.source !== tile && event.source.position >= 0) {
++                event.accept()
++                tile.moved(event.source.position, tile.position)
++            }
++        }
++    }
++
++    MouseArea {
++        id: pointer
++        // A drag is a move, not a click: the release that ends it must not launch the app.
++        property bool dragged: false
++        anchors.fill: parent
++        hoverEnabled: true
++        acceptedButtons: Qt.LeftButton | Qt.RightButton
++        cursorShape: tile.dragging ? Qt.ClosedHandCursor : Qt.PointingHandCursor
++        // Only the left button drags; the right one opens the menu.
++        drag.target: tile.draggable && pressedButtons === Qt.LeftButton ? ghost : null
++        // Inside the scrolling view a drag on a tile moves the app; the wheel and the scroll bar still scroll.
++        preventStealing: tile.draggable
++        onPressed: mouse => {
++            dragged = false
++            if (mouse.button === Qt.RightButton) {
++                tile.menuRequested(mapToGlobal(mouse.x, mouse.y))
++            }
++        }
++        onPositionChanged: mouse => {
++            if (drag.active) {
++                dragged = true
++            }
++            tile.pointed(mapToGlobal(mouse.x, mouse.y))
++        }
++        onReleased: {
++            if (dragged) {
++                ghost.Drag.drop()
++            }
++            ghost.x = image.x
++            ghost.y = image.y
++        }
++        onClicked: mouse => {
++            if (mouse.button === Qt.LeftButton && !dragged) {
++                tile.activated()
++            }
++        }
++    }
++}
+diff -ruN -x '*.qsb' a/qml/RunCommand.qml b/qml/RunCommand.qml
+--- a/qml/RunCommand.qml	2026-11-04 22:29:45.208331505 -0500
++++ b/qml/RunCommand.qml	2026-11-04 23:04:36.983679378 -0500
+@@ -1,12 +1,16 @@
+ /*
+     SPDX-FileCopyrightText: 2014 Marco Martin <mart@kde.org>
+-
++    SPDX-FileCopyrightText: 2026 xt0n1-t3ch
+     SPDX-License-Identifier: GPL-2.0-or-later
+ */
+-
++// KRunner drawn as macOS Tahoe's Spotlight: one floating piece of glass with a large search field on top. With
++// nothing typed it shows the Applications view (QuickMenuApps.qml); typing searches everything KRunner's runners
++// find, listed the way Quick Menu lists results (QuickMenuResult.qml). Up in the empty field recalls past searches,
++// and the ⋯ button keeps KRunner's own controls: keep open, usage help and its settings.
+ import QtQuick
+ import QtQuick.Controls as QQC2
+ import QtQuick.Layouts
++import QtQuick.Templates as T
+ import QtQuick.Window
+ 
+ import org.kde.config // KAuthorized
+@@ -17,7 +21,7 @@
+ import org.kde.krunner.private.view
+ import org.kde.kirigami as Kirigami
+ 
+-ColumnLayout {
++Item {
+     id: root
+ 
+     required property RunnerWindow runnerWindow
+@@ -27,8 +31,20 @@
+     property string priorSearch: ""
+     property alias runnerManager: results.runnerManager
+ 
+-    LayoutMirroring.enabled: Application.layoutDirection === Qt.RightToLeft
+-    LayoutMirroring.childrenInherit: true
++    // Tahoe's proportions, from the 64 px app icon: five columns of a little under two icons each.
++    readonly property int columns: 5
++    readonly property int iconSize: Kirigami.Units.iconSizes.huge
++    readonly property int tileWidth: Math.round(iconSize * 1.9)
++    readonly property int sidePadding: Math.round(Kirigami.Units.gridUnit * 1.1)
++    readonly property int panelWidth: columns * tileWidth + 2 * sidePadding
++    readonly property int headerHeight: Math.round(Kirigami.Units.gridUnit * 3.3)
++    readonly property int shadowPad: Math.ceil(glass.shadowSize * 1.6)
++    // The panel opens a quarter of the way down (view.cpp) and its body scrolls past this, so it ends on screen; the
++    // account and power rail under the Applications view takes its height out of the body's.
++    readonly property int bodyMaxHeight: Math.max(Kirigami.Units.gridUnit * 10, Math.round((Screen.height > 0 ? Screen.height : 1080) * 0.6) - headerHeight
++                                                  - (mode === "apps" ? Math.round(Kirigami.Units.gridUnit * 3.2) : 0))
++
++    readonly property string mode: query.length > 0 ? "results" : (showHistory ? "history" : "apps")
+ 
+     function isKeyUp(event) {
+         return (event.modifiers === Qt.NoModifier && event.key === Qt.Key_Up) || (event.modifiers & Qt.ControlModifier && event.key === Qt.Key_K)
+@@ -36,9 +52,23 @@
+     function isKeyDown(event) {
+         return (event.modifiers === Qt.NoModifier && event.key === Qt.Key_Down) || (event.modifiers & Qt.ControlModifier && event.key === Qt.Key_J)
+     }
++    function hideUnlessPinned() {
++        if (!runnerWindow.pinned) {
++            runnerWindow.visible = false
++        }
++    }
++
++    implicitWidth: panelWidth + 2 * shadowPad
++    implicitHeight: panel.height + 2 * shadowPad
++
++    LayoutMirroring.enabled: Application.layoutDirection === Qt.RightToLeft
++    LayoutMirroring.childrenInherit: true
+ 
+-    // Spacing needs to be 0 to not make the last spacer item add a fake margin
+-    spacing: 0
++    Binding {
++        target: root.runnerWindow
++        property: "inputRect"
++        value: Qt.rect(panel.x, panel.y, panel.width, panel.height)
++    }
+ 
+     Connections {
+         target: root.runnerWindow
+@@ -50,28 +80,17 @@
+                 root.runnerManager.setHistoryEnvironmentIdentifier(activity)
+             }
+         }
+-    }
+-    Component.onCompleted: {
+-        runnerManager.historyEnabled = runnerWindow.historyBehavior !== RunnerWindow.Disabled
+-    }
+-
+-    onQueryChanged: {
+-        queryField.text = query;
+-    }
+-
+-    Connections {
+-        target: root.runnerWindow
+         function onVisibleChanged() {
+             if (root.runnerWindow.visible) {
+-                queryField.forceActiveFocus();
++                apps.reset()
++                opening.restart()
++                queryField.forceActiveFocus()
+                 listView.currentIndex = -1
+-                if (root.runnerWindow.retainPriorSearch) {
+-                    // If we manually specified a query(D-Bus invocation) we don't want to retain the prior search
+-                    if (!root.query) {
+-                        queryField.text = root.priorSearch
+-                        queryField.select(root.query.length, 0)
+-                        fadedTextCompletion.text = ""
+-                    }
++                if (root.runnerWindow.retainPriorSearch && !root.query) {
++                    // A query passed over D-Bus wins over the prior search.
++                    queryField.text = root.priorSearch
++                    queryField.select(root.query.length, 0)
++                    fadedTextCompletion.text = ""
+                 }
+             } else {
+                 if (root.runnerWindow.retainPriorSearch) {
+@@ -79,412 +98,583 @@
+                 }
+                 root.singleRunner = ""
+                 root.query = ""
+-                fadedTextCompletion.text = "";
++                fadedTextCompletion.text = ""
+                 root.showHistory = false
+             }
+         }
+     }
++    Component.onCompleted: {
++        runnerManager.historyEnabled = runnerWindow.historyBehavior !== RunnerWindow.Disabled
++    }
+ 
+-    Connections {
+-        target: root
+-        function onShowHistoryChanged() {
+-            if (root.showHistory) {
+-                // we store 50 entries in the history but only show 20 in the UI so it doesn't get too huge
+-                listView.model = root.runnerManager.history.slice(0, 20)
+-            } else {
+-                listView.model = []
+-            }
++    onQueryChanged: {
++        queryField.text = query
++        if (query.length > 0) {
++            apps.current = null
+         }
+     }
+-    
+-    RowLayout {
+-        Layout.alignment: Qt.AlignTop
++    onShowHistoryChanged: {
++        // 50 past searches are kept; 20 fit the panel.
++        listView.model = showHistory ? runnerManager.history.slice(0, 20) : []
++    }
++
++    Loader {
++        source: "QuickMenuBlur.qml"
++    }
++
++    ParallelAnimation {
++        id: opening
++        NumberAnimation { target: panel; property: "opacity"; from: 0; to: 1; duration: Kirigami.Units.shortDuration; easing.type: Easing.OutCubic }
++        NumberAnimation { target: panel; property: "scale"; from: 0.97; to: 1; duration: Kirigami.Units.longDuration; easing.type: Easing.OutCubic }
++    }
++
++    Item {
++        id: panel
++
++        x: root.shadowPad
++        y: root.shadowPad
++        width: root.panelWidth
++        height: header.height + (body.visible ? divider.height + body.height : 0) + (rail.visible ? rail.height : 0)
+ 
+         Keys.onEscapePressed: root.runnerWindow.visible = false
+ 
+-        PlasmaComponents3.ToolButton {
+-            id: usageHelpButton
+-            visible: root.runnerWindow.helpEnabled
+-            checkable: true
+-            checked: root.query.startsWith("?")
+-            // Reset if out quers starts with "?", otherwise set it to "?"
+-            onClicked: root.query = root.query.startsWith("?") ? "" : "?"
+-            icon.name: "question"
+-            Accessible.name: i18n("Show Usage Help")
+-            Accessible.description: i18n("Show Usage Help")
+-            KeyNavigation.down: queryField.activeListView
+-            PlasmaComponents3.ToolTip {
+-                text: i18n("Show Usage Help")
+-            }
++        QuickMenuGlass {
++            id: glass
++            anchors.fill: parent
++            radius: Math.round(Kirigami.Units.gridUnit * 1.6)
+         }
+-        PlasmaComponents3.ToolButton {
+-            visible: !!root.singleRunner
+-            icon.name: results.singleRunnerMetaData.iconName
+-            onClicked: () => {
+-                root.singleRunner = ""
+-                root.query = ""
+-                fadedTextCompletion.text = ""
+-                queryField.forceActiveFocus();
+-            }
+-            checked: true
+-            Accessible.description: i18n("Showing only results from %1", results.singleRunnerMetaData.name)
+-            PlasmaComponents3.ToolTip {
+-                text: parent.Accessible.description
++
++        RowLayout {
++            id: header
++            x: root.sidePadding
++            width: parent.width - 2 * root.sidePadding
++            height: root.headerHeight
++            spacing: Kirigami.Units.largeSpacing
++
++            Kirigami.Icon {
++                Layout.preferredWidth: Math.round(root.headerHeight * 0.44)
++                Layout.preferredHeight: Layout.preferredWidth
++                source: "system-search-symbolic"
++                color: Qt.rgba(1, 1, 1, 0.72)
++                isMask: true
++            }
++
++            // Searching one runner only (krunner --runner, or a runner's own shortcut): its chip clears it.
++            T.AbstractButton {
++                visible: !!root.singleRunner
++                implicitWidth: chip.implicitWidth + 2 * Kirigami.Units.mediumSpacing
++                implicitHeight: Kirigami.Units.iconSizes.medium
++                Accessible.description: i18n("Showing only results from %1", results.singleRunnerMetaData.name)
++                QQC2.ToolTip.visible: hovered
++                QQC2.ToolTip.text: Accessible.description
++                background: Rectangle {
++                    radius: height / 2
++                    color: Kirigami.Theme.highlightColor
++                }
++                contentItem: RowLayout {
++                    id: chip
++                    spacing: Kirigami.Units.smallSpacing
++                    Kirigami.Icon {
++                        Layout.preferredWidth: Kirigami.Units.iconSizes.small
++                        Layout.preferredHeight: Kirigami.Units.iconSizes.small
++                        source: results.singleRunnerMetaData.iconName
++                    }
++                    QQC2.Label {
++                        text: results.singleRunnerMetaData.name
++                        color: Kirigami.Theme.highlightedTextColor
++                        textFormat: Text.PlainText
++                    }
++                }
++                HoverHandler {
++                    cursorShape: Qt.PointingHandCursor
++                }
++                onClicked: {
++                    root.singleRunner = ""
++                    root.query = ""
++                    fadedTextCompletion.text = ""
++                    queryField.forceActiveFocus()
++                }
+             }
+-        }
+-        PlasmaExtras.SearchField {
+-            id: queryField
+-            property bool allowCompletion: false
+-            readonly property ListView activeListView: historyScrollView.visible ? listView : results
+-
+-            Layout.minimumWidth: Kirigami.Units.gridUnit * 25
+-            Layout.maximumWidth: Kirigami.Units.gridUnit * 25
+-
+-            activeFocusOnPress: true
+-            placeholderText: results.singleRunner ? i18nc("Textfield placeholder text, query specific KRunner plugin",
+-                                                    "Search '%1'…", results.singleRunnerMetaData.name)
+-                                                : i18nc("Textfield placeholder text", "Search…")
+-            background.z: -2 // The fadedTextCompletion has -1, so it appears over the background
+-
+-            KeyNavigation.up: activeListView
+-            KeyNavigation.down: activeListView
+-            KeyNavigation.left: usageHelpButton
+-            KeyNavigation.right: configureButton
+-
+-            QQC2.Label {
+-                id: fadedTextCompletion
+-                leftPadding: parent.leftPadding
+-                topPadding: parent.topPadding
+-                rightPadding: parent.rightPadding
+-                bottomPadding: parent.bottomPadding
+-                width: parent.width
+-                height: parent.height
+-                elide: Text.ElideRight
+-                visible: text !== queryField.text
+-                    && queryField.implicitWidth < (queryField.width
+-                                                - queryField.leftPadding
+-                                                - queryField.rightPadding)
+-                opacity: 0.5
+-                text: ""
+-                textFormat: Text.PlainText
+-                renderType: parent.renderType
+-                color: parent.color
+-                focus: false
+-                z: -1
++
++            QQC2.TextField {
++                id: queryField
++
++                property bool allowCompletion: false
++                readonly property ListView activeListView: root.mode === "history" ? listView : results
++
++                Layout.fillWidth: true
++                Layout.alignment: Qt.AlignVCenter
++                background: null
++                leftPadding: 0
++                rightPadding: 0
++                font.pointSize: Kirigami.Theme.defaultFont.pointSize * 1.85
++                color: Qt.rgba(1, 1, 1, 0.96)
++                placeholderTextColor: Qt.rgba(1, 1, 1, 0.42)
++                selectionColor: Kirigami.Theme.highlightColor
++                selectedTextColor: Kirigami.Theme.highlightedTextColor
++                activeFocusOnPress: true
++                placeholderText: results.singleRunner ? i18nc("Textfield placeholder text, query specific KRunner plugin",
++                                                              "Search '%1'…", results.singleRunnerMetaData.name)
++                                                      : i18nc("Textfield placeholder text", "Quick Menu Search")
++
++                // The rest of a past search, faded behind what is typed (KRunner's completion suggestion).
++                QQC2.Label {
++                    id: fadedTextCompletion
++                    leftPadding: parent.leftPadding
++                    topPadding: parent.topPadding
++                    rightPadding: parent.rightPadding
++                    bottomPadding: parent.bottomPadding
++                    width: parent.width
++                    height: parent.height
++                    verticalAlignment: Text.AlignVCenter
++                    elide: Text.ElideRight
++                    visible: text !== queryField.text
++                    opacity: 0.4
++                    text: ""
++                    textFormat: Text.PlainText
++                    font: parent.font
++                    color: parent.color
++                    z: -1
++                }
++
++                function focusCurrentListView() {
++                    if (listView.count > 0) {
++                        listView.forceActiveFocus()
++                    } else if (results.count > 0) {
++                        results.forceActiveFocus()
++                    }
++                }
++
++                onTextChanged: {
++                    root.query = queryField.text
++                    if (!allowCompletion || !root.query) {
++                        fadedTextCompletion.text = ""
++                    } else if (root.runnerWindow.historyBehavior === RunnerWindow.CompletionSuggestion) {
++                        // Match the typed characters exactly, for case insensitive matches.
++                        fadedTextCompletion.text = text + root.runnerManager.getHistorySuggestion(text).substring(text.length)
++                    } else if (length > 0 && root.runnerWindow.historyBehavior === RunnerWindow.ImmediateCompletion) {
++                        const oldText = text
++                        const suggestedText = root.runnerManager.getHistorySuggestion(text)
++                        if (suggestedText.length > 0) {
++                            text = text + suggestedText.substr(oldText.length)
++                            select(text.length, oldText.length)
++                        }
++                    }
++                }
++
++                Keys.onPressed: event => {
++                    allowCompletion = (event.key !== Qt.Key_Backspace && event.key !== Qt.Key_Delete)
++                    // The Applications view: the arrows walk the grid while the field keeps the typing.
++                    if (root.mode === "apps" && apps.hasContent && event.modifiers === Qt.NoModifier) {
++                        const key = event.key === Qt.Key_Down ? "down" : event.key === Qt.Key_Up ? "up"
++                                  : event.key === Qt.Key_Left ? "left" : event.key === Qt.Key_Right ? "right" : ""
++                        if (key && (apps.current || key === "down" || key === "up")) {
++                            if (!apps.current && key === "up") {
++                                if (root.runnerManager.historyEnabled && root.runnerManager.history.length > 0) {
++                                    root.showHistory = true
++                                    listView.currentIndex = 0
++                                    focusCurrentListView()
++                                }
++                            } else {
++                                apps.moveCurrent(key)
++                            }
++                            event.accepted = true
++                            return
++                        }
++                    }
++                    // Only End needs handling here; the first result is current by default.
++                    if (event.key === Qt.Key_End && results.count > 0 && cursorPosition === text.length) {
++                        results.currentIndex = results.count - 1
++                        event.accepted = true
++                        focusCurrentListView()
++                    }
++                    if (root.runnerWindow.historyBehavior === RunnerWindow.CompletionSuggestion
++                            && fadedTextCompletion.text.length > 0 && cursorPosition === text.length && event.key === Qt.Key_Right) {
++                        queryField.text = fadedTextCompletion.text
++                        fadedTextCompletion.text = ""
++                        event.accepted = true
++                    }
++                    if (root.isKeyUp(event) || root.isKeyDown(event)) {
++                        if (root.isKeyUp(event)) {
++                            activeListView.currentIndex = activeListView.count - 1
++                        } else {
++                            activeListView.incrementCurrentIndex()
++                        }
++                        if (queryField.text.length === 0) {
++                            event.accepted = true
++                            root.showHistory = true
++                            focusCurrentListView()
++                        } else {
++                            return // KeyNavigation takes it to the list
++                        }
++                    }
++                    !event.accepted && results.navigationKeyHandler(event)
++                }
++                Keys.onTabPressed: event => {
++                    if (root.runnerWindow.historyBehavior === RunnerWindow.CompletionSuggestion
++                            && fadedTextCompletion.text && queryField.text !== fadedTextCompletion.text) {
++                        queryField.text = fadedTextCompletion.text
++                        fadedTextCompletion.text = ""
++                    } else {
++                        event.accepted = false
++                    }
++                }
++                function closeOrRun(event) {
++                    if (root.mode === "apps" && apps.current) {
++                        apps.launchCurrent()
++                    } else if (!root.query) {
++                        // Return in the empty field closes Quick Menu (KRunner's FEATURE 211225).
++                        root.runnerWindow.visible = false
++                    } else {
++                        results.runCurrentIndex(event)
++                    }
++                }
++                Keys.onEnterPressed: event => closeOrRun(event)
++                Keys.onReturnPressed: event => closeOrRun(event)
++
++                KeyNavigation.up: activeListView
++                KeyNavigation.down: activeListView
+             }
+ 
+             PlasmaComponents3.BusyIndicator {
+-                anchors {
+-                    right: parent.right
+-                    top: parent.top
+-                    bottom: parent.bottom
+-                    margins: Kirigami.Units.smallSpacing
+-                    rightMargin: height
+-                }
++                Layout.preferredWidth: Kirigami.Units.iconSizes.smallMedium
++                Layout.preferredHeight: Layout.preferredWidth
++                running: queryTimer.queryDisplay
++                visible: running
+ 
+                 Timer {
+                     id: queryTimer
+                     property bool queryDisplay: false
+                     running: results.querying
+                     repeat: true
++                    interval: 500
+                     onRunningChanged: if (queryDisplay && !running) {
+                         queryDisplay = false
+                     }
+                     onTriggered: if (!queryDisplay) {
+                         queryDisplay = true
+                     }
+-                    interval: 500
+-                }
+-
+-                running: queryTimer.queryDisplay
+-            }
+-
+-            function focusCurrentListView() {
+-                if (listView.count > 0) {
+-                    listView.forceActiveFocus();
+-                } else if (results.count > 0) {
+-                    results.forceActiveFocus();
+                 }
+             }
+ 
+-            onTextChanged: {
+-                root.query = queryField.text
+-                if (!allowCompletion || !root.query ) { // Clear suggestion in case it was disabled or the query is cleared
+-                    fadedTextCompletion.text = ""
+-                } else if (root.runnerWindow.historyBehavior === RunnerWindow.CompletionSuggestion) {
+-                    // Match the user's exact typed characters to account for case insensitive matches
+-                    fadedTextCompletion.text = text + root.runnerManager.getHistorySuggestion(text).substring(text.length)
+-                } else if (length > 0 && root.runnerWindow.historyBehavior === RunnerWindow.ImmediateCompletion) {
+-                    var oldText = text
+-                    var suggestedText = root.runnerManager.getHistorySuggestion(text);
+-                    if (suggestedText.length > 0) {
+-                        text = text + suggestedText.substr(oldText.length)
+-                        select(text.length, oldText.length)
++            // Tahoe's ⋯: a ring with three dots, opening KRunner's own controls.
++            T.AbstractButton {
++                id: moreButton
++                readonly property int dotSize: Math.max(2, Math.round(width / 9))
++                implicitWidth: Math.round(root.headerHeight * 0.5)
++                implicitHeight: implicitWidth
++                Accessible.name: i18nc("@action:button Quick Menu options", "More")
++                QQC2.ToolTip.visible: hovered
++                QQC2.ToolTip.text: Accessible.name
++                background: Rectangle {
++                    radius: width / 2
++                    color: Qt.rgba(1, 1, 1, moreButton.hovered || moreButton.down ? 0.14 : 0)
++                    border.width: 1.5
++                    border.color: Qt.rgba(1, 1, 1, 0.66)
++                }
++                contentItem: Item {
++                    Row {
++                        anchors.centerIn: parent
++                        spacing: moreButton.dotSize
++                        Repeater {
++                            model: 3
++                            Rectangle {
++                                width: moreButton.dotSize
++                                height: width
++                                radius: width / 2
++                                color: Qt.rgba(1, 1, 1, 0.8)
++                            }
++                        }
+                     }
+                 }
+-            }
+-            Keys.onPressed: event => {
+-                allowCompletion = (event.key !== Qt.Key_Backspace && event.key !== Qt.Key_Delete)
+-                // We only need to handle the Key_End case, the first item is focused by default
+-                if (event.key === Qt.Key_End && results.count > 0 && cursorPosition === text.length) {
+-                    results.currentIndex = results.count - 1
+-                    event.accepted = true;
+-                    focusCurrentListView()
+-                }
+-                if (root.runnerWindow.historyBehavior === RunnerWindow.CompletionSuggestion
+-                    && fadedTextCompletion.text.length > 0
+-                    && cursorPosition === text.length
+-                    && event.key === Qt.Key_Right
+-                ) {
+-                    queryField.text = fadedTextCompletion.text
+-                    fadedTextCompletion.text = ""
+-                    event.accepted = true
++                HoverHandler {
++                    cursorShape: Qt.PointingHandCursor
+                 }
+-                if (root.isKeyUp(event) || root.isKeyDown(event)) {
+-                    if (root.isKeyUp(event)) {
+-                        activeListView.currentIndex = activeListView.count - 1
+-                    } else {
+-                        activeListView.incrementCurrentIndex();
++                onClicked: moreMenu.openRelative()
++
++                PlasmaExtras.Menu {
++                    id: moreMenu
++                    visualParent: moreButton
++                    placement: PlasmaExtras.Menu.BottomPosedRightAlignedPopup
++
++                    PlasmaExtras.MenuItem {
++                        text: i18n("Keep Open")
++                        icon: "window-pin"
++                        checkable: true
++                        checked: root.runnerWindow.pinned
++                        onClicked: root.runnerWindow.pinned = !root.runnerWindow.pinned
++                    }
++                    PlasmaExtras.MenuItem {
++                        text: i18n("Show Usage Help")
++                        icon: "question"
++                        visible: root.runnerWindow.helpEnabled
++                        onClicked: {
++                            root.query = "?"
++                            queryField.forceActiveFocus()
++                        }
+                     }
+-                    if (queryField.text.length === 0) {
+-                        event.accepted = true
+-                        root.showHistory = true
+-                        focusCurrentListView()
+-                    } else {
+-                        return; // pass to KeyNavigation
++                    PlasmaExtras.MenuItem {
++                        separator: true
++                    }
++                    PlasmaExtras.MenuItem {
++                        text: i18n("Configure KRunner…")
++                        icon: "configure"
++                        visible: KAuthorized.authorizeControlModule("kcm_krunnersettings")
++                        onClicked: {
++                            root.runnerWindow.visible = false
++                            KCMLauncher.open("plasma/kcms/desktop/kcm_krunnersettings")
++                        }
+                     }
+-                }
+-                !event.accepted && results.navigationKeyHandler(event)
+-            }
+-            Keys.onTabPressed: event => {
+-                if (root.runnerWindow.historyBehavior === RunnerWindow.CompletionSuggestion
+-                    && fadedTextCompletion.text && queryField.text !== fadedTextCompletion.text) {
+-                    queryField.text = fadedTextCompletion.text
+-                    fadedTextCompletion.text = ""
+-                } else {
+-                    event.accepted = false
+                 }
+             }
+-            function closeOrRun(event) {
+-                // Close KRunner if no text was typed and enter was pressed, FEATURE: 211225
+-                if (!root.query) {
+-                    root.runnerWindow.visible = false
+-                } else {
+-                    results.runCurrentIndex(event)
+-                }
++        }
++
++        Rectangle {
++            id: divider
++            anchors.top: header.bottom
++            x: root.sidePadding
++            width: parent.width - 2 * root.sidePadding
++            height: 1
++            color: Qt.rgba(1, 1, 1, 0.14)
++            visible: body.visible
++        }
++
++        Item {
++            id: body
++            anchors.top: divider.bottom
++            width: parent.width
++            clip: true
++            visible: root.mode === "apps" ? apps.hasContent : (root.mode === "history" ? listView.count > 0 : results.count > 0)
++            height: Math.min(root.bodyMaxHeight, root.mode === "apps" ? apps.contentHeight
++                                                : root.mode === "history" ? listView.contentHeight + listView.topMargin + listView.bottomMargin
++                                                : results.contentHeight + results.topMargin + results.bottomMargin)
++
++            // Aurora: the Menu key or Shift+F10 opens the menu of the app the arrows stand on, as on Windows. A
++            // Shortcut takes the key before the search field does: the field's style opens its own text menu for it.
++            Shortcut {
++                sequences: ["Menu", "Shift+F10"]
++                enabled: root.mode === "apps" && apps.current !== null
++                onActivated: apps.openMenuForCurrent()
++            }
++
++            QuickMenuApps {
++                id: apps
++                anchors.fill: parent
++                visible: root.mode === "apps"
++                columns: root.columns
++                iconSize: root.iconSize
++                tileWidth: root.tileWidth
++                sidePadding: root.sidePadding
++                onLaunched: root.hideUnlessPinned()
+             }
+-            Keys.onEnterPressed: event => closeOrRun(event)
+-            Keys.onReturnPressed: event => closeOrRun(event)
+ 
+-            Kirigami.Icon {
+-                anchors {
+-                    right: parent.right
+-                    rightMargin: 6 // from PlasmaStyle TextFieldStyle
+-                    verticalCenter: parent.verticalCenter
+-                }
+-                // match clear button
+-                width: Math.max(parent.height * 0.8, Kirigami.Units.iconSizes.small)
+-                height: width
+-                source: "expand"
+-                visible: queryField.length === 0 && root.runnerManager.historyEnabled
+-                enabled: root.runnerManager.history.length > 0
+-                rotation: root.showHistory ? 180 : 0
+-                Behavior on rotation {
+-                    RotationAnimation {
+-                        duration: Kirigami.Units.shortDuration
+-                    }
+-                }
+-                MouseArea {
++            Milou.ResultsView {
++                    id: results
+                     anchors.fill: parent
+-                    onPressed: {
+-                        root.showHistory = !root.showHistory
+-                        if (root.showHistory) {
+-                            listView.forceActiveFocus(); // is the history list
+-                        } else {
+-                            queryField.forceActiveFocus();
++                    visible: root.mode === "results"
++                    enabled: visible
++                    clip: true
++                    queryString: root.query
++                    queryField: queryField
++                    singleRunner: root.singleRunner
++                    keyNavigationWraps: false
++                    // The rows' icons line up with the search glass; the selection keeps a small inset.
++                    topMargin: Kirigami.Units.smallSpacing
++                    bottomMargin: Kirigami.Units.smallSpacing
++                    leftMargin: root.sidePadding - Kirigami.Units.mediumSpacing
++                    rightMargin: root.sidePadding - Kirigami.Units.mediumSpacing
++                    boundsBehavior: Flickable.StopAtBounds
++                    QQC2.ScrollBar.vertical: QuickMenuScrollBar {}
++                    highlight: null
++                    delegate: QuickMenuResult {}
++                    section.delegate: QQC2.Label {
++                        required property string section
++                        width: results.width - results.leftMargin - results.rightMargin
++                        topPadding: Kirigami.Units.mediumSpacing
++                        bottomPadding: Kirigami.Units.smallSpacing
++                        leftPadding: Kirigami.Units.mediumSpacing
++                        text: section
++                        font.weight: Font.DemiBold
++                        font.pointSize: Kirigami.Theme.smallFont.pointSize
++                        color: Qt.rgba(1, 1, 1, 0.55)
++                        textFormat: Text.PlainText
++                    }
++
++                    Keys.onEscapePressed: root.runnerWindow.visible = false
++                    KeyNavigation.up: queryField
++                    KeyNavigation.down: queryField
++
++                    onActivated: root.hideUnlessPinned()
++                    onUpdateQueryString: (text, cursorPosition) => {
++                        queryField.text = text
++                        queryField.select(cursorPosition, root.query.length)
++                        queryField.focus = true
++                    }
++            }
++
++            // Past searches, as Up recalls them on macOS: Return puts one back in the field, × forgets it.
++            ListView {
++                id: listView
++                anchors.fill: parent
++                visible: root.mode === "history"
++                enabled: visible
++                clip: true
++                topMargin: Kirigami.Units.smallSpacing
++                bottomMargin: Kirigami.Units.smallSpacing
++                leftMargin: root.sidePadding - Kirigami.Units.mediumSpacing
++                rightMargin: root.sidePadding - Kirigami.Units.mediumSpacing
++                boundsBehavior: Flickable.StopAtBounds
++                QQC2.ScrollBar.vertical: QuickMenuScrollBar {}
++                keyNavigationWraps: false
++                activeFocusOnTab: true
++                highlightMoveDuration: 0
++                model: []
++                reuseItems: true
++
++                delegate: T.ItemDelegate {
++                    id: pastSearch
++                    required property var modelData
++                    required property int index
++                    readonly property bool isCurrent: ListView.isCurrentItem
++                    width: ListView.view.width - ListView.view.leftMargin - ListView.view.rightMargin
++                    implicitHeight: Kirigami.Units.iconSizes.medium + 2 * Kirigami.Units.smallSpacing
++                    hoverEnabled: true
++                    leftPadding: Kirigami.Units.mediumSpacing
++                    rightPadding: Kirigami.Units.mediumSpacing
++                    Accessible.description: i18n("Recent Queries")
++                    background: Rectangle {
++                        radius: Kirigami.Units.cornerRadius * 2
++                        color: pastSearch.isCurrent ? Kirigami.Theme.highlightColor : "transparent"
++                    }
++                    contentItem: RowLayout {
++                        spacing: Kirigami.Units.largeSpacing
++                        Kirigami.Icon {
++                            Layout.preferredWidth: Kirigami.Units.iconSizes.smallMedium
++                            Layout.preferredHeight: Layout.preferredWidth
++                            source: "view-history-symbolic"
++                            color: pastSearch.isCurrent ? Kirigami.Theme.highlightedTextColor : Qt.rgba(1, 1, 1, 0.7)
++                            isMask: true
+                         }
++                        QQC2.Label {
++                            Layout.fillWidth: true
++                            text: pastSearch.modelData
++                            color: pastSearch.isCurrent ? Kirigami.Theme.highlightedTextColor : Qt.rgba(1, 1, 1, 0.94)
++                            elide: Text.ElideRight
++                            textFormat: Text.PlainText
++                        }
++                        T.AbstractButton {
++                            visible: pastSearch.isCurrent
++                            implicitWidth: Kirigami.Units.iconSizes.smallMedium
++                            implicitHeight: implicitWidth
++                            Accessible.name: i18n("Remove")
++                            QQC2.ToolTip.visible: hovered
++                            QQC2.ToolTip.text: Accessible.name
++                            contentItem: Kirigami.Icon {
++                                source: "edit-delete-remove-symbolic"
++                                color: Kirigami.Theme.highlightedTextColor
++                                isMask: true
++                            }
++                            HoverHandler {
++                                cursorShape: Qt.PointingHandCursor
++                            }
++                            onClicked: {
++                                listView.currentIndex = pastSearch.index
++                                listView.runAction(0)
++                            }
++                        }
++                    }
++                    HoverHandler {
++                        cursorShape: Qt.PointingHandCursor
++                    }
++                    onHoveredChanged: if (hovered) listView.currentIndex = index
++                    onClicked: {
++                        listView.currentIndex = index
++                        listView.runCurrentIndex(null)
+                     }
+                 }
+-            }
+-        }
+-        PlasmaComponents3.ToolButton {
+-            id: configureButton
+-            icon.name: "configure"
+-            onClicked: {
+-                root.runnerWindow.visible = false
+-                KCMLauncher.open("plasma/kcms/desktop/kcm_krunnersettings")
+-            }
+-            Accessible.name: i18n("Configure")
+-            Accessible.description: i18n("Configure KRunner Behavior")
+-            visible: KAuthorized.authorizeControlModule("kcm_krunnersettings")
+-            KeyNavigation.right: pinButton
+-            KeyNavigation.down: queryField.activeListView
+-            PlasmaComponents3.ToolTip {
+-                text: i18n("Configure KRunner…")
+-            }
+-        }
+-        PlasmaComponents3.ToolButton {
+-            id: pinButton
+-            checkable: true
+-            checked: root.runnerWindow.pinned
+-            onToggled: root.runnerWindow.pinned = checked
+-            icon.name: "window-pin"
+-            Accessible.name: i18n("Pin")
+-            Accessible.description: i18n("Pin Search")
+-            KeyNavigation.down: queryField.activeListView
+-            PlasmaComponents3.ToolTip {
+-                text: i18n("Keep Open")
+-            }
+-        }
+-    }
+ 
+-    PlasmaComponents3.ScrollView {
+-        visible: results.count > 0
+-        enabled: visible
+-        Layout.fillWidth: true
+-        Layout.fillHeight: true
+-        Layout.maximumHeight: Math.max(listView.contentHeight, results.contentHeight)
+-        // This replaces the ColumnLayout spacing
+-        Layout.topMargin: Kirigami.Units.smallSpacing
+-
+-        Milou.ResultsView {
+-            id: results
+-            queryString: root.query
+-            queryField: queryField
+-            singleRunner: root.singleRunner
+-
+-            keyNavigationWraps: false
+-            Keys.onEscapePressed: {
+-                root.runnerWindow.visible = false
+-            }
+-            KeyNavigation.up: queryField
+-            KeyNavigation.down: queryField
+-
+-            onActivated: {
+-                if (!root.runnerWindow.pinned) {
+-                    root.runnerWindow.visible = false
++                onActiveFocusChanged: {
++                    if (!activeFocus && currentIndex == listView.count - 1) {
++                        currentIndex = 0
++                    }
++                }
++                KeyNavigation.up: queryField
++                KeyNavigation.down: queryField
++                Keys.onReturnPressed: event => runCurrentIndex(event)
++                Keys.onEnterPressed: event => runCurrentIndex(event)
++                Keys.onTabPressed: {
++                    if (currentIndex == listView.count - 1) {
++                        listView.nextItemInFocusChain(true).forceActiveFocus()
++                    } else {
++                        incrementCurrentIndex()
++                    }
++                }
++                Keys.onBacktabPressed: {
++                    if (currentIndex == 0) {
++                        listView.nextItemInFocusChain(false).forceActiveFocus()
++                    } else {
++                        decrementCurrentIndex()
++                    }
++                }
++                Keys.onPressed: event => {
++                    if (root.isKeyUp(event)) {
++                        if (currentIndex !== 0) {
++                            event.accepted = true
++                        }
++                        decrementCurrentIndex()
++                    } else if (root.isKeyDown(event)) {
++                        if (currentIndex !== count - 1) {
++                            event.accepted = true
++                        }
++                        incrementCurrentIndex()
++                    } else if (event.key === Qt.Key_Delete && event.modifiers === Qt.ShiftModifier) {
++                        runAction(0)
++                        event.accepted = true
++                    } else if (event.text !== "" && !event.accepted) {
++                        if (event.key == Qt.Key_Escape) {
++                            root.showHistory = false
++                        } else if (!/[\x00-\x1F\x7F]/.test(event.text)) {
++                            // No unprintable control characters in the field.
++                            queryField.text += event.text
++                        }
++                        queryField.focus = true
++                    }
+                 }
+-            }
+-
+-            onUpdateQueryString: (text, cursorPosition) => {
+-                queryField.text = text
+-                queryField.select(cursorPosition, root.query.length)
+-                queryField.focus = true;
+-            }
+-        }
+-    }
+ 
+-    PlasmaComponents3.ScrollView {
+-        id: historyScrollView
+-        Layout.fillWidth: true
+-        Layout.fillHeight: true
+-        Layout.maximumHeight: listView.contentHeight
+-        // This replaces the ColumnLayout spacing
+-        Layout.topMargin: Kirigami.Units.smallSpacing
+-        visible: root.query.length === 0 && listView.count > 0
+-        // don't accept keyboard input when not visible so the keys propagate to the other list
+-        enabled: visible
+-
+-        ListView {
+-            id: listView // needs this id so the delegate can access it
+-            keyNavigationWraps: false
+-            highlight: PlasmaExtras.Highlight {}
+-            highlightMoveDuration: 0
+-            activeFocusOnTab: true
+-            model: []
+-            reuseItems: true
+-            delegate: Milou.ResultDelegate {
+-                id: resultDelegate
+-
+-                required property var modelData
+-
+-                width: listView.width
+-                typeText: index === 0 ? i18n("Recent Queries") : ""
+-                displayText: modelData
+-                actions: [{
+-                    iconSource: "list-remove-symbolic",
+-                    text: i18n("Remove")
+-                }]
+-                Accessible.description: i18n("Recent Queries")
+-            }
+-
+-            onActiveFocusChanged: {
+-                if (!activeFocus && currentIndex == listView.count-1) {
+-                    currentIndex = 0;
+-                }
+-            }
+-            KeyNavigation.up: queryField
+-            KeyNavigation.down: queryField
+-            Keys.onReturnPressed: runCurrentIndex(event)
+-            Keys.onEnterPressed: runCurrentIndex(event)
+-
+-            Keys.onTabPressed: {
+-                if (currentIndex == listView.count-1) {
+-                    listView.nextItemInFocusChain(true).forceActiveFocus();
+-                } else {
+-                    incrementCurrentIndex()
+-                }
+-            }
+-            Keys.onBacktabPressed: {
+-                if (currentIndex == 0) {
+-                    listView.nextItemInFocusChain(false).forceActiveFocus();
+-                } else {
+-                    decrementCurrentIndex()
+-                }
+-            }
+-            Keys.onPressed: event => {
+-                if (root.isKeyUp(event)) {
+-                    if (currentIndex !== 0) {
+-                        event.accepted = true;
+-                    }
+-                    decrementCurrentIndex();
+-                } else if (root.isKeyDown(event)) {
+-                    if (currentIndex !== count - 1) {
+-                        event.accepted = true;
+-                    }
+-                    incrementCurrentIndex();
+-                } else if (event.text !== "" && !event.accepted) {
+-                    // This prevents unprintable control characters from being inserted
+-                    if (event.key == Qt.Key_Escape) {
+-                        root.showHistory = false
+-                    } else if (!/[\x00-\x1F\x7F]/.test(event.text)) {
+-                        queryField.text += event.text;
+-                    }
+-                    queryField.focus = true;
+-                }
+-            }
+-
+-
+-            function runCurrentIndex(event) {
+-                var entry = root.runnerManager.history[currentIndex]
+-                if (entry) {
+-                    // If user presses Shift+Return to invoke an action, invoke the first runner action
+-                    if (event && event.modifiers === Qt.ShiftModifier
+-                            && currentItem.actions && currentItem.actions.length > 0) {
+-                        runAction(0);
++                function runCurrentIndex(event) {
++                    const entry = root.runnerManager.history[currentIndex]
++                    if (!entry) {
++                        return
++                    }
++                    // Shift+Return runs the first action, Remove.
++                    if (event && event.modifiers === Qt.ShiftModifier) {
++                        runAction(0)
+                         return
+                     }
+-
+                     queryField.text = entry
+-                    queryField.forceActiveFocus();
++                    queryField.forceActiveFocus()
+                 }
+-            }
+ 
+-            function runAction(actionIndex) {
+-                if (actionIndex === 0) {
+-                    // QStringList changes just reset the model, so we'll remember the index and set it again
+-                    var currentIndex = listView.currentIndex
+-                    root.runnerManager.removeFromHistory(currentIndex)
+-                    model = root.runnerManager.history
+-                    listView.currentIndex = currentIndex
++                function runAction(actionIndex) {
++                    if (actionIndex === 0) {
++                        // QStringList changes reset the model: keep the index across it.
++                        const index = listView.currentIndex
++                        root.runnerManager.removeFromHistory(index)
++                        model = root.runnerManager.history.slice(0, 20)
++                        listView.currentIndex = Math.min(index, count - 1)
++                    }
+                 }
+             }
+         }
+ 
+-    }
+-
+-    // to align the layout to the top of any pending space in the view
+-    Item {
+-        Layout.fillHeight: true
++        // Aurora: the account and power rail under the Applications view, as in Windows' Start.
++        QuickMenuRail {
++            id: rail
++            anchors.top: body.visible ? body.bottom : divider.bottom
++            width: parent.width
++            visible: root.mode === "apps"
++            menuParent: panel
++            onLeaving: root.runnerWindow.visible = false
++        }
+     }
+ }
+diff -ruN -x '*.qsb' a/qml/shaders/glass.frag b/qml/shaders/glass.frag
+--- a/qml/shaders/glass.frag	1969-12-31 19:00:00.000000000 -0500
++++ b/qml/shaders/glass.frag	2026-11-04 22:29:45.209073783 -0500
+@@ -0,0 +1,57 @@
++#version 440
++// SPDX-License-Identifier: GPL-3.0-only
++// Liquid Glass for one Control Center module: a tinted rounded body, a rim that is bright where it faces up and
++// faint where it faces down, and a soft shadow in the transparent margin around it. Output is premultiplied.
++// Build: qsb --qt6 -o package/contents/ui/shaders/glass.frag.qsb tools/shaders/glass.frag
++layout(location = 0) in vec2 qt_TexCoord0;
++layout(location = 0) out vec4 fragColor;
++
++layout(std140, binding = 0) uniform buf {
++    mat4 qt_Matrix;
++    float qt_Opacity;
++    vec2 boxSize;
++    float pad;
++    float radius;
++    vec4 tint;
++    vec4 rimLight;
++    vec4 rimShade;
++    float rimWidth;
++    float sheen;
++    float shadowAlpha;
++    float shadowSize;
++};
++
++float roundedBox(vec2 p, vec2 halfSize, float r)
++{
++    vec2 q = abs(p) - halfSize + vec2(r);
++    return length(max(q, vec2(0.0))) + min(max(q.x, q.y), 0.0) - r;
++}
++
++void main()
++{
++    vec2 full = boxSize + vec2(2.0 * pad);
++    vec2 p = qt_TexCoord0 * full - 0.5 * full;
++    float r = min(radius, 0.5 * min(boxSize.x, boxSize.y));
++    float d = roundedBox(p, 0.5 * boxSize, r);
++
++    float shadowDistance = roundedBox(p - vec2(0.0, 0.3 * shadowSize), 0.5 * boxSize, r);
++    float shadow = shadowAlpha * (1.0 - smoothstep(-0.4 * shadowSize, shadowSize, shadowDistance));
++    vec4 outside = vec4(0.0, 0.0, 0.0, shadow);
++
++    float coverage = clamp(0.5 - d, 0.0, 1.0);
++
++    float y = clamp((p.y + 0.5 * boxSize.y) / boxSize.y, 0.0, 1.0);
++    vec3 bodyRgb = tint.rgb + vec3(sheen * (1.0 - smoothstep(0.0, 0.75, y)));
++    vec4 body = vec4(bodyRgb * tint.a, tint.a);
++
++    vec2 q = abs(p) - 0.5 * boxSize + vec2(r);
++    vec2 s = vec2(p.x < 0.0 ? -1.0 : 1.0, p.y < 0.0 ? -1.0 : 1.0);
++    vec2 n = (q.x > 0.0 && q.y > 0.0) ? normalize(q) * s : (q.x > q.y ? vec2(s.x, 0.0) : vec2(0.0, s.y));
++    float facing = clamp(0.5 - 0.5 * n.y, 0.0, 1.0);
++    vec4 rimColour = mix(rimShade, rimLight, facing * facing);
++    float band = 1.0 - smoothstep(rimWidth - 0.6, rimWidth + 0.6, -d);
++    vec4 rim = vec4(rimColour.rgb * rimColour.a, rimColour.a) * band;
++
++    vec4 glass = rim + body * (1.0 - rim.a);
++    fragColor = (glass * coverage + outside * (1.0 - coverage)) * qt_Opacity;
++}
+diff -ruN -x '*.qsb' a/view.cpp b/view.cpp
+--- a/view.cpp	2026-11-04 22:29:45.208331505 -0500
++++ b/view.cpp	2026-11-04 22:56:30.606667216 -0500
+@@ -34,8 +34,10 @@
+ 
+ KCONFIGGROUP_DECLARE_ENUM_QOBJECT(View, HistoryBehavior)
+ 
++// Aurora: a frame prefix the theme does not have, so PlasmaWindow draws no frame, margins or shadow; the glass
++// panel and its shadow are drawn by RunCommand.qml, as macOS Tahoe's Spotlight is one floating piece of glass.
+ View::View(QWindow *)
+-    : PlasmaQuick::PlasmaWindow()
++    : PlasmaQuick::PlasmaWindow(u"aurora/no-frame"_s)
+     , m_engine(PlasmaQuick::globalEngine())
+     , m_floating(false)
+ {
+@@ -100,8 +102,9 @@
+ QMargins View::margins()
+ {
+     if (m_floating) {
++        // A quarter of the way down, where macOS puts Spotlight: the Applications view grows downwards from there.
+         const QRect r = screen()->availableGeometry();
+-        return QMargins({0, r.height() / 3, 0, 0});
++        return QMargins({0, r.height() / 4, 0, 0});
+     } else {
+         return {}; // Zeros
+     }
+@@ -143,8 +146,10 @@
+ 
+ void View::loadConfig()
+ {
+-    setFreeFloating(m_config.readEntry("FreeFloating", false));
+-    setRetainPriorSearch(m_config.readEntry("RetainPriorSearch", true));
++    // Quick Menu floats on the active screen unless KRunner's settings put it at the top edge.
++    setFreeFloating(m_config.readEntry("FreeFloating", true));
++    // Quick Menu opens on the Applications view; KRunner's "Retain previous search" setting still brings it back.
++    setRetainPriorSearch(m_config.readEntry("RetainPriorSearch", false));
+     setPinned(m_stateData.readEntry("Pinned", false));
+     setHistoryBehavior(m_config.readEntry("historyBehavior", HistoryBehavior::CompletionSuggestion));
+ }
+@@ -155,6 +160,30 @@
+     requestActivate();
+ }
+ 
++QRectF View::inputRect() const
++{
++    return m_inputRect;
++}
++
++void View::setInputRect(const QRectF &rect)
++{
++    if (m_inputRect == rect) {
++        return;
++    }
++    m_inputRect = rect;
++    setMask(QRegion(rect.toAlignedRect()));
++    Q_EMIT inputRectChanged();
++}
++
++void View::resizeEvent(QResizeEvent *event)
++{
++    PlasmaQuick::PlasmaWindow::resizeEvent(event);
++    // PlasmaWindow resets the mask from its (empty) frame when the window changes size.
++    if (!m_inputRect.isEmpty()) {
++        setMask(QRegion(m_inputRect.toAlignedRect()));
++    }
++}
++
+ void View::positionOnScreen()
+ {
+     const auto screens = QGuiApplication::screens();
+diff -ruN -x '*.qsb' a/view.h b/view.h
+--- a/view.h	2026-11-04 22:29:45.208331505 -0500
++++ b/view.h	2026-11-04 22:56:30.607307633 -0500
+@@ -31,6 +31,9 @@
+     Q_PROPERTY(bool helpEnabled READ helpEnabled NOTIFY helpEnabledChanged)
+     Q_PROPERTY(bool retainPriorSearch READ retainPriorSearch NOTIFY retainPriorSearchChanged)
+     Q_PROPERTY(HistoryBehavior historyBehavior READ historyBehavior NOTIFY historyBehaviorChanged)
++    // The part of the window that takes clicks: Quick Menu's glass panel. Its shadow is drawn into the transparent
++    // margin around it, which lets clicks through to the windows below.
++    Q_PROPERTY(QRectF inputRect READ inputRect WRITE setInputRect NOTIFY inputRectChanged FINAL)
+ 
+ public:
+     explicit View(QWindow *parent = nullptr);
+@@ -79,13 +82,18 @@
+         Q_EMIT retainPriorSearchChanged();
+     }
+ 
++    QRectF inputRect() const;
++    void setInputRect(const QRectF &rect);
++
+ Q_SIGNALS:
++    void inputRectChanged();
+     void pinnedChanged();
+     void helpEnabledChanged();
+     void activityChanged(const QString &activity);
+ 
+ protected:
+     void showEvent(QShowEvent *event) override;
++    void resizeEvent(QResizeEvent *event) override;
+ 
+ public Q_SLOTS:
+     void display();
+@@ -113,6 +121,7 @@
+     bool m_retainPriorSearch = false;
+     bool m_requestedClipboardSelection = false;
+     QStringList m_history;
++    QRectF m_inputRect;
+     HistoryBehavior m_historyBehavior = HistoryBehavior::CompletionSuggestion;
+     KActivities::Consumer m_consumer;
+ };

@@ -1,0 +1,31 @@
+# SPDX-FileCopyrightText: 2026 xt0n1 (https://github.com/xt0n1-t3ch)
+# SPDX-License-Identifier: GPL-3.0-only
+# Additional terms (GPL-3.0 section 7, author attribution): see NOTICE.md.
+[package]
+name = "aurora"
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.90"
+description = "Installs, updates and removes Aurora, a macOS Tahoe-inspired theme for CachyOS and KDE Plasma 6"
+license = "GPL-3.0-or-later"
+publish = false
+
+[dependencies]
+anyhow = "1.0.104"
+clap = { version = "4.6.7", features = ["derive"] }
+cliclack = "0.5.7"
+console = "0.16.6"
+serde_json = "1.0.154"
+sha2 = "0.11.1"
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+module_name_repetitions = "allow"
+
+[profile.release]
+lto = "thin"
+codegen-units = 4
+strip = true

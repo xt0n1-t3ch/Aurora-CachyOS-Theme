@@ -1,0 +1,4 @@
+plasma-workspace 6.8.2-1.1
+kwin 6.8.2-2.1
+qt6-base 6.12.0-3.1
+kdecoration 6.8.2-1.1

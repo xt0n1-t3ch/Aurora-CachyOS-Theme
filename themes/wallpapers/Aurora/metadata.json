@@ -1,0 +1,15 @@
+{
+    "KPackageStructure": "Plasma/Wallpaper",
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "xt0n1",
+                "Website": "https://github.com/xt0n1-t3ch"
+            }
+        ],
+        "Description": "Dawn Bird: Aurora's own wallpaper, a bird of folded glass rising at first light",
+        "Id": "Aurora",
+        "License": "CC-BY-SA-4.0",
+        "Name": "Aurora Dawn Bird"
+    }
+}

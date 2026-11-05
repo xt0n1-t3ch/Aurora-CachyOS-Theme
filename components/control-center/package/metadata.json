@@ -1,0 +1,29 @@
+{
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "xt0n1"
+            },
+            {
+                "Email": "prayagjain2@gmail.com",
+                "Name": "Prayag Jain"
+            },
+            {
+                "Name": "Mkeays501",
+                "Email": ""
+            }
+        ],
+        "Category": "Utilities",
+        "Description": "Aurora's Control Center: network, Bluetooth, Night Light, media, sound and more",
+        "Icon": "control-center-symbolic",
+        "Id": "org.aurora.controlcenter",
+        "License": "GPLv3",
+        "Name": "Control Center",
+        "Version": "2.0.0",
+        "Website": "https://github.com/xt0n1-t3ch/Aurora-CachyOS-Theme"
+    },
+    "X-Plasma-Provides": "org.kde.plasma.multimediacontrols,org.kde.plasma.powermanagement,org.kde.plasma.notifications",
+    "X-Plasma-NotificationArea": "true",
+    "X-Plasma-API-Minimum-Version": "6.0",
+    "KPackageStructure": "Plasma/Applet"
+}
