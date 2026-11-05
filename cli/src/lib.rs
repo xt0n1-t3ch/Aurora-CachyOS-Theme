@@ -6,8 +6,10 @@
 
 pub mod app;
 pub mod askpass;
+pub mod backups;
 pub mod check;
 pub mod download;
+pub mod icons;
 pub mod legal;
 pub mod logo;
 pub mod release;
@@ -16,5 +18,6 @@ pub mod settings;
 pub mod source;
 pub mod steps;
 pub mod system;
+pub mod tuning;
 pub mod ui;
 pub mod updates;

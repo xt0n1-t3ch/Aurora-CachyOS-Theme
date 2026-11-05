@@ -36,9 +36,16 @@ it changes. A change that needs a fresh install, or that an earlier backup canno
   rises and fades in, the Control Center drops in, and File Explorer's hovers fade and its wheel scroll glides.
 - `aurora settings` chooses the animation speed, smooth, fast or instant (`--animations` from a script), and applies
   it at once to the running desktop.
+- `aurora performance on` and `off` turn the measured tuning on or back to CachyOS's settings at any time; alone it
+  shows the four settings and whether they are in place.
+- `aurora backups` lists the backups of your desktop from before Aurora, and `aurora backups restore` puts one back.
+- `aurora icons` changes the icon theme to Aurora's or any other installed one, at once.
+- `aurora settings` and the `aurora` menu reach every one of these.
 
 ### Changed
 
+- The README's install, update, tuning and removal sections use the `aurora` command; the manual steps moved into
+  folded sections.
 - File Explorer's context menu follows Finder's order: Open, Open With, Open in New Tab; Rename, Duplicate, Compress
   to .zip, Quick Look; Cut, Copy, Copy Path, Paste; Move to Trash; the tags; Get Info, Quick Actions (the service
   menus) and Open Terminal Here, which opens a file's folder too.

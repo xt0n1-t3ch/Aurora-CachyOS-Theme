@@ -8,6 +8,7 @@
 #
 #   root-steps.sh link SOURCE LINK [STEP...]   links LINK to SOURCE (KWin's plugins, see install.sh step 5)
 #   root-steps.sh tune FOLDER [STEP...]        installs the performance tuning in FOLDER (performance/system)
+#   root-steps.sh untune [STEP...]             puts CachyOS's scheduler and memory settings back
 set -euo pipefail
 
 # Prints a usage error to stderr and exits with status 2. Arguments: the message words.
@@ -22,6 +23,8 @@ while [ $# -gt 0 ]; do
         tune)
             [ $# -ge 2 ] || usage "tune needs the folder of the tuning files"
             system=$2
+            # The scheduler and its loader; CachyOS ships them, and --needed leaves them alone when they are there.
+            pacman -S --needed --noconfirm scx-scheds scx-tools > /dev/null
             install -Dm644 "$system/scx_loader.toml" /etc/scx_loader.toml
             systemctl enable --now scx_loader.service
             install -Dm644 "$system/thp.conf" /etc/tmpfiles.d/thp.conf
@@ -30,6 +33,14 @@ while [ $# -gt 0 ]; do
             sysctl -q --system
             install -Dm644 "$system/90-aurora-zram.conf" /etc/systemd/zram-generator.conf.d/90-aurora-zram.conf
             shift 2 ;;
+        untune)
+            # The files tune writes, then CachyOS's own scheduler and huge page defrag, as uninstall.sh does.
+            rm -f /etc/scx_loader.toml /etc/tmpfiles.d/thp.conf /etc/sysctl.d/99-aurora-memory.conf \
+                /etc/systemd/zram-generator.conf.d/90-aurora-zram.conf
+            systemctl disable --now scx_loader.service
+            echo defer+madvise > /sys/kernel/mm/transparent_hugepage/defrag
+            sysctl -q --system
+            shift ;;
         *) usage "unknown step: $1" ;;
     esac
 done

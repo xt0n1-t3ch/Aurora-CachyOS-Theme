@@ -134,9 +134,14 @@ pub fn settings(places: &Places, updates: Option<&str>, animations: Option<&str>
         .item("updates", "Update notices", format!("now: {}", settings.updates.to_string().to_lowercase()))
         .item("animations", "Animations", format!("now: {}", settings.animations.to_string().to_lowercase()))
         .item("logo", "Menu bar logo", "CachyOS, Arch Linux, Apple or Kali Linux, in black and white or in color")
+        .item("icons", "Icons", "Aurora's, or any other installed icon theme")
+        .item("performance", "Performance tuning", format!("now: {}", crate::tuning::current()))
         .interact()?;
-    if what == "logo" {
-        return app::logo(None, Colors::Off);
+    match what {
+        "logo" => return app::logo(None, Colors::Off),
+        "icons" => return crate::icons::icons(places, None),
+        "performance" => return crate::tuning::performance(places, None, false),
+        _ => {}
     }
     if what == "animations" {
         cliclack::intro(Style::new().bold().apply_to("Animations"))?;
