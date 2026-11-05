@@ -52,14 +52,16 @@ SERVED_KEY="$root/packaging/repo/aurora.asc" bash "$root/get.sh" < /dev/null > "
 check "the first run succeeds" "$code" 0
 [ "$code" -eq 0 ] || cat "$work/first.log"
 check "Aurora's wordmark comes first" "$(grep -m1 -v '^$' "$work/first.log")" "   ▄█▀▀█▄ ██  ██ ██▀▀█▄ ▄█▀▀█▄ ██▀▀█▄ ▄█▀▀█▄"
-check "the password is asked once, before anything changes" "$(grep -m1 '^sudo' "$log")" "sudo -v -p    Password for $(id -un): "
+check "the password is asked once, before anything changes" "$(grep -m1 '^sudo' "$log")" "sudo -v -p    Password: "
 check "aurora is told the banner is on screen already" "$(cat "$work/banner")" shown
 plain=$(sed 's/\x1b\[[0-9;]*m//g' "$work/first.log")
 check "it names the system it installs on, its session as people write it" \
-    "$(grep -c 'Your system .*KDE Plasma 6.8.2 · Wayland$' <<< "$plain")" 1
+    "$(grep -c '^   Detected  .* · KDE Plasma 6.8.2 · Wayland$' <<< "$plain")" 1
 check "the four steps are numbered" "$(grep -oE '◆  [1-4]/4' <<< "$plain" | tr '\n' ' ')" "◆  1/4 ◆  2/4 ◆  3/4 ◆  4/4 "
 check "each step ends with a tick and its time" "$(grep -cE '^✓  .+ \([0-9]+\.[0-9] s\)$' <<< "$plain")" 4
-check "the end names the installed version" "$(grep -c 'Aurora 1.0.0 is installed' <<< "$plain")" 1
+check "the end names the installed version" "$(grep -c 'Aurora 1.0.0 is ready for KDE Plasma 6.8.2' <<< "$plain")" 1
+check "each step says in a line why it is there" "$(grep -cE '^│      [^ ].+\.$' <<< "$plain")" 4
+check "the last line leads to the one question" "$(grep -c '└  Last step: choose the logo for your menu bar' <<< "$plain")" 1
 check "the key is added to pacman's keyring" "$(grep -c '^pacman-key --add ' "$log")" 1
 check "the key is trusted by its fingerprint" "$(grep -c "^pacman-key --lsign-key $fpr$" "$log")" 1
 check "pacman.conf gains the [aurora] section" "$(grep -cx '\[aurora\]' "$AURORA_PACMAN_CONF")" 1
