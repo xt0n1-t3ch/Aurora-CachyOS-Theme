@@ -5,30 +5,40 @@
 
 #include "mainwindow.h"
 
+#include "actionbar.h"
+#include "addressfield.h"
 #include "bottombar.h"
 #include "browsertab.h"
+#include "core/address.h"
 #include "core/places.h"
+#include "core/quicklook.h"
+#include "quicklook.h"
 #include "sidebar.h"
 #include "style.h"
 #include "tabbar.h"
+#include "tabpage.h"
 #include "toolbar.h"
 #include "windowcontrols.h"
 
+#include <KNewFileMenu>
 #include <KPropertiesDialog>
 
 #include <QAction>
 #include <QApplication>
 #include <QDir>
+#include <QFileInfo>
 #include <QHBoxLayout>
-#include <QInputDialog>
+#include <QKeyEvent>
 #include <QMenu>
 #include <QMouseEvent>
+#include <QPlainTextEdit>
+#include <QTextEdit>
 #include <QStackedWidget>
 #include <QVBoxLayout>
 
 namespace {
 
-constexpr QSize DEFAULT_SIZE{1280, 800};
+constexpr QSize DEFAULT_SIZE{1440, 880};
 constexpr QSize MINIMUM_SIZE{760, 440};
 
 QUrl homeUrl()
@@ -45,10 +55,10 @@ MainWindow::MainWindow(const QUrl &url, fe::PathContext context, QWidget *parent
     , m_controls(new WindowControls)
     , m_sidebarButton(new fe::GlassButton(QStringLiteral(":/icons/sidebar.svg"), QStringLiteral("Hide Sidebar")))
     , m_newTabButton(new fe::GlassButton(QStringLiteral(":/icons/tab-new.svg"), QStringLiteral("New Tab")))
-    , m_toolbar(new fe::Toolbar)
+    , m_toolbar(new fe::Toolbar(m_context.homePath))
+    , m_actionBar(new fe::ActionBar)
     , m_tabBar(new fe::PillTabBar)
     , m_stack(new QStackedWidget)
-    , m_status(new fe::StatusRow)
     , m_pathBar(new fe::PathBar)
 {
     resize(DEFAULT_SIZE);
@@ -64,16 +74,19 @@ MainWindow::MainWindow(const QUrl &url, fe::PathContext context, QWidget *parent
 
     auto *content = new QWidget;
     auto *contentLayout = new QVBoxLayout(content);
-    contentLayout->setContentsMargins(6, 0, 0, 0);
+    contentLayout->setContentsMargins(6, 0, 10, 0);
     contentLayout->setSpacing(0);
     contentLayout->addWidget(m_toolbar);
+    contentLayout->addSpacing(2);
+    contentLayout->addWidget(m_actionBar);
+    contentLayout->addSpacing(6);
     contentLayout->addWidget(m_tabBar);
     contentLayout->addSpacing(4);
     contentLayout->addWidget(m_stack, 1);
-    contentLayout->addWidget(m_status);
+    contentLayout->addWidget(m_pathBar);
 
     auto *body = new QHBoxLayout;
-    body->setContentsMargins(fe::style::SIDEBAR_INSET, fe::style::SIDEBAR_INSET, 0, 0);
+    body->setContentsMargins(fe::style::SIDEBAR_INSET, fe::style::SIDEBAR_INSET, 0, fe::style::SIDEBAR_INSET);
     body->setSpacing(0);
     body->addWidget(m_sidebar);
     body->addWidget(content, 1);
@@ -82,7 +95,6 @@ MainWindow::MainWindow(const QUrl &url, fe::PathContext context, QWidget *parent
     root->setContentsMargins(0, 0, 0, 0);
     root->setSpacing(0);
     root->addLayout(body, 1);
-    root->addWidget(m_pathBar);
 
     addDragSurface(m_toolbar);
     addDragSurface(m_sidebar->header());
@@ -96,17 +108,15 @@ MainWindow::MainWindow(const QUrl &url, fe::PathContext context, QWidget *parent
     connect(m_toolbar, &fe::Toolbar::backClicked, this, [this] { currentTab()->goBack(); });
     connect(m_toolbar, &fe::Toolbar::forwardClicked, this, [this] { currentTab()->goForward(); });
     connect(m_toolbar, &fe::Toolbar::upClicked, this, [this] { currentTab()->goUp(); });
-    connect(m_toolbar, &fe::Toolbar::newFolderClicked, this, [this] { currentTab()->triggerPartAction(QStringLiteral("create_dir")); });
     connect(m_toolbar, &fe::Toolbar::viewModeChosen, this, [this](fe::ViewMode mode) { currentTab()->setViewMode(mode); });
-    connect(m_toolbar, &fe::Toolbar::addToSidebarClicked, this, &MainWindow::addSelectionToSidebar);
     connect(m_toolbar, &fe::Toolbar::searchChanged, this, [this](const QString &term) { currentTab()->search(term); });
-    connect(m_toolbar, &fe::Toolbar::sortClicked, this, [this] {
-        const QAction *sort = currentTab()->partAction(QStringLiteral("sort"));
-        if (sort && sort->menu()) {
-            const QWidget *button = m_toolbar->sortButton();
-            sort->menu()->popup(button->mapToGlobal(QPoint(0, button->height() + 6)));
-        }
-    });
+    connect(m_toolbar, &fe::Toolbar::groupClicked, this, &MainWindow::showGroupMenu);
+    connect(m_toolbar, &fe::Toolbar::shareClicked, this, &MainWindow::showShareMenu);
+    connect(m_toolbar, &fe::Toolbar::editTagsClicked, this, &MainWindow::showTagsMenu);
+    connect(m_toolbar, &fe::Toolbar::moreClicked, this, &MainWindow::showMoreMenu);
+    connect(m_toolbar->addressField(), &fe::AddressField::addressEntered, this, &MainWindow::goToAddress);
+    connect(m_toolbar->addressField(), &fe::AddressField::editingCancelled, this, [this] { currentTab()->focusView(); });
+    connect(m_actionBar, &fe::ActionBar::triggered, this, &MainWindow::runAction);
     // Escape in the search field ends the search and gives the keyboard back to the files.
     auto *escape = new QAction(m_toolbar->searchField());
     escape->setShortcut(Qt::Key_Escape);
@@ -127,13 +137,18 @@ MainWindow::MainWindow(const QUrl &url, fe::PathContext context, QWidget *parent
     connect(m_sidebar->view(), &fe::SidebarView::newTabRequested, this, [this](const QUrl &place) { openTab(place, false); });
     // A place added or removed changes what Add to Sidebar can add.
     connect(m_sidebar->view()->model(), &QAbstractItemModel::modelReset, this, &MainWindow::syncEditActions);
-    connect(m_pathBar, &fe::PathBar::crumbClicked, this, &MainWindow::openFolderHere);
+    connect(m_pathBar, &fe::PathBar::crumbClicked, this, [this](const QUrl &crumb) {
+        // The last segment can be the selected file: it opens, like a double click.
+        const KFileItemList selected = currentTab()->selectedItems();
+        if (selected.size() == 1 && selected.constFirst().url() == crumb && !selected.constFirst().isDir()) {
+            currentTab()->activateItems(selected);
+        } else {
+            openFolderHere(crumb);
+        }
+    });
     connect(m_tabBar, &fe::PillTabBar::tabClicked, this, &MainWindow::setCurrentTab);
     connect(m_tabBar, &fe::PillTabBar::tabCloseRequested, this, &MainWindow::closeTab);
     connect(m_tabBar, &fe::PillTabBar::newTabClicked, this, [this] { openTab(homeUrl()); });
-    connect(m_status, &fe::StatusRow::hiddenToggled, this, [this] { currentTab()->triggerPartAction(QStringLiteral("show_hidden_files")); syncStatus(); });
-    connect(m_status, &fe::StatusRow::previewsToggled, this, [this] { currentTab()->triggerPartAction(QStringLiteral("show_preview")); syncStatus(); });
-    connect(m_status, &fe::StatusRow::infoClicked, this, &MainWindow::showInfo);
 
     m_actions.inSidebar = [this](const QUrl &folder) { return m_sidebar->view()->showsFolder(folder); };
     m_actions.addToSidebar = [this](const QList<QUrl> &folders) {
@@ -141,26 +156,53 @@ MainWindow::MainWindow(const QUrl &url, fe::PathContext context, QWidget *parent
             m_sidebar->view()->addFolder(folder, fe::placeTitle(folder, m_context));
         }
     };
+    m_actions.quickLook = [this] { quickLook(); };
     buildMenuBar();
     qApp->installEventFilter(this);
+    m_lastTyped.invalidate();
     openTab(url);
+}
+
+fe::TabPage *MainWindow::currentPage() const
+{
+    return qobject_cast<fe::TabPage *>(m_stack->currentWidget());
 }
 
 fe::BrowserTab *MainWindow::currentTab() const
 {
-    return qobject_cast<fe::BrowserTab *>(m_stack->currentWidget());
+    const fe::TabPage *page = currentPage();
+    return page ? page->activePane() : nullptr;
 }
 
 void MainWindow::openTab(const QUrl &url, bool activate)
 {
-    auto *tab = new fe::BrowserTab(url, m_stack);
+    auto *tab = new fe::BrowserTab(url);
+    auto *page = new fe::TabPage(tab, m_stack);
+    const int index = m_stack->addWidget(page);
+    m_tabBar->insertTab(index, fe::folderTitle(tab->url(), m_context));
+    connectTab(tab);
+    // The tab's title and the window follow the pane the user works in.
+    connect(page, &fe::TabPage::activePaneChanged, this, [this, page] {
+        m_tabBar->setTabTitle(m_stack->indexOf(page), fe::folderTitle(page->activePane()->url(), m_context));
+        if (page == currentPage()) {
+            syncFromTab();
+        }
+    });
+
+    if (activate || m_stack->count() == 1) {
+        setCurrentTab(index);
+    }
+}
+
+void MainWindow::connectTab(fe::BrowserTab *tab)
+{
     tab->setPicking(m_picking);
     connect(tab, &fe::BrowserTab::filePicked, this, &MainWindow::filePicked);
-    const int index = m_stack->addWidget(tab);
-    m_tabBar->insertTab(index, fe::folderTitle(tab->url(), m_context));
-
     connect(tab, &fe::BrowserTab::locationChanged, this, [this, tab] {
-        m_tabBar->setTabTitle(m_stack->indexOf(tab), fe::folderTitle(tab->url(), m_context));
+        auto *page = qobject_cast<fe::TabPage *>(tab->parentWidget());
+        if (page && page->activePane() == tab) {
+            m_tabBar->setTabTitle(m_stack->indexOf(page), fe::folderTitle(tab->url(), m_context));
+        }
         if (tab == currentTab()) {
             syncFromTab();
         }
@@ -182,13 +224,9 @@ void MainWindow::openTab(const QUrl &url, bool activate)
     });
     connect(tab, &fe::BrowserTab::newTabRequested, this, [this](const QUrl &target) { openTab(target, false); });
     connect(tab, &fe::BrowserTab::contextMenuRequested, this,
-            [this, tab](const QPoint &pos, const KFileItemList &items, const KParts::NavigationExtension::ActionGroupMap &groups) {
-                fe::execContextMenu(tab, pos, items, groups, m_actions, this);
+            [this, tab](const QPoint &pos, const KFileItemList &items, const KParts::NavigationExtension::ActionGroupMap &) {
+                fe::execContextMenu(tab, pos, items, m_actions, this);
             });
-
-    if (activate || m_stack->count() == 1) {
-        setCurrentTab(index);
-    }
 }
 
 void MainWindow::setCurrentTab(int index)
@@ -221,14 +259,13 @@ void MainWindow::syncFromTab()
     if (!tab) {
         return;
     }
-    const QString title = fe::folderTitle(tab->url(), m_context);
-    m_toolbar->setTitle(title);
-    setWindowTitle(title);
+    setWindowTitle(fe::folderTitle(tab->url(), m_context));
+    m_toolbar->addressField()->setLocation(tab->url());
+    m_actionBar->setSplit(currentPage()->isSplit());
     m_toolbar->setNavigationState(tab->canGoBack(), tab->canGoForward(), tab->canGoUp());
     m_toolbar->setViewMode(tab->viewMode());
     m_toolbar->setSearchText(tab->searchTerm());
     m_sidebar->view()->setCurrentFolder(tab->folderUrl());
-    m_pathBar->setCrumbs(fe::crumbsFor(tab->folderUrl(), m_context));
     syncStatus();
     syncEditActions();
 }
@@ -239,11 +276,15 @@ void MainWindow::syncStatus()
     if (!tab) {
         return;
     }
-    m_status->setText(tab->statusText());
-    const QAction *hidden = tab->partAction(QStringLiteral("show_hidden_files"));
-    const QAction *previews = tab->partAction(QStringLiteral("show_preview"));
-    m_status->setHiddenShown(hidden && hidden->isChecked());
-    m_status->setPreviewsShown(previews && previews->isChecked());
+    m_pathBar->setStatusText(tab->statusText());
+    QList<fe::Crumb> crumbs = fe::crumbsFor(tab->folderUrl(), m_context);
+    const KFileItemList selected = tab->selectedItems();
+    if (selected.size() == 1 && !tab->isSearching()) {
+        crumbs.append({selected.constFirst().text(), selected.constFirst().url()});
+        m_pathBar->setCrumbs(crumbs, selected.constFirst().iconName());
+    } else {
+        m_pathBar->setCrumbs(crumbs);
+    }
 }
 
 void MainWindow::syncEditActions()
@@ -255,9 +296,26 @@ void MainWindow::syncEditActions()
     m_actions.cut->setEnabled(tab->canCut());
     m_actions.copy->setEnabled(tab->canCopy());
     m_actions.paste->setEnabled(tab->canPaste());
-    const bool canAddToSidebar = !foldersToAddNow().isEmpty();
-    m_addToSidebar->setEnabled(canAddToSidebar);
-    m_toolbar->setAddToSidebarEnabled(canAddToSidebar);
+    m_addToSidebar->setEnabled(!foldersToAddNow().isEmpty());
+
+    const auto partEnabled = [tab](const char *name) {
+        const QAction *action = tab->partAction(QString::fromLatin1(name));
+        return action && action->isEnabled();
+    };
+    using fe::FileAction;
+    const bool selection = !tab->selectedItems().isEmpty();
+    m_actionBar->setActionEnabled(FileAction::NewFolder, partEnabled("create_dir"));
+    m_actionBar->setActionEnabled(FileAction::NewFile, partEnabled("create_dir") && tab->newFileMenu());
+    m_actionBar->setActionEnabled(FileAction::MoveToTrash, partEnabled("movetotrash"));
+    m_actionBar->setActionEnabled(FileAction::Rename, partEnabled("renamefile"));
+    m_actionBar->setActionEnabled(FileAction::Duplicate, partEnabled("duplicate"));
+    m_actionBar->setActionEnabled(FileAction::QuickLook, selection);
+    m_actionBar->setActionEnabled(FileAction::Cut, tab->canCut());
+    m_actionBar->setActionEnabled(FileAction::Copy, tab->canCopy());
+    m_actionBar->setActionEnabled(FileAction::Paste, tab->canPaste());
+    m_actionBar->setActionEnabled(FileAction::OpenTerminal, tab->folderUrl().isLocalFile());
+    m_toolbar->tagsButton()->setEnabled(selection);
+    m_toolbar->shareButton()->setEnabled(selection);
 }
 
 QList<QUrl> MainWindow::foldersToAddNow() const
@@ -317,19 +375,124 @@ void MainWindow::showInfo()
 
 void MainWindow::goToFolder()
 {
+    m_toolbar->addressField()->startEditing();
+}
+
+void MainWindow::goToAddress(const QString &text)
+{
     fe::BrowserTab *tab = currentTab();
-    const QString current = tab->folderUrl().toDisplayString(QUrl::PreferLocalFile);
-    bool accepted = false;
-    QString path = QInputDialog::getText(this, QStringLiteral("Go to Folder"), QStringLiteral("Enter a path:"), QLineEdit::Normal,
-                                         current, &accepted);
-    path = path.trimmed();
-    if (!accepted || path.isEmpty()) {
+    fe::AddressField *field = m_toolbar->addressField();
+    const QUrl target = fe::typedLocation(text, m_context.homePath, tab->folderUrl());
+    if (!target.isValid()) {
+        field->showError();
         return;
     }
-    if (path == u"~" || path.startsWith(u"~/")) {
-        path = QDir::homePath() + path.mid(1);
+    if (target.isLocalFile()) {
+        const QFileInfo info(target.toLocalFile());
+        if (!info.exists()) {
+            field->showError();
+            return;
+        }
+        if (!info.isDir()) {
+            const QUrl folder = QUrl::fromLocalFile(info.absolutePath());
+            if (folder.matches(tab->folderUrl(), QUrl::StripTrailingSlash)) {
+                tab->selectInPlace({target});
+                tab->focusView();
+            } else {
+                openFolderHere(folder);
+                tab->selectItems({target});
+            }
+            return;
+        }
     }
-    openFolderHere(QUrl::fromUserInput(path, QDir::homePath(), QUrl::AssumeLocalFile));
+    openFolderHere(target);
+}
+
+QList<QUrl> MainWindow::selectedUrls() const
+{
+    QList<QUrl> urls;
+    for (const KFileItem &item : currentTab()->selectedItems()) {
+        urls.append(item.targetUrl());
+    }
+    return urls;
+}
+
+void MainWindow::runAction(fe::FileAction action)
+{
+    fe::BrowserTab *tab = currentTab();
+    using fe::FileAction;
+    switch (action) {
+    case FileAction::NewFolder:
+        tab->triggerPartAction(QStringLiteral("create_dir"));
+        break;
+    case FileAction::NewFile:
+        if (KNewFileMenu *newMenu = tab->newFileMenu()) {
+            newMenu->setWorkingDirectory(tab->folderUrl());
+            newMenu->checkUpToDate();
+            const QWidget *button = m_actionBar->button(FileAction::NewFile);
+            newMenu->menu()->popup(button->mapToGlobal(QPoint(0, button->height() + 6)));
+        }
+        break;
+    case FileAction::MoveToTrash:
+        tab->triggerPartAction(QStringLiteral("movetotrash"));
+        break;
+    case FileAction::Rename:
+        tab->triggerPartAction(QStringLiteral("renamefile"));
+        break;
+    case FileAction::Duplicate:
+        tab->triggerPartAction(QStringLiteral("duplicate"));
+        break;
+    case FileAction::QuickLook:
+        quickLook();
+        break;
+    case FileAction::Cut:
+        tab->cut();
+        break;
+    case FileAction::Copy:
+        tab->copy();
+        break;
+    case FileAction::Paste:
+        tab->paste();
+        break;
+    case FileAction::OpenTerminal:
+        if (tab->folderUrl().isLocalFile()) {
+            fe::openTerminalAt(tab->folderUrl().toLocalFile(), this);
+        }
+        break;
+    case FileAction::SplitView:
+        toggleSplit();
+        break;
+    }
+}
+
+void MainWindow::toggleSplit()
+{
+    fe::TabPage *page = currentPage();
+    if (page->isSplit()) {
+        page->unsplit();
+    } else {
+        auto *second = new fe::BrowserTab(currentTab()->folderUrl());
+        connectTab(second);
+        page->split(second);
+    }
+    syncFromTab();
+}
+
+void MainWindow::quickLook()
+{
+    const KFileItemList selected = currentTab()->selectedItems();
+    if (m_quickLook && m_quickLook->isVisible()
+        && (selected.isEmpty() || m_quickLook->item().url() == selected.constFirst().url())) {
+        m_quickLook->close();
+        return;
+    }
+    if (selected.isEmpty()) {
+        return;
+    }
+    if (!m_quickLook) {
+        m_quickLook = new fe::QuickLook(this);
+    }
+    m_quickLook->showItem(selected.constFirst());
 }
 
 void MainWindow::openFolderHere(const QUrl &url)
@@ -366,6 +529,21 @@ QPainterPath MainWindow::glassCutout() const
 
 bool MainWindow::eventFilter(QObject *watched, QEvent *event)
 {
+    // Space in a file view opens Quick Look, unless it continues a name being typed to jump to a file.
+    if (event->type() == QEvent::KeyPress && watched == QApplication::focusWidget() && currentTab()
+        && currentTab()->isAncestorOf(static_cast<QWidget *>(watched)) && !qobject_cast<QTextEdit *>(watched)
+        && !qobject_cast<QPlainTextEdit *>(watched) && !qobject_cast<QLineEdit *>(watched)) {
+        const auto *key = static_cast<QKeyEvent *>(event);
+        if (key->key() == Qt::Key_Space) {
+            const qint64 since = m_lastTyped.isValid() ? m_lastTyped.elapsed() : -1;
+            if (fe::spaceShowsQuickLook(key->modifiers(), since) && !currentTab()->selectedItems().isEmpty()) {
+                quickLook();
+                return true;
+            }
+        } else if (!key->text().isEmpty() && key->text().at(0).isPrint()) {
+            m_lastTyped.restart();
+        }
+    }
     // The mouse's back and forward buttons, anywhere in this window. Dolphin's view takes them
     // without telling the part, so they are caught before it.
     if (event->type() == QEvent::MouseButtonPress && watched->isWidgetType()) {
@@ -390,8 +568,10 @@ void MainWindow::setPicking(bool picking)
 {
     m_picking = picking;
     for (int i = 0; i < m_stack->count(); ++i) {
-        if (auto *tab = qobject_cast<fe::BrowserTab *>(m_stack->widget(i))) {
-            tab->setPicking(picking);
+        if (auto *page = qobject_cast<fe::TabPage *>(m_stack->widget(i))) {
+            for (fe::BrowserTab *tab : page->panes()) {
+                tab->setPicking(picking);
+            }
         }
     }
 }

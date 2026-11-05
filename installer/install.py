@@ -37,12 +37,16 @@ LATEST = os.path.join(BACKUPS, "latest-backup")
 LIB = os.path.join(HOME, ".local/lib/aurora")
 PLUGINS = ".local/lib/qt6/plugins"
 APPLETSRC = ".config/plasma-org.kde.plasma.desktop-appletsrc"
+# The view File Explorer gives a folder that has none of its own (Dolphin's global view properties, in the app's data).
+VIEW_DEFAULTS = ".local/share/file-explorer/view_properties/global/.directory"
 SESSION_FILES = os.path.join(ROOT, "installer/session")
 THEMES = os.path.join(ROOT, "themes")
 
 # The built parts: the file each one leaves in build/<part>, and where it goes under the home folder.
 BUILT = [
     ("file-explorer", "file-explorer", ".local/bin/file-explorer"),
+    # File Explorer's color tag dots, which Dolphin's views draw too.
+    ("file-explorer", "bin/kf6/overlayicon/aurora-tags.so", f"{PLUGINS}/kf6/overlayicon/aurora-tags.so"),
     ("window-buttons", "org.aurora.decoration.so", f"{PLUGINS}/org.kde.kdecoration3/org.aurora.decoration.so"),
     ("pointing-hand", "aurora-pointer.so", f"{PLUGINS}/kwin/plugins/aurora-pointer.so"),
     ("energy-page", "bin/plasma/kcms/kinfocenter/kcm_energyinfo.so", f"{PLUGINS}/plasma/kcms/kinfocenter/kcm_energyinfo.so"),
@@ -146,7 +150,7 @@ ADDED = [*[f".local/share/icons/{t}" for t in (*BASE_ICONS, ICON_THEME, CURSORS)
          *[f".local/share/dbus-1/services/{name}.service" for name in DBUS_SERVICES],
          ".local/share/xdg-desktop-portal/portals/aurora.portal", ".config/environment.d/90-aurora-portal.conf",
          *[f"{USER_UNITS}/{unit}" for unit in UPDATE_UNITS], f"{USER_UNITS}/timers.target.wants/aurora-updates.timer",
-         MOTION[1], ".config/aurora"]  # the order the apps were dragged into in Quick Menu
+         MOTION[1], ".config/aurora", VIEW_DEFAULTS]  # .config/aurora: the app order dragged in Quick Menu
 
 RESTORE = r"""#!/bin/bash
 # Puts the desktop back the way it was before Aurora, from the copies saved next to this script.
@@ -599,6 +603,8 @@ def files():
     run(sys.executable, "-I", os.path.join(THEMES, "icons/build_icon_theme.py"), theme_dir, icons, quiet=True)
     # The menu bar's status icons in the spirit of SF Symbols (volume, network, media, notifications, Quick Menu).
     run(sys.executable, "-I", os.path.join(THEMES, "icons/status_glyphs.py"), theme_dir, quiet=True)
+    # The color tag dots File Explorer and Dolphin draw on tagged files.
+    run(sys.executable, "-I", os.path.join(THEMES, "icons/tag_emblems.py"), theme_dir, quiet=True)
     system = os.path.join(THEMES, "icons/system")
     for name in ("preferences-system.svg", "systemsettings.svg"):
         install_file(os.path.join(system, "settings.svg"), os.path.join(theme_dir, "apps/scalable", name))
@@ -677,9 +683,13 @@ def look():
     kwrite(".config/kdeglobals", ["WM"], "activeFont", kde_font(font, 10, 600))
     # macOS writes sizes in decimal units; KFormat reads this for every KDE app (kformatprivate.cpp).
     kwrite(".config/kdeglobals", ["Locale"], "BinaryUnitDialect", "2")
-    # Finder's list view: 16 px icons and thumbnails.
-    kwrite(".config/dolphinrc", ["DetailsMode"], "IconSize", "16")
-    kwrite(".config/dolphinrc", ["DetailsMode"], "PreviewSize", "16")
+    # Finder's list view: 22 px icons and thumbnails in rows tall enough to read at a glance.
+    kwrite(".config/dolphinrc", ["DetailsMode"], "IconSize", "22")
+    kwrite(".config/dolphinrc", ["DetailsMode"], "PreviewSize", "22")
+    # Finder's columns in its order: Name, Date Modified, Size, Kind. File Explorer's folders without a view of their
+    # own take it from here; a .directory file there comes before the folder's attributes (Dolphin's
+    # src/views/viewproperties.cpp, v26.08.2, lines 42-82).
+    kwrite(VIEW_DEFAULTS, ["Dolphin"], "VisibleRoles", "Details_text,Details_modificationtime,Details_size,Details_type")
     kwrite(".config/Kvantum/kvantum.kvconfig", ["General"], "theme", KVANTUM)
     # Banners rise from the bottom-right corner, where CachyOS puts notifications.
     kwrite(".config/plasmanotifyrc", ["Notifications"], "PopupPosition", "BottomRight")

@@ -8,6 +8,7 @@
 
 #include "browsertab.h"
 #include "core/places.h"
+#include "tagging.h"
 
 #include <KFileItemActions>
 #include <KFileItemListProperties>
@@ -18,7 +19,10 @@
 #include <KPropertiesDialog>
 #include <KTerminalLauncherJob>
 
+#include <QFileInfo>
 #include <QMenu>
+#include <QProcess>
+#include <QStandardPaths>
 
 namespace fe {
 
@@ -46,22 +50,58 @@ void addSidebarEntry(QMenu &menu, const QList<QUrl> &selectedFolders, const QUrl
     }
 }
 
-/// The menu of one or more selected items.
-void fillItemMenu(QMenu &menu, BrowserTab *tab, const KFileItemList &items, const KParts::NavigationExtension::ActionGroupMap &groups,
-                  KFileItemActions &fileActions, const WindowActions &actions, QWidget *window)
+/// Ark's Compress to .zip for items, when Ark is installed: the archive lands beside the first item.
+void addCompressEntry(QMenu &menu, const KFileItemList &items)
+{
+    const QString ark = QStandardPaths::findExecutable(QStringLiteral("ark"));
+    QStringList paths;
+    for (const KFileItem &item : items) {
+        if (!item.isLocalFile()) {
+            return;
+        }
+        paths.append(item.localPath());
+    }
+    if (ark.isEmpty() || paths.isEmpty()) {
+        return;
+    }
+    menu.addAction(icon("archive-insert"), QStringLiteral("Compress to .zip"), &menu, [ark, paths] {
+        // The command of Ark's own "Compress to zip" service menu (ark_addtoservicemenu.desktop).
+        QProcess::startDetached(ark, QStringList{QStringLiteral("--changetofirstpath"), QStringLiteral("--add"), QStringLiteral("--autofilename"),
+                                                 QStringLiteral("zip")}
+                                         + paths);
+    });
+}
+
+/// Service menus and plugins (Extract, Share, Activities, ...) in one Quick Actions submenu, as Finder groups them.
+void addQuickActions(QMenu &menu, KFileItemActions &fileActions)
+{
+    QMenu *quick = menu.addMenu(icon("system-run"), QStringLiteral("Quick Actions"));
+    fileActions.addActionsTo(quick);
+    if (quick->isEmpty()) {
+        menu.removeAction(quick->menuAction());
+        quick->deleteLater();
+    }
+}
+
+/// The menu of one or more selected items, in Finder's order.
+void fillItemMenu(QMenu &menu, BrowserTab *tab, const KFileItemList &items, KFileItemActions &fileActions,
+                  const WindowActions &actions, QWidget *window)
 {
     const KFileItem first = items.constFirst();
     const bool single = items.size() == 1;
     const bool inTrash = first.url().scheme() == u"trash";
 
     menu.addAction(icon("document-open"), QStringLiteral("Open"), tab, [tab, items] { tab->activateItems(items); });
+    if (!inTrash) {
+        QMenu *openWith = menu.addMenu(icon("document-open"), QStringLiteral("Open With"));
+        fileActions.insertOpenWithActionsTo(nullptr, openWith, {});
+        if (openWith->isEmpty()) {
+            menu.removeAction(openWith->menuAction());
+        }
+    }
     if (single && first.isDir()) {
         menu.addAction(icon("tab-new"), QStringLiteral("Open in New Tab"), tab,
                        [tab, url = first.targetUrl()] { Q_EMIT tab->newTabRequested(url); });
-    }
-    if (!inTrash) {
-        QAction *anchor = menu.addSeparator();
-        fileActions.insertOpenWithActionsTo(anchor, &menu, {});
     }
     menu.addSeparator();
 
@@ -70,26 +110,34 @@ void fillItemMenu(QMenu &menu, BrowserTab *tab, const KFileItemList &items, cons
             KIO::RestoreJob *job = KIO::restoreFromTrash(items.urlList());
             job->setUiDelegate(KIO::createDefaultJobUiDelegate(KJobUiDelegate::AutoHandlingEnabled, window));
         });
-    }
-    // Move to Trash, Delete and Rename, with Dolphin's own enablement and shortcuts.
-    const QList<QAction *> editActions = groups.value(QStringLiteral("editactions"));
-    for (QAction *action : editActions) {
-        if (action) {
-            menu.addAction(action);
-        }
-    }
-    if (!inTrash) {
+        addPartAction(menu, tab, "deletefile");
+    } else {
+        addPartAction(menu, tab, "renamefile");
         addPartAction(menu, tab, "duplicate");
+        addCompressEntry(menu, items);
     }
-    menu.addSeparator();
-
-    // Service menus and plugins: Compress, Extract, Share, ...
-    fileActions.addActionsTo(&menu);
+    menu.addAction(icon("view-preview"), QStringLiteral("Quick Look\tSpace"), tab, actions.quickLook);
     menu.addSeparator();
 
     menu.addAction(actions.cut);
     menu.addAction(actions.copy);
-    addPartAction(menu, tab, "copy_location");
+    // Dolphin's Copy Location under the name the menu bar and Finder use.
+    if (QAction *copyPath = tab->partAction(QStringLiteral("copy_location"))) {
+        QAction *entry = menu.addAction(copyPath->icon(), QStringLiteral("Copy Path"), copyPath, &QAction::trigger);
+        entry->setShortcuts(copyPath->shortcuts());
+        entry->setShortcutContext(Qt::WidgetShortcut);
+    }
+    menu.addAction(actions.paste);
+    if (!inTrash) {
+        menu.addSeparator();
+        addPartAction(menu, tab, "movetotrash");
+        menu.addSeparator();
+        QList<QUrl> urls;
+        for (const KFileItem &item : items) {
+            urls.append(item.targetUrl());
+        }
+        tagging::addTagEntries(menu, urls);
+    }
     menu.addSeparator();
 
     menu.addAction(icon("document-properties"), QStringLiteral("Get Info\tCtrl+I"), tab,
@@ -103,10 +151,14 @@ void fillItemMenu(QMenu &menu, BrowserTab *tab, const KFileItemList &items, cons
         }
         // With no folder among the items there is no current folder to fall back to: no entry.
         addSidebarEntry(menu, folders, QUrl(), actions);
+        addQuickActions(menu, fileActions);
     }
-    if (single && first.isDir() && first.isLocalFile()) {
+    // A folder opens the terminal inside it; a file, in the folder it is in.
+    if (first.isLocalFile()) {
+        const QString path = first.isDir() ? first.localPath() : QFileInfo(first.localPath()).absolutePath();
+        menu.addSeparator();
         menu.addAction(icon("utilities-terminal"), QStringLiteral("Open Terminal Here"), tab,
-                       [path = first.localPath(), window] { openTerminalAt(path, window); });
+                       [path, window] { openTerminalAt(path, window); });
     }
 }
 
@@ -138,7 +190,7 @@ void fillBackgroundMenu(QMenu &menu, BrowserTab *tab, KFileItemActions &fileActi
     menu.addSeparator();
 
     if (!tab->isSearching()) {
-        fileActions.addActionsTo(&menu);
+        addQuickActions(menu, fileActions);
         menu.addSeparator();
     }
     if (folder.isLocalFile()) {
@@ -154,7 +206,7 @@ void fillBackgroundMenu(QMenu &menu, BrowserTab *tab, KFileItemActions &fileActi
 } // namespace
 
 void execContextMenu(BrowserTab *tab, const QPoint &globalPos, const KFileItemList &items,
-                     const KParts::NavigationExtension::ActionGroupMap &groups, const WindowActions &actions, QWidget *window)
+                     const WindowActions &actions, QWidget *window)
 {
     if (items.isEmpty()) {
         return;
@@ -168,7 +220,7 @@ void execContextMenu(BrowserTab *tab, const QPoint &globalPos, const KFileItemLi
     if (onBackground) {
         fillBackgroundMenu(menu, tab, fileActions, actions, window);
     } else {
-        fillItemMenu(menu, tab, items, groups, fileActions, actions, window);
+        fillItemMenu(menu, tab, items, fileActions, actions, window);
     }
     menu.exec(globalPos);
 }

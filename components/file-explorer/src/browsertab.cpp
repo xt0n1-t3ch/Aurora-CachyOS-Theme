@@ -484,6 +484,14 @@ void BrowserTab::selectItems(const QList<QUrl> &items)
     }
 }
 
+void BrowserTab::selectInPlace(const QList<QUrl> &items)
+{
+    // Dolphin selects marked items when a listing completes (DolphinView::updateViewState), and a reload restores the
+    // selection it had (dolphinview.cpp, v26.08.2, lines 647-658 and 1763): the mark comes after the reload starts.
+    reload();
+    selectItems(items);
+}
+
 void BrowserTab::setPicking(bool picking)
 {
     m_picking = picking;

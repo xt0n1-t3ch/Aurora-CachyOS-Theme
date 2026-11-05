@@ -6,6 +6,8 @@
 
 #include "application.h"
 
+#include "tagging.h"
+
 #include "finderstyle.h"
 #include "style.h"
 
@@ -58,7 +60,7 @@ PathContext currentPathContext()
     const QString user = qEnvironmentVariable("USER", QDir::home().dirName());
     const QMap<QString, QString> names = KSharedConfig::openConfig(QStringLiteral("file-explorerrc"))->group(QStringLiteral("Drive Names")).entryMap();
     const Drive system{QStringLiteral("system"), QString(), DriveKind::System};
-    return {QDir::homePath(), user, driveName(system, names, QSysInfo::machineHostName())};
+    return {QDir::homePath(), user, driveName(system, names, QSysInfo::machineHostName()), tagging::shelfRoot()};
 }
 
 } // namespace fe

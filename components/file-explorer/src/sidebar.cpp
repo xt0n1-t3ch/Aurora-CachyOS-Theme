@@ -10,7 +10,10 @@
 
 #include "contextmenu.h"
 #include "core/drives.h"
+#include "core/tags.h"
+#include "core/tree.h"
 #include "style.h"
+#include "tagging.h"
 
 #include <KConfig>
 #include <KConfigGroup>
@@ -31,6 +34,8 @@
 #include <Solid/StorageVolume>
 
 #include <QApplication>
+#include <QCollator>
+#include <QDirIterator>
 #include <QDrag>
 #include <QContextMenuEvent>
 #include <QDir>
@@ -87,6 +92,48 @@ KConfigGroup sidebarOrderGroup()
 QString sectionName(bool favorites)
 {
     return favorites ? QStringLiteral("Favorites") : QStringLiteral("Locations");
+}
+
+/// The unfolded folders and the folded sections: [Sidebar Tree] in file-explorerrc.
+KConfigGroup sidebarTreeGroup()
+{
+    return KSharedConfig::openConfig(QStringLiteral("file-explorerrc"))->group(QStringLiteral("Sidebar Tree"));
+}
+
+/// How far each level of subfolders moves right, and the chevron that unfolds a row.
+constexpr int TREE_INDENT = 18;
+constexpr int CHEVRON = 12;
+constexpr int ROW_ICON_LEFT = 18;
+constexpr int TAG_DOT = 11;
+
+/// Where a row's icon starts, after the indent of its depth.
+int iconLeft(const QRect &row, int depth)
+{
+    return row.left() + ROW_ICON_LEFT + depth * TREE_INDENT;
+}
+
+/// The chevron of an unfoldable row, left of its icon; also what a click hits to unfold it.
+QRect chevronRect(const QRect &row, int depth)
+{
+    return {iconLeft(row, depth) - CHEVRON - 3, row.top() + (row.height() - CHEVRON) / 2, CHEVRON, CHEVRON};
+}
+
+/// The subfolders of a local folder, the way people count (2 before 10), hidden ones left out.
+QStringList subfoldersOf(const QString &path)
+{
+    QStringList names = QDir(path).entryList(QDir::Dirs | QDir::NoDotAndDotDot);
+    QCollator collator;
+    collator.setNumericMode(true);
+    collator.setCaseSensitivity(Qt::CaseInsensitive);
+    std::sort(names.begin(), names.end(), collator);
+    return names;
+}
+
+/// Whether a local folder has a subfolder, stopping at the first one.
+bool hasSubfolders(const QString &path)
+{
+    QDirIterator it(path, QDir::Dirs | QDir::NoDotAndDotDot);
+    return it.hasNext();
 }
 
 /// The user's names for drives: [Drive Names] in file-explorerrc, by fe::Drive::key.
@@ -272,10 +319,21 @@ public:
         const QRect rect = option.rect;
         const QString title = index.data(Qt::DisplayRole).toString();
 
+        const qreal dpr = painter->device()->devicePixelRatioF();
         if (index.data(SidebarModel::IsHeaderRole).toBool()) {
             painter->setFont(style::uiFont(11, QFont::DemiBold));
             painter->setPen(style::TEXT_SECONDARY);
-            painter->drawText(rect.adjusted(18, 8, -10, 0), Qt::AlignLeft | Qt::AlignVCenter, title);
+            const QRect textRect = rect.adjusted(18, 8, -10, 0);
+            painter->drawText(textRect, Qt::AlignLeft | Qt::AlignVCenter, title);
+            // Finder's section chevron: down while open, right while folded.
+            const int chevronX = textRect.left() + painter->fontMetrics().horizontalAdvance(title) + 4;
+            QPixmap chevron = style::tintedIcon(QStringLiteral(":/icons/actions/chevron-down.svg"), 10, style::TEXT_SECONDARY, dpr);
+            const QPointF center(chevronX + 5, textRect.center().y() + 1);
+            painter->translate(center);
+            if (!index.data(SidebarModel::ExpandedRole).toBool()) {
+                painter->rotate(-90);
+            }
+            painter->drawPixmap(QPointF(-5, -5), chevron);
             painter->restore();
             return;
         }
@@ -309,16 +367,38 @@ public:
             painter->drawPath(ring);
         }
 
-        const qreal dpr = painter->device()->devicePixelRatioF();
-        const QColor iconColor = selected ? QColor(Qt::white) : style::ACCENT;
-        const QPixmap icon = style::tintedIcon(index.data(SidebarModel::IconNameRole).toString(), style::SIDEBAR_ICON_SIZE,
-                                               iconColor, dpr);
+        const int depth = index.data(SidebarModel::DepthRole).toInt();
+        const int left = iconLeft(rect, depth);
+        if (index.data(SidebarModel::ExpandableRole).toBool()) {
+            const QRect box = chevronRect(rect, depth);
+            const QPixmap chevron = style::tintedIcon(QStringLiteral(":/icons/actions/chevron-down.svg"), CHEVRON,
+                                                      selected ? QColor(Qt::white) : style::TEXT_SECONDARY, dpr);
+            painter->save();
+            painter->translate(QRectF(box).center());
+            if (!index.data(SidebarModel::ExpandedRole).toBool()) {
+                painter->rotate(-90);
+            }
+            painter->drawPixmap(QPointF(-CHEVRON / 2.0, -CHEVRON / 2.0), chevron);
+            painter->restore();
+        }
+        const QVariant tagColor = index.data(SidebarModel::TagColorRole);
         const int iconTop = rect.top() + (rect.height() - style::SIDEBAR_ICON_SIZE) / 2;
-        painter->drawPixmap(QPoint(rect.left() + 18, iconTop), icon);
+        if (tagColor.isValid()) {
+            // A tag shows its color as a dot, the size of Finder's.
+            const qreal inset = (style::SIDEBAR_ICON_SIZE - TAG_DOT) / 2.0;
+            painter->setPen(selected ? QPen(Qt::white, 1.2) : Qt::NoPen);
+            painter->setBrush(tagColor.value<QColor>());
+            painter->drawEllipse(QRectF(left + inset, iconTop + inset, TAG_DOT, TAG_DOT));
+        } else {
+            const QColor iconColor = selected ? QColor(Qt::white) : style::ACCENT;
+            const QPixmap icon = style::tintedIcon(index.data(SidebarModel::IconNameRole).toString(), style::SIDEBAR_ICON_SIZE,
+                                                   iconColor, dpr);
+            painter->drawPixmap(QPoint(left, iconTop), icon);
+        }
 
         painter->setFont(style::uiFont(13));
         painter->setPen(selected ? QColor(Qt::white) : style::TEXT);
-        const QRect textRect = rect.adjusted(18 + style::SIDEBAR_ICON_SIZE + 8, 0, -14, 0);
+        const QRect textRect = rect.adjusted(left - rect.left() + style::SIDEBAR_ICON_SIZE + 8, 0, -14, 0);
         const QString elided = painter->fontMetrics().elidedText(title, Qt::ElideRight, textRect.width());
         const QVariant used = index.data(SidebarModel::CapacityRole);
         if (!used.isValid()) {
@@ -378,6 +458,11 @@ SidebarModel::SidebarModel(PathContext context, QObject *parent)
     , m_hostName(QSysInfo::machineHostName())
     , m_freeSpaceTimer(new QTimer(this))
 {
+    const KConfigGroup tree = sidebarTreeGroup();
+    const QStringList expanded = tree.readEntry("Expanded", QStringList());
+    const QStringList folded = tree.readEntry("Folded Sections", QStringList());
+    m_expanded = QSet<QString>(expanded.cbegin(), expanded.cend());
+    m_foldedSections = QSet<QString>(folded.cbegin(), folded.cend());
     m_freeSpaceTimer->setInterval(FREE_SPACE_INTERVAL_MS);
     connect(m_freeSpaceTimer, &QTimer::timeout, this, &SidebarModel::refreshFreeSpace);
     m_freeSpaceTimer->start();
@@ -413,6 +498,11 @@ void SidebarModel::activate(const QModelIndex &index, OpenIn where)
         m_pendingSetup = row->place;
         m_pendingTarget = where;
         m_places->requestSetup(row->place);
+        return;
+    }
+    if (!row->tag.isEmpty()) {
+        // The shelf is tidied as it opens: files that lost the tag or are gone leave it.
+        Q_EMIT placeReady(tagging::shelfUrl(row->tag), where);
         return;
     }
     if (!row->url.isEmpty()) {
@@ -478,13 +568,17 @@ bool SidebarModel::acceptsFiles(const QModelIndex &index) const
 {
     const Row *row = rowAt(index);
     // KIO's answer for each place: the Trash, folders and network shares take files; Recents and Network do not.
+    // A tag takes local files to tag them.
+    if (row && !row->tag.isEmpty()) {
+        return true;
+    }
     return row && !row->header && !row->url.isEmpty() && KProtocolManager::supportsWriting(row->url);
 }
 
 bool SidebarModel::inFavorites(const QModelIndex &index) const
 {
     const Row *row = rowAt(index);
-    return row && !row->header && index.row() < m_locationsHeader;
+    return row && !row->header && row->depth == 0 && index.row() < m_locationsHeader;
 }
 
 QModelIndex SidebarModel::placeIndexFor(const QUrl &url) const
@@ -506,7 +600,7 @@ void SidebarModel::insertFolders(const QList<QUrl> &folders, const QModelIndex &
     }
     // The saved order takes the new folders where they were dropped; without one, KDE's order below places them.
     QStringList keys = sectionKeys(true);
-    qsizetype at = index.row() + (below ? 1 : 0) - 1;
+    qsizetype at = topLevelPosition(index.row()) + (below ? 1 : 0);
     for (const QUrl &url : fresh) {
         keys.insert(std::clamp<qsizetype>(at++, 0, keys.size()), url.adjusted(QUrl::StripTrailingSlash).toString());
     }
@@ -658,13 +752,20 @@ void SidebarModel::rebuild()
     favorites = inSavedOrder(favorites, true);
     locations = inSavedOrder(locations, false);
 
+    QList<Row> tags;
+    for (const ColorTag &tag : colorTags()) {
+        Row row{tag.name, {}, QUrl::fromLocalFile(tagging::shelfRoot() + u'/' + tag.name), false, {}, false, {}, {}};
+        row.tag = tag.name;
+        tags.append(row);
+    }
+
     beginResetModel();
     m_rows.clear();
-    m_rows.append({QStringLiteral("Favorites"), {}, {}, true, {}, false, {}, {}});
-    m_rows += favorites;
+    appendSection(sectionName(true), favorites, true);
     m_locationsHeader = static_cast<int>(m_rows.size());
-    m_rows.append({QStringLiteral("Locations"), {}, {}, true, {}, false, {}, {}});
-    m_rows += locations;
+    appendSection(sectionName(false), locations, false);
+    m_tagsHeader = static_cast<int>(m_rows.size());
+    appendSection(QStringLiteral("Tags"), tags, false);
     endResetModel();
     // The bars fill in as KIO answers; a drive that just appeared gets its answer at once.
     QTimer::singleShot(0, this, &SidebarModel::refreshFreeSpace);
@@ -735,6 +836,80 @@ bool SidebarModel::setData(const QModelIndex &index, const QVariant &value, int 
     return false;
 }
 
+void SidebarModel::appendSection(const QString &title, const QList<Row> &rows, bool tree)
+{
+    Row header{title, {}, {}, true, {}, false, {}, {}};
+    header.expanded = !m_foldedSections.contains(title);
+    m_rows.append(header);
+    if (!header.expanded) {
+        return;
+    }
+    for (Row row : rows) {
+        // The folders the user added unfold, like the folders of Finder's and Explorer's navigation trees.
+        const QString path = row.url.isLocalFile() ? QDir::cleanPath(row.url.toLocalFile()) : QString();
+        row.expandable = tree && row.addedByUser && !path.isEmpty() && hasSubfolders(path);
+        row.expanded = row.expandable && m_expanded.contains(path);
+        m_rows.append(row);
+        if (!row.expanded) {
+            continue;
+        }
+        for (const TreeEntry &entry : expandedRows(path, m_expanded, subfoldersOf)) {
+            Row child{entry.name, QStringLiteral("folder-symbolic"), QUrl::fromLocalFile(entry.path), false, {}, false, {}, {}};
+            child.depth = entry.depth;
+            child.expandable = entry.expanded || hasSubfolders(entry.path);
+            child.expanded = entry.expanded;
+            m_rows.append(child);
+        }
+    }
+}
+
+qsizetype SidebarModel::topLevelPosition(int row) const
+{
+    const qsizetype first = row < m_locationsHeader ? 1 : (row < m_tagsHeader ? m_locationsHeader + 1 : m_tagsHeader + 1);
+    qsizetype position = 0;
+    for (qsizetype i = first; i < row && i < m_rows.size(); ++i) {
+        if (m_rows.at(i).depth == 0) {
+            ++position;
+        }
+    }
+    return position;
+}
+
+void SidebarModel::toggleExpanded(const QModelIndex &index)
+{
+    const Row *row = rowAt(index);
+    if (!row || !row->expandable) {
+        return;
+    }
+    const QString path = QDir::cleanPath(row->url.toLocalFile());
+    if (row->expanded) {
+        m_expanded.remove(path);
+    } else {
+        m_expanded.insert(path);
+    }
+    KConfigGroup tree = sidebarTreeGroup();
+    tree.writeEntry("Expanded", QStringList(m_expanded.cbegin(), m_expanded.cend()));
+    tree.sync();
+    rebuild();
+}
+
+void SidebarModel::toggleSection(const QModelIndex &index)
+{
+    const Row *row = rowAt(index);
+    if (!row || !row->header) {
+        return;
+    }
+    if (row->expanded) {
+        m_foldedSections.insert(row->title);
+    } else {
+        m_foldedSections.remove(row->title);
+    }
+    KConfigGroup tree = sidebarTreeGroup();
+    tree.writeEntry("Folded Sections", QStringList(m_foldedSections.cbegin(), m_foldedSections.cend()));
+    tree.sync();
+    rebuild();
+}
+
 int SidebarModel::rowCount(const QModelIndex &parent) const
 {
     return parent.isValid() ? 0 : static_cast<int>(m_rows.size());
@@ -773,6 +948,14 @@ QVariant SidebarModel::data(const QModelIndex &index, int role) const
         return row.iconName;
     case IsHeaderRole:
         return row.header;
+    case DepthRole:
+        return row.depth;
+    case ExpandableRole:
+        return row.expandable;
+    case ExpandedRole:
+        return row.expanded;
+    case TagColorRole:
+        return row.tag.isEmpty() ? QVariant() : QVariant(colorTag(row.tag)->color);
     default:
         return {};
     }
@@ -787,10 +970,12 @@ QString SidebarModel::orderKey(const Row &row)
 QStringList SidebarModel::sectionKeys(bool favorites) const
 {
     const qsizetype first = favorites ? 1 : m_locationsHeader + 1;
-    const qsizetype end = favorites ? m_locationsHeader : m_rows.size();
+    const qsizetype end = favorites ? m_locationsHeader : m_tagsHeader;
     QStringList keys;
     for (qsizetype row = first; row < end; ++row) {
-        keys.append(orderKey(m_rows.at(row)));
+        if (m_rows.at(row).depth == 0) {
+            keys.append(orderKey(m_rows.at(row)));
+        }
     }
     return keys;
 }
@@ -799,8 +984,9 @@ bool SidebarModel::sameSection(const QModelIndex &a, const QModelIndex &b) const
 {
     const Row *first = rowAt(a);
     const Row *second = rowAt(b);
-    return first && second && !first->header && !second->header
-        && (a.row() < m_locationsHeader) == (b.row() < m_locationsHeader);
+    // Subfolder rows follow their favorite, and the tags keep Finder's color order.
+    return first && second && !first->header && !second->header && first->depth == 0 && second->depth == 0
+        && a.row() < m_tagsHeader && b.row() < m_tagsHeader && (a.row() < m_locationsHeader) == (b.row() < m_locationsHeader);
 }
 
 void SidebarModel::moveRow(const QModelIndex &from, const QModelIndex &to, bool below)
@@ -809,8 +995,7 @@ void SidebarModel::moveRow(const QModelIndex &from, const QModelIndex &to, bool 
         return;
     }
     const bool favorites = from.row() < m_locationsHeader;
-    const qsizetype first = favorites ? 1 : m_locationsHeader + 1;
-    const QStringList keys = movedSidebarRow(sectionKeys(favorites), from.row() - first, to.row() - first, below);
+    const QStringList keys = movedSidebarRow(sectionKeys(favorites), topLevelPosition(from.row()), topLevelPosition(to.row()), below);
     KConfigGroup order = sidebarOrderGroup();
     order.writeEntry(sectionName(favorites), keys);
     order.sync();
@@ -824,7 +1009,8 @@ Qt::ItemFlags SidebarModel::flags(const QModelIndex &index) const
     }
     const Row &row = m_rows.at(index.row());
     const Qt::ItemFlags editable = !row.driveKey.isEmpty() || row.addedByUser ? Qt::ItemIsEditable : Qt::NoItemFlags;
-    return Qt::ItemIsEnabled | Qt::ItemIsSelectable | Qt::ItemIsDragEnabled | editable;
+    const Qt::ItemFlags movable = row.depth == 0 && row.tag.isEmpty() ? Qt::ItemIsDragEnabled : Qt::NoItemFlags;
+    return Qt::ItemIsEnabled | Qt::ItemIsSelectable | movable | editable;
 }
 
 QModelIndex SidebarModel::indexForUrl(const QUrl &url) const
@@ -932,7 +1118,20 @@ QModelIndex SidebarView::movingRow(const QMimeData *mime) const
 void SidebarView::mousePressEvent(QMouseEvent *event)
 {
     const QModelIndex index = indexAt(event->position().toPoint());
-    const bool place = event->button() == Qt::LeftButton && index.isValid() && !index.data(SidebarModel::IsHeaderRole).toBool();
+    if (event->button() == Qt::LeftButton && index.isValid()) {
+        // A section title folds its section; a row's chevron unfolds its subfolders without opening the folder.
+        if (index.data(SidebarModel::IsHeaderRole).toBool()) {
+            m_model->toggleSection(index);
+            return;
+        }
+        if (index.data(SidebarModel::ExpandableRole).toBool()
+            && chevronRect(visualRect(index), index.data(SidebarModel::DepthRole).toInt()).adjusted(-4, -6, 4, 6).contains(event->position().toPoint())) {
+            m_model->toggleExpanded(index);
+            return;
+        }
+    }
+    const bool place = event->button() == Qt::LeftButton && index.isValid() && !index.data(SidebarModel::IsHeaderRole).toBool()
+        && m_model->flags(index).testFlag(Qt::ItemIsDragEnabled);
     m_pressRow = place ? QPersistentModelIndex(index) : QPersistentModelIndex();
     m_pressPos = event->position().toPoint();
     QListView::mousePressEvent(event);
@@ -1091,6 +1290,13 @@ void SidebarView::dropEvent(QDropEvent *event)
         event->ignore();
         break;
     case SidebarDrop::IntoPlace: {
+        // Files dropped on a tag are tagged, not moved, as in Finder.
+        if (const QVariant tagColor = index.data(SidebarModel::TagColorRole); tagColor.isValid()) {
+            tagging::setTag(event->mimeData()->urls(), index.data(Qt::DisplayRole).toString(), true);
+            event->setDropAction(Qt::LinkAction);
+            event->accept();
+            break;
+        }
         // Dolphin's way (src/views/draganddrophelper.cpp, v26.08.2): KIO asks Move, Copy or Link, and a drop
         // on the Trash moves the files there (src/widgets/dropjob.cpp, v6.31.0, line 554).
         KIO::DropJob *job = KIO::drop(event, destination);

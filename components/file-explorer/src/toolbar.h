@@ -16,7 +16,7 @@ class QHBoxLayout;
 
 namespace fe {
 
-class TitleLabel;
+class AddressField;
 
 /// How a tab lays out its files; the values are the ids of the toolbar's view buttons.
 enum class ViewMode {
@@ -37,6 +37,10 @@ public:
     /// Draws the round glass behind the button (true) or only its states (false).
     void setStandalone(bool standalone);
     void setIconName(const QString &iconName);
+    /// Writes label right of the icon (or alone without one), for the toolbar's text buttons.
+    void setLabel(const QString &label);
+    /// Draws a small chevron after the label: the button opens a menu.
+    void setChevron(bool chevron);
     [[nodiscard]] QSize sizeHint() const override;
 
 protected:
@@ -46,6 +50,8 @@ protected:
 
 private:
     QString m_iconName;
+    QString m_label;
+    bool m_chevron = false;
     bool m_standalone = false;
     motion::HoverFade *m_hover;
 };
@@ -81,40 +87,44 @@ protected:
     void paintEvent(QPaintEvent *event) override;
 };
 
-/// The unified toolbar: navigation, the folder title, view controls and search.
+/// The unified toolbar: navigation, the address field, view controls, grouping, sharing, tags, more and search.
 class Toolbar : public QWidget
 {
     Q_OBJECT
 
 public:
-    explicit Toolbar(QWidget *parent = nullptr);
+    /// homePath is where a "~" typed in the address field leads.
+    explicit Toolbar(const QString &homePath, QWidget *parent = nullptr);
 
-    void setTitle(const QString &title);
     /// Enables or dims the back, forward and enclosing folder buttons.
     void setNavigationState(bool canGoBack, bool canGoForward, bool canGoUp);
     /// Checks the button of mode without sending viewModeChosen.
     void setViewMode(ViewMode mode);
     /// Shows term in the search field without reporting it as typed.
     void setSearchText(const QString &term);
-    /// Dims the Add to Sidebar button when the sidebar shows everything it would add.
-    void setAddToSidebarEnabled(bool enabled);
     /// The slot left of the navigation buttons, where the window buttons go when the sidebar is hidden.
     [[nodiscard]] QHBoxLayout *leadingLayout() const;
     /// The slot right of the search field, where the window buttons go.
     [[nodiscard]] QHBoxLayout *trailingLayout() const;
     [[nodiscard]] SearchField *searchField() const;
-    [[nodiscard]] GlassButton *sortButton() const;
+    [[nodiscard]] AddressField *addressField() const;
+    /// The buttons that open menus, for the menus to drop down below them.
+    [[nodiscard]] GlassButton *groupButton() const;
+    [[nodiscard]] GlassButton *shareButton() const;
+    [[nodiscard]] GlassButton *tagsButton() const;
+    [[nodiscard]] GlassButton *moreButton() const;
 
 Q_SIGNALS:
     void backClicked();
     void forwardClicked();
     /// The enclosing folder button was clicked.
     void upClicked();
-    void newFolderClicked();
     /// The user clicked a view mode button.
     void viewModeChosen(fe::ViewMode mode);
-    void sortClicked();
-    void addToSidebarClicked();
+    void groupClicked();
+    void shareClicked();
+    void editTagsClicked();
+    void moreClicked();
     /// The user typed in or cleared the search field.
     void searchChanged(const QString &term);
 
@@ -123,7 +133,7 @@ protected:
 
 private:
     /// Makes everything fit the toolbar's width, giving up space in Finder's order: the search field
-    /// narrows first, then the least used buttons fold away, and the folder title goes last.
+    /// narrows first, then the least used buttons fold away, and the address field goes last.
     void fitToWidth();
 
     QHBoxLayout *m_leading;
@@ -131,11 +141,13 @@ private:
     GlassButton *m_back;
     GlassButton *m_forward;
     GlassButton *m_up;
-    TitleLabel *m_title;
+    AddressField *m_address;
     QButtonGroup *m_viewModes;
-    GlassButton *m_sort;
+    GlassButton *m_group;
+    GlassButton *m_share;
+    GlassButton *m_tags;
+    GlassButton *m_more;
     SearchField *m_search;
-    GlassButton *m_addToSidebar = nullptr;
     /// The buttons that fold away when the window is narrow, the first to go first.
     QList<QWidget *> m_collapsible;
 };

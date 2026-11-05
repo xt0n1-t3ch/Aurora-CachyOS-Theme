@@ -51,6 +51,7 @@ if [ "${1:-}" != "--no-build" ]; then
     installer/build.sh > /dev/null || failed+=("build (see build/*.build.log)")
 fi
 run "file explorer" "$B/file-explorer/fe_tests"
+run "file explorer finder" "$B/file-explorer/fe_finder_tests"
 run "window buttons" "$B/window-buttons/decoration_tests"
 run "energy page" "$B/energy-page/test_power"
 run "glass blur" qml components/glass tests/tst_blurbehind.qml "$B/glass/qml"
@@ -64,6 +65,7 @@ run "menu logos" qml components/kali-menu tests/tst_logos.qml
 run "quick-menu logic" qml components/quick-menu tests/tst_quickmenu.qml
 run "quick-menu launcher" components/quick-menu/tests/test_launch.sh
 run "window motion" bun test components/motion/tests
+run "tag emblems" tests/installer/test_tag_emblems.sh
 run "plasma patches" tests/release/test_patches.sh
 run "installer" python3 -I tests/installer/test_install.py
 run "install.sh options" tests/installer/test_cli.sh
