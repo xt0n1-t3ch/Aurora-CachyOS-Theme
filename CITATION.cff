@@ -11,8 +11,7 @@ authors:
     website: "https://github.com/xt0n1-t3ch"
 repository-code: "https://github.com/xt0n1-t3ch/Aurora-CachyOS-Theme"
 license: GPL-3.0-only
-version: "1.0.0"
-date-released: "2026-11-05"
+version: "0.0.0"
 keywords:
   - kde-plasma
   - plasma-6

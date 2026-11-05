@@ -28,7 +28,10 @@ fn curl(extra: &[&str]) -> Result<String> {
 
 /// GitHub's answer for the newest release: through `gh` when it is installed (signed in, it also reaches a private
 /// repository), otherwise the public API with curl.
-fn latest() -> Result<Release> {
+///
+/// # Errors
+/// When GitHub cannot be reached or its answer names no release archive.
+pub fn latest() -> Result<Release> {
     let path = format!("repos/{}/releases/latest", release::REPOSITORY);
     let json = if run::on_path("gh") {
         run::capture("gh", &["api", &path])

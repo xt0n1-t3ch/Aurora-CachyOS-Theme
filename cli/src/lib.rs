@@ -5,12 +5,16 @@
 //! It guides the user through the steps and runs the theme's own scripts (`install.sh`, `uninstall.sh`) to do them.
 
 pub mod app;
+pub mod askpass;
+pub mod check;
 pub mod download;
 pub mod legal;
 pub mod logo;
 pub mod release;
 pub mod run;
+pub mod settings;
 pub mod source;
 pub mod steps;
 pub mod system;
 pub mod ui;
+pub mod updates;

@@ -1,5 +1,29 @@
 [Aurora](../README.md) / [Documentation](index.md) / Updates
 
+# Updates
+
+## New versions of Aurora
+
+Each release is built once, on the maintainer's machine, by `scripts/release.sh X.Y.Z --publish`: the package with
+every part built goes into the signed pacman repository (the GitHub release named `repo`), so no user compiles
+anything. pacman brings it with the rest of the system (`sudo pacman -Syu`, or `aurora update`).
+
+Aurora also says when one is out. `aurora-updates.timer`, a user timer the install enables in
+`~/.config/systemd/user`, runs `aurora check-updates --notify` once a day (and at the next login when the PC was off).
+That looks in pacman's repositories with `checkupdates` (its own copy of the databases, no root) and, when a newer
+aurora-theme is there, shows a notification:
+
+| Button | What happens |
+| --- | --- |
+| Update now | Konsole opens with `aurora update` |
+| Skip this version | no notice offers that version again; the next one is offered |
+| (closed) | it asks again at the next check |
+
+`aurora settings` chooses how often it looks: every day (the default), every week or never
+(`aurora settings --updates weekly` from a script). The choice is in `~/.config/aurora/aurora.conf`; what the last
+look found is in `~/.local/state/aurora/updates`, and `aurora` names a found version above its menu.
+`aurora check-updates` looks right away.
+
 # After a system update
 
 CachyOS updates with `sudo pacman -Syu` (or `paru`). The theme's compiled parts are built for the installed Plasma,

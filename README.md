@@ -59,12 +59,14 @@ Nothing in KWin is patched and no file that belongs to a package is edited. Some
 One command, as yourself (not with sudo):
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/xt0n1-t3ch/Aurora-CachyOS-Theme/main/get.sh)
+curl -fsSL https://raw.githubusercontent.com/xt0n1-t3ch/Aurora-CachyOS-Theme/main/get.sh | bash
 ```
 
-It adds Aurora's pacman repository, installs the `aurora-theme` package and opens `aurora`, the guided install. `aurora` checks your system, asks which logo goes in the menu bar and whether to add the performance tuning, then installs step by step and keeps a log in `~/.local/state/aurora/logs`. sudo asks for your password when it needs it. Log out and back in when it finishes.
+It adds Aurora's pacman repository, installs the `aurora-theme` package and opens `aurora install`, the guided install. `aurora` checks your system, asks which logo goes in the menu bar, then installs step by step and keeps a log in `~/.local/state/aurora/logs`. sudo asks for your password when it needs it. Log out and back in when it finishes.
 
-From then on, `sudo pacman -Syu` brings each new version with the rest of your system.
+<p align="center"><img src="assets/readme/install-steps.svg" alt="What happens after you press Enter, in six steps: one command, already built, one question, backup, look, log in again." width="880"></p>
+
+From then on, `sudo pacman -Syu` brings each new version with the rest of your system, and Aurora tells you when one is out: a notification with **Update now** and **Skip this version**, once a day or on the schedule you pick in `aurora settings`.
 
 <details>
 <summary>What the command does, and how to do it by hand</summary>
@@ -74,7 +76,7 @@ From then on, `sudo pacman -Syu` brings each new version with the rest of your s
 1. Trusts Aurora's signing key, [`aurora.asc`](packaging/repo/aurora.asc) (`657D 8110 799A 4E65 BE4E 1AB4 F028 2841 1279 4CC2`), after checking that the downloaded key has that fingerprint.
 2. Adds the `[aurora]` section to `/etc/pacman.conf`. The repository is this project's [`repo` release](https://github.com/xt0n1-t3ch/Aurora-CachyOS-Theme/releases/tag/repo), and every file in it is signed.
 3. Upgrades the system with the package, `sudo pacman -Syu aurora-theme`.
-4. Opens `aurora`.
+4. Opens `aurora install`.
 
 By hand, the same steps are:
 
@@ -83,7 +85,7 @@ curl -fsSL https://raw.githubusercontent.com/xt0n1-t3ch/Aurora-CachyOS-Theme/mai
 sudo pacman-key --lsign-key 657D8110799A4E65BE4E1AB4F028284112794CC2
 printf '\n[aurora]\nServer = https://github.com/xt0n1-t3ch/Aurora-CachyOS-Theme/releases/download/repo\n' | sudo tee -a /etc/pacman.conf
 sudo pacman -Syu aurora-theme
-aurora
+aurora install
 ```
 
 </details>
@@ -119,12 +121,10 @@ The `aurora` command comes with the package, and `./install.sh` installs it too 
 | `aurora update` | Gets the newest release, checks it against its checksums and installs it |
 | `aurora rebuild` | Builds the parts again after a Plasma, KWin or Qt update |
 | `aurora logo arch` | Changes the menu bar logo: `cachyos`, `arch`, `apple` or `kali`; `--colors` shows it in its own colors |
+| `aurora settings` | Update notices (every day, every week or never; `--updates weekly` sets it from a script) and the menu bar logo |
+| `aurora check-updates` | Looks for a newer Aurora right away |
 | `aurora status` | What is installed, from where, and whether a rebuild is due |
 | `aurora uninstall` | Puts your desktop back the way it was |
-
-Either way, the install runs the same six steps:
-
-<p align="center"><img src="assets/readme/install-steps.svg" alt="What the install does, in six steps: packages, sources, build, backup, system and look. The same steps are written out below." width="880"></p>
 
 <details>
 <summary>What install.sh does, step by step</summary>

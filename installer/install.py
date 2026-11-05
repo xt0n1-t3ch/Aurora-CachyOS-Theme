@@ -55,6 +55,10 @@ BUILT = [
 GLASS = ("glass", "qml/org/aurora/glass", ".local/lib/qt6/qml/org/aurora/glass")
 # The aurora command, built when Rust is installed (build.sh's cli part). It is not tied to a Plasma version.
 CLI = ("cli/aurora", ".local/bin/aurora")
+SYSTEM_CLI = "/usr/bin/aurora"  # the aurora-theme package's
+# The login timer that looks for updates (installer/session/systemd), and where systemd finds user units.
+UPDATE_UNITS = ("aurora-updates.service", "aurora-updates.timer")
+USER_UNITS = ".config/systemd/user"
 # The Plasma widgets installed for the user.
 PLASMOIDS = [os.path.join(ROOT, "components", p, "package") for p in ("kali-menu", "control-center", "clock", "dock-divider", "app-title", "menu-bar-style")]
 # The base of Aurora's icons: two hidden themes, kept built in themes/icons/base, that Aurora-dark inherits.
@@ -131,6 +135,7 @@ ADDED = [*[f".local/share/icons/{t}" for t in (*BASE_ICONS, ICON_THEME, CURSORS)
          ".config/plasma-workspace/env/aurora.sh", *[t for targets in DROP_INS.values() for t in targets],
          *[f".local/share/dbus-1/services/{name}.service" for name in DBUS_SERVICES],
          ".local/share/xdg-desktop-portal/portals/aurora.portal", ".config/environment.d/90-aurora-portal.conf",
+         *[f"{USER_UNITS}/{unit}" for unit in UPDATE_UNITS], f"{USER_UNITS}/timers.target.wants/aurora-updates.timer",
          ".config/aurora"]  # the order the apps were dragged into in Quick Menu
 
 RESTORE = r"""#!/bin/bash
@@ -168,6 +173,8 @@ busctl --user call org.kde.kglobalaccel /kglobalaccel org.kde.KGlobalAccel setSh
 python3 -I "$B/windows_key.py" stock > /dev/null 2>&1
 # The FileManager1 and FileChooser services are gone with their files; let D-Bus and the portal forget them.
 busctl --user call org.freedesktop.DBus /org/freedesktop/DBus org.freedesktop.DBus ReloadConfig > /dev/null 2>&1
+# The update notices' timer is gone with its files; systemd forgets it once it is stopped.
+systemctl --user stop aurora-updates.timer > /dev/null 2>&1
 systemctl --user daemon-reload
 # KRunner comes back as Plasma ships it once the Quick Menu drop-in is gone.
 systemctl --user try-restart plasma-krunner.service > /dev/null 2>&1
@@ -427,10 +434,56 @@ def migrate_to_native_widgets(home):
             shutil.rmtree(folder)
 
 
+def has_old_widgets(home):
+    """Whether the panels still hold a widget of NATIVE_WIDGETS."""
+    applets = os.path.join(home, APPLETSRC)
+    if not os.path.exists(applets):
+        return False
+    with open(applets) as f:
+        text = f.read()
+    return any(f"\nplugin={old}\n" in text for old in NATIVE_WIDGETS)
+
+
+def migrate_widgets_live(home):
+    """migrate_to_native_widgets with Plasma stopped first when it runs: it keeps its widgets in memory and writes
+    them back when it quits, which would undo the change at logout with the old widgets' files gone. Returns whether
+    Plasma was stopped, so the caller starts it again once the new widgets are in place."""
+    stop = has_old_widgets(home) and plasmashell_running()
+    if stop:
+        session("systemctl", "--user", "stop", "plasma-plasmashell.service")
+    migrate_to_native_widgets(home)
+    return stop
+
+
+def retire_home_cli(home, build=BUILD, system_cli=SYSTEM_CLI):
+    """Removes the aurora an earlier source install put in ~/.local/bin, which comes before /usr/bin on PATH, when
+    the package's aurora is installed and this build brings none: `aurora` then runs the package's."""
+    built, target = CLI
+    copy = os.path.join(home, target)
+    if not os.path.exists(os.path.join(build, built)) and os.path.exists(system_cli) and os.path.lexists(copy):
+        os.remove(copy)
+
+
+def update_timer(home, aurora):
+    """Installs and enables the timer that runs `aurora check-updates --notify` once a day, with `aurora` the program's
+    path. Enabled by its link in timers.target.wants, which `systemctl --user enable` would write the same way."""
+    units = os.path.join(home, USER_UNITS)
+    os.makedirs(os.path.join(units, "timers.target.wants"), exist_ok=True)
+    for unit in UPDATE_UNITS:
+        with open(os.path.join(SESSION_FILES, "systemd", unit)) as f:
+            text = f.read().replace("@AURORA@", aurora)
+        with open(os.path.join(units, unit), "w") as f:
+            f.write(text)
+    wants = os.path.join(units, "timers.target.wants/aurora-updates.timer")
+    if os.path.lexists(wants):
+        os.remove(wants)
+    os.symlink(os.path.join(units, "aurora-updates.timer"), wants)
+
+
 def components():
     """The built parts, each beside what it was built for; a part the build skipped keeps what is installed."""
     migrate_from_spotlight(HOME)
-    migrate_to_native_widgets(HOME)
+    restart_plasma = migrate_widgets_live(HOME)
     os.makedirs(STATE, exist_ok=True)
     for part, built, target in BUILT:
         stamp = os.path.join(BUILD, part, "built-for")
@@ -448,11 +501,15 @@ def components():
     built, target = CLI
     if os.path.exists(os.path.join(BUILD, built)):
         install_file(os.path.join(BUILD, built), os.path.join(HOME, target), 0o755)
+    retire_home_cli(HOME)
     # Quick Menu starts through its launcher, which falls back to the stock KRunner when the stamp no longer matches.
     install_file(os.path.join(ROOT, "components/quick-menu/krunner-launch.sh"), os.path.join(LIB, "quick-menu/krunner-launch"), 0o755)
     session("systemctl", "--user", "try-restart", "plasma-krunner.service", check=False)
     # KWin loads its plugins at start; this loads the pointing hand now (it needs the root link, see install.sh).
     session("qdbus6", "org.kde.KWin", "/Plugins", "org.kde.KWin.Plugins.LoadPlugin", "aurora-pointer", check=False)
+    if restart_plasma:
+        # Back with Aurora's own widgets, which are installed by now.
+        session("systemctl", "--user", "start", "plasma-plasmashell.service")
 
 
 def files():
@@ -536,7 +593,10 @@ def files():
     os.symlink(ROOT, source)
 
     session("busctl", "--user", "call", "org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus", "ReloadConfig")
+    # The package's aurora when it is installed, else the one this install put in the home folder.
+    update_timer(HOME, SYSTEM_CLI if os.path.exists(SYSTEM_CLI) else os.path.join(HOME, CLI[1]))
     session("systemctl", "--user", "daemon-reload")
+    session("systemctl", "--user", "start", "aurora-updates.timer", check=False)
     session("systemctl", "--user", "try-restart", "plasma-krunner.service", check=False)
     session("kbuildsycoca6")
     print("files installed")

@@ -135,6 +135,96 @@ class NativeWidgets(unittest.TestCase):
             install.migrate_to_native_widgets(home)
             self.assertEqual(tree(home, "nothing"), set())
 
+    def test_a_running_plasma_stops_before_the_ids_change_and_says_it_must_start_again(self):
+        # Plasma keeps its widgets in memory and writes them back when it quits, so a change made while it runs
+        # would be undone at logout, with the old widgets' files gone.
+        with tempfile.TemporaryDirectory() as home:
+            applets = os.path.join(home, install.APPLETSRC)
+            os.makedirs(os.path.dirname(applets))
+            with open(applets, "w") as f:
+                f.write("[Containments][2][Applets][30]\nplugin=com.github.chrtall.kppleMenu\n")
+            seen = []
+            record = lambda *cmd, check=True: seen.append((cmd, read(applets)))
+            with unittest.mock.patch.object(install, "session", record), \
+                    unittest.mock.patch.object(install, "plasmashell_running", lambda: True):
+                restart = install.migrate_widgets_live(home)
+            self.assertTrue(restart)
+            self.assertEqual(seen[0][0], ("systemctl", "--user", "stop", "plasma-plasmashell.service"))
+            self.assertIn("kppleMenu", seen[0][1], "Plasma stopped before the file changed")
+            self.assertIn("plugin=org.aurora.logomenu\n", read(applets))
+
+    def test_nothing_to_move_leaves_a_running_plasma_alone(self):
+        with tempfile.TemporaryDirectory() as home:
+            seen = []
+            with unittest.mock.patch.object(install, "session", lambda *cmd, check=True: seen.append(cmd)), \
+                    unittest.mock.patch.object(install, "plasmashell_running", lambda: True):
+                self.assertFalse(install.migrate_widgets_live(home))
+            self.assertEqual(seen, [])
+
+
+class HomeCli(unittest.TestCase):
+    """A source install put aurora in ~/.local/bin, which comes before /usr/bin on PATH. Installed from the package,
+    whose aurora is in /usr/bin, that older copy goes, so `aurora` runs the package's."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.home, self.build = os.path.join(self.tmp.name, "home"), os.path.join(self.tmp.name, "prebuilt")
+        self.system = os.path.join(self.tmp.name, "usr/bin/aurora")
+        self.copy = os.path.join(self.home, install.CLI[1])
+        for path in (self.copy, self.system):
+            os.makedirs(os.path.dirname(path))
+            open(path, "w").close()
+        os.makedirs(self.build)
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_the_package_s_aurora_takes_over_from_an_older_home_copy(self):
+        install.retire_home_cli(self.home, self.build, self.system)
+        self.assertFalse(os.path.lexists(self.copy))
+
+    def test_a_build_with_its_own_aurora_keeps_the_home_copy(self):
+        os.makedirs(os.path.dirname(os.path.join(self.build, install.CLI[0])))
+        open(os.path.join(self.build, install.CLI[0]), "w").close()
+        install.retire_home_cli(self.home, self.build, self.system)
+        self.assertTrue(os.path.exists(self.copy))
+
+    def test_without_the_package_the_home_copy_stays(self):
+        os.remove(self.system)
+        install.retire_home_cli(self.home, self.build, self.system)
+        self.assertTrue(os.path.exists(self.copy))
+
+
+class UpdateTimer(unittest.TestCase):
+    """The login timer that runs `aurora check-updates --notify`: once a day, catching up after the PC was off, with
+    the aurora the install found; enabled in the home folder, where the backup lists it."""
+
+    def test_the_timer_runs_the_installed_aurora_daily_and_is_enabled(self):
+        with tempfile.TemporaryDirectory() as home:
+            install.update_timer(home, "/usr/bin/aurora")
+            units = os.path.join(home, ".config/systemd/user")
+            service = read(os.path.join(units, "aurora-updates.service"))
+            self.assertIn("ExecStart=/usr/bin/aurora check-updates --notify\n", service)
+            # The Update button opens Konsole, which must outlive this one-shot service.
+            self.assertIn("KillMode=process\n", service)
+            timer = read(os.path.join(units, "aurora-updates.timer"))
+            self.assertIn("OnCalendar=daily\n", timer)
+            self.assertIn("Persistent=true\n", timer)
+            wants = os.path.join(units, "timers.target.wants/aurora-updates.timer")
+            self.assertEqual(os.readlink(wants), os.path.join(units, "aurora-updates.timer"))
+            for path in tree(home, "nothing"):
+                if os.path.isfile(os.path.join(home, path)) or os.path.islink(os.path.join(home, path)):
+                    self.assertTrue(any(path == a or path.startswith(a + "/") for a in install.ADDED), path)
+
+    def test_a_second_install_leaves_one_enabled_timer(self):
+        with tempfile.TemporaryDirectory() as home:
+            install.update_timer(home, "/usr/bin/aurora")
+            install.update_timer(home, "/home/someone/.local/bin/aurora")
+            units = os.path.join(home, ".config/systemd/user")
+            self.assertIn("ExecStart=/home/someone/.local/bin/aurora check-updates --notify\n",
+                          read(os.path.join(units, "aurora-updates.service")))
+            self.assertEqual(os.listdir(os.path.join(units, "timers.target.wants")), ["aurora-updates.timer"])
+
 
 class Export(unittest.TestCase):
     """install.py export copies what the install takes from a build into a folder of its own: the package's prebuilt

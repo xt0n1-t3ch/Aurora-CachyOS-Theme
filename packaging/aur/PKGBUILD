@@ -27,7 +27,7 @@ depends=(
     'kdecoration' 'layer-shell-qt' 'wayland' 'dolphin' 'kinfocenter' 'xdg-desktop-portal' 'xdg-desktop-portal-kde'
     'plasma5support' 'milou' 'plasma-nm' 'plasma-pa' 'bluez-qt' 'powerdevil' 'kvantum' 'dconf' 'xsettingsd'
     'fontconfig' 'inter-font' 'ttf-jetbrains-mono-nerd' 'systemd' 'dbus' 'python' 'python-pillow' 'glibc' 'libgcc'
-    'curl' 'tar'
+    'curl' 'tar' 'pacman-contrib' 'libnotify' 'konsole'
 )
 # installer/build-dependencies.txt, and Rust for the aurora command.
 makedepends=('base-devel' 'git' 'cmake' 'ninja' 'extra-cmake-modules' 'qt6-shadertools' 'cargo')
@@ -37,7 +37,9 @@ optdepends=(
     'scx-tools: the optional CPU scheduler tuning (aurora install --performance)'
 )
 install=aurora-theme.install
-options=('!debug')
+# makepkg's own strip runs file(1) on every one of the ~21,000 files (34 s, nearly all icons); package() strips the
+# few that are machine code instead.
+options=('!debug' '!strip')
 source=("aurora-$pkgver.tar.gz::$url/releases/download/v$pkgver/aurora-$pkgver.tar.gz")
 sha256sums=('f4f47a08254814a95db56277cd5b20ad2d22f0eb0babbde90bfb01df4018d407')
 
@@ -96,4 +98,11 @@ package() {
         cp -a --no-preserve=ownership "$file" \
             "$pkgdir/usr/share/licenses/$pkgname/$(dirname "$file" | tr / -)-$(basename "$file")"
     done
+    # Machine code is only in the libraries and the programs.
+    local elf
+    while IFS= read -r -d '' elf; do
+        if [ "$(head -c4 "$elf" | od -An -c | tr -d ' ')" = "177ELF" ]; then
+            strip --strip-unneeded "$elf"
+        fi
+    done < <(find "$pkgdir" -type f \( -name '*.so*' -o -perm -u+x \) -print0)
 }

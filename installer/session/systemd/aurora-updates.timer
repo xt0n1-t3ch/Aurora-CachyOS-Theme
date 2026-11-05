@@ -1,0 +1,11 @@
+# Aurora: once a day, and at the next login when the PC was off at that time.
+[Unit]
+Description=Look for a newer Aurora once a day
+
+[Timer]
+OnCalendar=daily
+Persistent=true
+RandomizedDelaySec=30min
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,11 @@
+# Aurora: looks for a newer Aurora on the schedule in ~/.config/aurora/aurora.conf (`aurora settings`) and offers it
+# in a notification. Started by aurora-updates.timer.
+[Unit]
+Description=Look for a newer Aurora
+
+[Service]
+Type=oneshot
+ExecStart=@AURORA@ check-updates --notify
+# The notification waits for an answer, and its Update button opens Konsole, which outlives this service.
+TimeoutStartSec=1h
+KillMode=process

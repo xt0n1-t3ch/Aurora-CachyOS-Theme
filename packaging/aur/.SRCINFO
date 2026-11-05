@@ -80,10 +80,14 @@ pkgbase = aurora-theme
 	depends = libgcc
 	depends = curl
 	depends = tar
+	depends = pacman-contrib
+	depends = libnotify
+	depends = konsole
 	optdepends = apple-fonts: SF Pro from Apple, used for the interface instead of Inter when installed
 	optdepends = scx-scheds: the optional CPU scheduler tuning (aurora install --performance)
 	optdepends = scx-tools: the optional CPU scheduler tuning (aurora install --performance)
 	options = !debug
+	options = !strip
 	source = aurora-1.0.0.tar.gz::https://github.com/xt0n1-t3ch/Aurora-CachyOS-Theme/releases/download/v1.0.0/aurora-1.0.0.tar.gz
 	sha256sums = f4f47a08254814a95db56277cd5b20ad2d22f0eb0babbde90bfb01df4018d407
 
