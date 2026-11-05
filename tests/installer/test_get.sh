@@ -78,6 +78,16 @@ check "a second run adds the section no second time" "$(grep -cx '\[aurora\]' "$
 check "a second run leaves the trusted key alone" "$(grep -c '^pacman-key --add\|^pacman-key --lsign' "$log")" 0
 check "a second run still upgrades and opens aurora" "$(grep -c '^pacman -Syu\|^package-aurora' "$log")" 2
 
+# A [aurora] section that points somewhere else (an old address, a test server) is pointed back at Aurora's.
+: > "$log"
+sed -i 's#^Server = .*releases/download/repo$#Server = http://127.0.0.1:8765#' "$AURORA_PACMAN_CONF"
+SERVED_KEY="$root/packaging/repo/aurora.asc" bash "$root/get.sh" < /dev/null > "$work/moved.log" 2>&1; code=$?
+check "a run with another address succeeds" "$code" 0
+check "the section reads Aurora's address again" "$(sed -n '/^\[aurora\]$/{n;p}' "$AURORA_PACMAN_CONF")" \
+    "Server = https://github.com/xt0n1-t3ch/Aurora-CachyOS-Theme/releases/download/repo"
+check "pacman.conf keeps one [aurora] section" "$(grep -cx '\[aurora\]' "$AURORA_PACMAN_CONF")" 1
+check "it says the address was fixed" "$(grep -c "Pointed at Aurora's address" "$work/moved.log")" 1
+
 # A desktop without Plasma 6 is told so before anything changes.
 : > "$log"
 PLASMA=5.27.11 SERVED_KEY="$root/packaging/repo/aurora.asc" bash "$root/get.sh" < /dev/null > "$work/plasma5.log" 2>&1; code=$?
