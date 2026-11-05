@@ -287,6 +287,17 @@ class Animations(unittest.TestCase):
         self.assertEqual(self.factor("[updates]\ncheck=daily\n\n[look]\nanimations=fast\n"), "0.5")
         self.assertEqual(self.factor("[look]\nanimations = instant\n"), "0")
 
+    def test_every_loaded_effect_takes_the_new_speed_at_once(self):
+        # Each KWin effect works out its durations when it loads (kwin src/effect/effect.cpp, animationTime) and keeps
+        # them through `reconfigure`, so a new speed reaches the running desktop only once each effect reloads.
+        seen = []
+        with unittest.mock.patch.object(install, "output", lambda *cmd: "scale\nmagiclamp\nslidingpopups\n"), \
+                unittest.mock.patch.object(install, "session", lambda *cmd, check=True: seen.append(cmd)):
+            install.reload_effect_timing()
+        self.assertEqual([cmd[-1] for cmd in seen], ["scale", "magiclamp", "slidingpopups"])
+        self.assertTrue(all(cmd[:4] == ("qdbus6", "org.kde.KWin", "/Effects", "org.kde.kwin.Effects.reconfigureEffect")
+                            for cmd in seen))
+
     def test_an_unknown_speed_or_another_group_keeps_smooth(self):
         self.assertEqual(self.factor("[look]\nanimations=warp\n"), "0.75")
         self.assertEqual(self.factor("[updates]\nanimations=instant\n"), "0.75")
