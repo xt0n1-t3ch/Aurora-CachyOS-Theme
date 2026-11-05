@@ -292,6 +292,14 @@ def animation_factor(home):
     return ANIMATIONS.get(choice, ANIMATIONS["smooth"])
 
 
+def reload_effect_timing():
+    """Reloads every loaded KWin effect, so each works out its durations again at the current animation speed: an
+    effect computes them when it loads (kwin src/effect/effect.cpp, animationTime) and keeps them through reconfigure."""
+    loaded = output("qdbus6", "org.kde.KWin", "/Effects", "org.kde.kwin.Effects.loadedEffects")
+    for effect in loaded.split():
+        session("qdbus6", "org.kde.KWin", "/Effects", "org.kde.kwin.Effects.reconfigureEffect", effect, check=False)
+
+
 def kread(file, group, key):
     """The value of `key` in `group` of a config file under the home folder."""
     return output("kreadconfig6", "--file", os.path.join(HOME, file), "--group", group, "--key", key)
@@ -681,6 +689,7 @@ def look():
     # A running KWin keeps its loaded effects through reconfigure, so the minimize effect is swapped by hand.
     session("qdbus6", "org.kde.KWin", "/Effects", "org.kde.kwin.Effects.unloadEffect", "squash", check=False)
     session("qdbus6", "org.kde.KWin", "/Effects", "org.kde.kwin.Effects.loadEffect", "magiclamp", check=False)
+    reload_effect_timing()
     set_default_file_manager()
     set_explorer_shortcut()
     print("look applied")

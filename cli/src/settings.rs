@@ -43,7 +43,20 @@ fn apply_speed(places: &Places, speed: Speed) -> Result<()> {
     if !status.success() {
         bail!("kwriteconfig6 could not set the animation speed");
     }
+    // Each KWin effect works out its durations when it loads and keeps them, so each reloads at the new speed.
+    let loaded =
+        Command::new("qdbus6").args(["org.kde.KWin", "/Effects", "org.kde.kwin.Effects.loadedEffects"]).output()?;
+    for effect in effects(&String::from_utf8_lossy(&loaded.stdout)) {
+        Command::new("qdbus6")
+            .args(["org.kde.KWin", "/Effects", "org.kde.kwin.Effects.reconfigureEffect", effect])
+            .output()?;
+    }
     Ok(())
+}
+
+/// The effect names in `qdbus6 ... loadedEffects` output, one per line.
+fn effects(listing: &str) -> Vec<&str> {
+    listing.split_whitespace().collect()
 }
 
 /// `aurora settings`, with `updates` (`daily`, `weekly` or `never`) and `animations` (`smooth`, `fast` or `instant`)
@@ -101,4 +114,15 @@ pub fn settings(places: &Places, updates: Option<&str>, animations: Option<&str>
     settings.save(&path)?;
     cliclack::outro(format!("Saved. Change it any time with `aurora settings`. ({})", path.display()))?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::effects;
+
+    #[test]
+    fn every_loaded_effect_is_reloaded() {
+        assert_eq!(effects("scale\nmagiclamp\nslidingpopups\n"), ["scale", "magiclamp", "slidingpopups"]);
+        assert!(effects("").is_empty(), "no KWin, nothing to reload");
+    }
 }
