@@ -21,6 +21,8 @@ find_package(KF6Solid REQUIRED)
 find_package(KF6Config REQUIRED)
 find_package(KF6WindowSystem REQUIRED)
 find_package(KF6XmlGui REQUIRED)
+find_package(KF6FileMetaData REQUIRED)
+find_package(KF6Purpose REQUIRED)
 
 # -Wconversion stays off on purpose: Qt's int, qsizetype and qreal geometry APIs make it fire on
 # almost every layout call, which would bury the warnings that matter.
@@ -35,7 +37,12 @@ add_library(fe_core STATIC
     src/core/places.cpp
     src/core/reveal.cpp
     src/core/chooser.cpp
-    src/core/drives.cpp)
+    src/core/drives.cpp
+    src/core/motion.cpp
+    src/core/address.cpp
+    src/core/tags.cpp
+    src/core/tree.cpp
+    src/core/quicklook.cpp)
 target_include_directories(fe_core PUBLIC src)
 target_link_libraries(fe_core PUBLIC Qt6::Core Qt6::Gui)
 
@@ -58,6 +65,12 @@ add_library(fe_app OBJECT
     src/filemanager1.cpp
     src/chooserbar.cpp
     src/portal.cpp
+    src/addressfield.cpp
+    src/actionbar.cpp
+    src/tagging.cpp
+    src/quicklook.cpp
+    src/tabpage.cpp
+    src/windowmenus.cpp
     resources/icons.qrc)
 target_link_libraries(fe_app PUBLIC
     fe_core
@@ -72,7 +85,16 @@ target_link_libraries(fe_app PUBLIC
     KF6::Solid
     KF6::ConfigCore
     KF6::WindowSystem
-    KF6::XmlGui)
+    KF6::XmlGui
+    KF6::FileMetaData
+    KF6::PurposeWidgets)
+
+# The color tag dots on file icons, for File Explorer's and Dolphin's views (KIO loads kf6/overlayicon plugins).
+add_library(aurora-tags MODULE src/plugins/tagoverlay.cpp)
+target_link_libraries(aurora-tags PRIVATE fe_core KF6::KIOCore KF6::FileMetaData)
+set_target_properties(aurora-tags PROPERTIES PREFIX "" LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/kf6/overlayicon")
+# A module links fe_core's code into a shared object.
+set_target_properties(fe_core PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 add_executable(file-explorer src/main.cpp)
 target_link_libraries(file-explorer PRIVATE fe_app)
@@ -85,5 +107,8 @@ enable_testing()
 add_executable(fe_tests tests/test_core.cpp)
 target_link_libraries(fe_tests PRIVATE fe_core Qt6::Test)
 add_test(NAME fe_tests COMMAND fe_tests)
+add_executable(fe_finder_tests tests/test_finder.cpp)
+target_link_libraries(fe_finder_tests PRIVATE fe_core Qt6::Test)
+add_test(NAME fe_finder_tests COMMAND fe_finder_tests)
 
 install(TARGETS file-explorer)

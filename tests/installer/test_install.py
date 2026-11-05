@@ -6,6 +6,7 @@
     python3 -I tests/installer/test_install.py      (after installer/build.sh; changes nothing outside a temp folder)
 """
 import importlib.util
+import json
 import os
 import shutil
 import subprocess
@@ -280,27 +281,81 @@ class Animations(unittest.TestCase):
                     f.write(conf)
             return install.animation_factor(home)
 
-    def test_a_new_install_animates_smoothly(self):
-        self.assertEqual(self.factor(None), "0.75")
+    def test_a_new_install_animates_at_plasma_s_designed_speed(self):
+        # 0.75 left window open and close at 150 ms and the minimize at 187 ms: shorter than macOS, felt abrupt.
+        self.assertEqual(self.factor(None), "1")
 
     def test_the_chosen_speed_is_used(self):
         self.assertEqual(self.factor("[updates]\ncheck=daily\n\n[look]\nanimations=fast\n"), "0.5")
         self.assertEqual(self.factor("[look]\nanimations = instant\n"), "0")
 
-    def test_every_loaded_effect_takes_the_new_speed_at_once(self):
-        # Each KWin effect works out its durations when it loads (kwin src/effect/effect.cpp, animationTime) and keeps
-        # them through `reconfigure`, so a new speed reaches the running desktop only once each effect reloads.
+    def test_aurora_motion_takes_over_opening_closing_and_minimizing(self):
+        # KWin's Scale closes on InCubic to 80 %, which looks like the window is swallowed; Aurora Motion replaces it
+        # and the two minimize effects, which would otherwise animate the same windows twice.
+        effects = dict(install.WINDOW_EFFECTS)
+        self.assertEqual(effects["org.aurora.motion"], "true")
+        for stock in ("scale", "squash", "magiclamp"):
+            self.assertEqual(effects[stock], "false", stock)
+
+    def test_aurora_motion_is_installed_where_kwin_finds_it_under_its_own_id(self):
+        source, target = install.MOTION
+        with open(os.path.join(source, "metadata.json")) as f:
+            metadata = json.load(f)
+        self.assertEqual(target, f".local/share/kwin/effects/{metadata['KPlugin']['Id']}")
+        self.assertEqual(metadata["X-Plasma-API"], "javascript")
+        self.assertTrue(os.path.isfile(os.path.join(source, "contents", metadata["X-Plasma-MainScript"])))
+        self.assertIn(target, install.ADDED)
+
+    def test_the_speed_is_announced_under_the_name_every_app_listens_to(self):
+        # KConfig announces a change under the file's name: with a full path the signal goes to /home/.../kdeglobals,
+        # and KWin, Plasma and the apps listen to /kdeglobals (KConfigWatcher), so none of them heard it.
+        command = install.speed_command("1")
+        self.assertEqual(command[:2], ["kwriteconfig6", "--notify"])
+        self.assertEqual(command[command.index("--file") + 1], "kdeglobals")
+        self.assertEqual(command[-2:], ["AnimationDurationFactor", "1"])
+
+    def test_window_effects_take_macos_timing(self):
+        # KWin 6.8.2 bases: scale 200 ms, magic lamp 250 ms (linear), sliding popups 200 ms. macOS opens a window in
+        # about 300 ms and the genie takes about 450 ms; each value is still scaled by the animation speed.
+        timings = {(group, key): value for group, key, value in install.EFFECT_TIMINGS}
+        self.assertEqual(timings[("Effect-slidingpopups", "SlideInTime")], "250")
+        self.assertEqual(timings[("Effect-slidingpopups", "SlideOutTime")], "250")
+
+    # Recorded from `qdbus6 org.kde.KWin /KWin supportInformation`, KWin 6.8.2, 2026-11-05 (Effect Settings part).
+    SUPPORT = "Effect Settings:\n----------------\nslidingpopups\n-------------\nslideInDuration: {}\nslideOutDuration: {}\n"
+
+    def test_the_witness_duration_is_read_from_kwin_s_support_information(self):
+        self.assertEqual(install.slide_in_duration(self.SUPPORT.format(187, 187)), 187)
+        self.assertIsNone(install.slide_in_duration("Loaded Effects:\nblur\n"))
+
+    def test_effects_reload_once_kwin_has_the_new_speed(self):
+        # KWin applies a new speed on its own timer (Workspace::reconfigure, 200 ms), so the effects reload only once
+        # the witness effect reports SlideInTime x speed; reloading earlier keeps the old timing (seen live: 187 ms).
+        answers = iter([self.SUPPORT.format(187, 187), self.SUPPORT.format(250, 250)])
         seen = []
-        with unittest.mock.patch.object(install, "output", lambda *cmd: "scale\nmagiclamp\nslidingpopups\n"), \
-                unittest.mock.patch.object(install, "session", lambda *cmd, check=True: seen.append(cmd)):
-            install.reload_effect_timing()
-        self.assertEqual([cmd[-1] for cmd in seen], ["scale", "magiclamp", "slidingpopups"])
-        self.assertTrue(all(cmd[:4] == ("qdbus6", "org.kde.KWin", "/Effects", "org.kde.kwin.Effects.reconfigureEffect")
-                            for cmd in seen))
+
+        def output(*cmd):
+            if cmd[-1] == "loadedEffects" or cmd[-1].endswith("loadedEffects"):
+                return "scale\nmagiclamp\nslidingpopups\n"
+            return next(answers)
+        with unittest.mock.patch.object(install, "output", output), \
+                unittest.mock.patch.object(install, "session", lambda *cmd, check=True: seen.append(cmd)), \
+                unittest.mock.patch.object(install.time, "sleep", lambda seconds: None):
+            self.assertTrue(install.reload_effect_timing("1"))
+        reloads = [cmd[-1] for cmd in seen if cmd[3] == "org.kde.kwin.Effects.reconfigureEffect"]
+        self.assertEqual(reloads[-3:], ["scale", "magiclamp", "slidingpopups"], "every effect reloads at the end")
+
+    def test_a_kwin_that_never_reports_the_speed_still_gets_its_effects_reloaded(self):
+        seen = []
+        with unittest.mock.patch.object(install, "output", lambda *cmd: "scale\n" if "loadedEffects" in cmd[-1] else ""), \
+                unittest.mock.patch.object(install, "session", lambda *cmd, check=True: seen.append(cmd)), \
+                unittest.mock.patch.object(install.time, "sleep", lambda seconds: None):
+            self.assertFalse(install.reload_effect_timing("1"))
+        self.assertEqual(seen[-1][-1], "scale")
 
     def test_an_unknown_speed_or_another_group_keeps_smooth(self):
-        self.assertEqual(self.factor("[look]\nanimations=warp\n"), "0.75")
-        self.assertEqual(self.factor("[updates]\nanimations=instant\n"), "0.75")
+        self.assertEqual(self.factor("[look]\nanimations=warp\n"), "1")
+        self.assertEqual(self.factor("[updates]\nanimations=instant\n"), "1")
 
 
 class Restore(unittest.TestCase):

@@ -197,12 +197,44 @@ function dockReadScript() {
         + " print(out.join('|'));";
 }
 
+// A section with `full` set (All Applications' letters) always shows every app.
 function visibleApps(section, expanded, columns) {
-    return expanded ? section.apps : section.apps.slice(0, columns);
+    return expanded || section.full ? section.apps : section.apps.slice(0, columns);
 }
 
 function canExpand(section, columns) {
-    return section.apps.length > columns;
+    return !section.full && section.apps.length > columns;
+}
+
+// The letter an app is filed under in All Applications: its first letter without accents, or "#" for a digit or a sign.
+function initialOf(name) {
+    const first = String(name).normalize("NFD").replace(/[\u0300-\u036f]/g, "").charAt(0).toLocaleUpperCase();
+    return first.toLocaleLowerCase() !== first ? first : "#";
+}
+
+// categories as for buildSections -> every app once, alphabetical, in one full section per letter, "#" first, the
+// way Windows' All apps list reads.
+function alphabeticalSections(categories) {
+    const byId = new Map();
+    for (const category of categories) {
+        for (const entry of category.apps) {
+            if (!byId.has(entry.id)) {
+                byId.set(entry.id, entry);
+            }
+        }
+    }
+    const apps = [...byId.values()].sort((a, b) => a.name.localeCompare(b.name, undefined, {sensitivity: "base"}));
+    const sections = [];
+    for (const entry of apps) {
+        const letter = initialOf(entry.name);
+        let section = sections.find(candidate => candidate.title === letter);
+        if (!section) {
+            section = {title: letter, apps: [], full: true};
+            sections.push(section);
+        }
+        section.apps.push(entry);
+    }
+    return sections.sort((a, b) => a.title === "#" ? -1 : b.title === "#" ? 1 : a.title.localeCompare(b.title));
 }
 
 // counts: how many apps each section shows; current: {section, index} or null for the search field.
@@ -300,4 +332,16 @@ function runSessionAction(session, action) {
     }
     session[method]();
     return true;
+}
+
+// How the panel opens, like Spotlight: a fade over Kirigami's long duration, then a small scale and a fall of 10 px
+// that slow down at the end over a little longer. `longDuration` already carries the desktop's animation speed, so
+// instant animations (0) open the panel at once.
+function openingMotion(longDuration) {
+    return {
+        scaleFrom: 0.96,
+        liftFrom: -10,
+        fadeDuration: longDuration,
+        moveDuration: Math.round(longDuration * 1.4),
+    }
 }

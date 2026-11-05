@@ -13,10 +13,46 @@ it changes. A change that needs a fresh install, or that an earlier backup canno
 
 ### Added
 
-- Smooth animations across the desktop: Plasma, KWin, Qt and GTK apps move at a step of Plasma's own speed slider
-  (smooth, 0.75) instead of near-instant values, and windows minimize into the Dock with the magic lamp, as on macOS.
-  `aurora settings` chooses smooth, fast or instant (`--animations` from a script) and applies it at once: every
-  loaded KWin effect reloads, since each keeps the durations it worked out when it loaded.
+- File Explorer takes typed paths: click the path in the toolbar, or press Ctrl+L or Alt+D, and type. Subfolders drop
+  down as you type, Tab completes like a shell, `~` is your home folder, Enter goes there (a file opens its folder with
+  the file selected) and Esc puts the path back. A path that leads nowhere rings the field red.
+- File Explorer's row of file actions under the toolbar: new folder, new file, Move to Trash, rename, duplicate, Quick
+  Look, cut, copy, paste, Open Terminal Here and Split View.
+- Quick Look: Space shows the selected file without opening it (pictures whole, text files, and a large preview with
+  the kind, size and date for the rest); Space or Esc closes it, Enter opens the file.
+- Split View (F3): two folders side by side in one tab; the toolbar and the path bar follow the one you work in.
+- Finder's color tags: tag files from the context menu's color dots, the Tags submenu, the Edit Tags button or by
+  dropping them on a tag in the sidebar. Tagged files show their colors as dots on their icons, in File Explorer and in
+  Dolphin, and each tag in the sidebar lists its files. Tags are the standard `user.xdg.tags` attribute that Dolphin
+  and Baloo also read.
+- The sidebar's folders unfold: a folder you added shows a chevron that opens its subfolders, and Favorites,
+  Locations and Tags fold away under their titles. Both are remembered.
+- Quick Menu's All Applications: the grid button beside ⋯ lists every app once under its first letter, like Windows'
+  All apps list, under a heading that reads like a section's, with Back where a section has Show More.
+- The toolbar's Group menu (by name, kind, date modified or size), a Share menu, and a More menu with hidden files,
+  previews, sort, Get Info and Add to Sidebar.
+- Windows open, close, minimize and restore with Aurora Motion, a KWin effect in macOS's manner: a short scale and
+  fade instead of the close that looked like the window was swallowed, and a minimize into its Dock icon. Quick Menu
+  rises and fades in, the Control Center drops in, and File Explorer's hovers fade and its wheel scroll glides.
+- `aurora settings` chooses the animation speed, smooth, fast or instant (`--animations` from a script), and applies
+  it at once to the running desktop.
+- `aurora performance on` and `off` turn the measured tuning on or back to CachyOS's settings at any time; alone it
+  shows the four settings and whether they are in place.
+- `aurora backups` lists the backups of your desktop from before Aurora, and `aurora backups restore` puts one back.
+- `aurora icons` changes the icon theme to Aurora's or any other installed one, at once.
+- `aurora settings` and the `aurora` menu reach every one of these.
+
+### Changed
+
+- The README's install, update, tuning and removal sections use the `aurora` command; the manual steps moved into
+  folded sections.
+- File Explorer's context menu follows Finder's order: Open, Open With, Open in New Tab; Rename, Duplicate, Compress
+  to .zip, Quick Look; Cut, Copy, Copy Path, Paste; Move to Trash; the tags; Get Info, Quick Actions (the service
+  menus) and Open Terminal Here, which opens a file's folder too.
+- File Explorer's list shows Finder's columns in its order (Name, Modified, Size, Type) with 22 px icons, and the path
+  bar at the bottom names the selected file after its folder, beside the item count and free space. The toggles of
+  the old status row moved to the More menu and the View menu.
+- Animations run at Plasma's designed speed (smooth, 1) instead of near-instant values.
 
 ## [1.0.0] - 2026-11-05
 

@@ -9,6 +9,7 @@
 #include "core/paths.h"
 #include "glasswindow.h"
 
+#include <QElapsedTimer>
 #include <QKeySequence>
 
 #include <functional>
@@ -19,17 +20,20 @@ class QStackedWidget;
 class WindowControls;
 
 namespace fe {
+class ActionBar;
 class BrowserTab;
 class GlassButton;
 class PathBar;
 class PillTabBar;
+class QuickLook;
 class SidebarPanel;
-class StatusRow;
+class TabPage;
 class Toolbar;
+enum class FileAction;
 }
 
-/// A Finder window: the glass sidebar, the toolbar, tabs of Dolphin views, the status row and the
-/// path bar, with its menus exported to the global menu bar.
+/// A Finder window: the glass sidebar, the toolbar with the address field, the row of file actions, tabs of
+/// Dolphin views (two side by side in Split View) and the path bar, with its menus exported to the global menu bar.
 class MainWindow : public GlassWindow
 {
     Q_OBJECT
@@ -68,14 +72,19 @@ private:
         QString partActionName;
     };
 
+    /// The active pane of the tab on screen.
     [[nodiscard]] fe::BrowserTab *currentTab() const;
+    [[nodiscard]] fe::TabPage *currentPage() const;
+    /// Follows a pane's signals; a pane reports to the window only while it is the active one.
+    void connectTab(fe::BrowserTab *tab);
     void setCurrentTab(int index);
     /// Closes the tab at index; closing the last tab closes the window.
     void closeTab(int index);
-    /// Refreshes the title, toolbar, sidebar, path bar and status row from the current tab.
+    /// Refreshes the title, toolbar, sidebar, path bar and action row from the current tab.
     void syncFromTab();
+    /// The path bar: the folder, or the one selected item, and the item count.
     void syncStatus();
-    /// Enables Cut, Copy, Paste and Add to Sidebar as the current tab allows.
+    /// Enables Cut, Copy, Paste, Add to Sidebar and the action row as the current tab allows.
     void syncEditActions();
     /// Copies the enablement, check state and shortcuts of the current tab's part actions to their menu entries.
     void syncPartProxies();
@@ -84,8 +93,23 @@ private:
     /// The folders Add to Sidebar would add now: the selected folders, or the folder on screen.
     [[nodiscard]] QList<QUrl> foldersToAddNow() const;
     void addSelectionToSidebar();
-    /// Asks for a path and opens it in the current tab.
+    /// Puts the keyboard in the address field with the path selected.
     void goToFolder();
+    /// Goes where the address field's text leads: a folder opens, a file opens its folder with the file selected,
+    /// and a path that leads nowhere rings the field red.
+    void goToAddress(const QString &text);
+    /// Carries out a button of the action row.
+    void runAction(fe::FileAction action);
+    /// Splits the tab on screen into two panes, or closes the other pane.
+    void toggleSplit();
+    /// Shows the selected item in Quick Look, or closes Quick Look when it shows it already.
+    void quickLook();
+    [[nodiscard]] QList<QUrl> selectedUrls() const;
+    // The menus of the toolbar's buttons, in windowmenus.cpp.
+    void showGroupMenu();
+    void showShareMenu();
+    void showTagsMenu();
+    void showMoreMenu();
     /// Opens url in the current tab and gives the keyboard to its view.
     void openFolderHere(const QUrl &url);
     /// Opens another window on the home folder.
@@ -103,10 +127,13 @@ private:
     fe::GlassButton *m_sidebarButton;
     fe::GlassButton *m_newTabButton;
     fe::Toolbar *m_toolbar;
+    fe::ActionBar *m_actionBar;
     fe::PillTabBar *m_tabBar;
     QStackedWidget *m_stack;
-    fe::StatusRow *m_status;
     fe::PathBar *m_pathBar;
+    fe::QuickLook *m_quickLook = nullptr;
+    /// Since the last letter typed in a file view, for Space to tell Quick Look from a name being typed.
+    QElapsedTimer m_lastTyped;
     fe::WindowActions m_actions{};
     QAction *m_sidebarAction = nullptr;
     QAction *m_addToSidebar = nullptr;

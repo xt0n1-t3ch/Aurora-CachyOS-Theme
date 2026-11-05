@@ -89,7 +89,7 @@ fn interactive(yes: bool) -> bool {
 /// The password dialog sudo uses when the scripts need root, so the prompt never fights the spinners: the one
 /// already set, else KDE's (ksshaskpass); behind Aurora's wrapper in the state folder, which keeps the dialog's
 /// warnings out of the terminal (see [`askpass`](crate::askpass)).
-fn askpass(places: &Places) -> Option<PathBuf> {
+pub(crate) fn askpass(places: &Places) -> Option<PathBuf> {
     let program = env::var_os("SUDO_ASKPASS").map(PathBuf::from).or_else(|| {
         ["/usr/bin/ksshaskpass", "/usr/lib/ssh/ksshaskpass"].into_iter().map(PathBuf::from).find(|path| path.is_file())
     })?;
@@ -97,7 +97,7 @@ fn askpass(places: &Places) -> Option<PathBuf> {
 }
 
 /// Asks for the sudo password once in the terminal when no dialog can, before any spinner starts.
-fn sudo_ready(askpass: Option<&Path>) -> Result<()> {
+pub(crate) fn sudo_ready(askpass: Option<&Path>) -> Result<()> {
     if askpass.is_none() {
         cliclack::log::info("sudo asks for your password once, for pacman and two links KWin needs")?;
         let status = Command::new("sudo").arg("-v").status().context("starting sudo")?;
@@ -359,10 +359,10 @@ pub fn current_logo() -> Option<(Logo, Colors)> {
     Logo::from_icon(out.lines().next()?.trim())
 }
 
-/// Whether the optional performance tuning is installed.
+/// Whether the optional performance tuning is installed, even in part (an update keeps it, and makes it whole).
 #[must_use]
 pub fn tuned() -> bool {
-    Path::new("/etc/sysctl.d/99-aurora-memory.conf").exists()
+    crate::tuning::current() != crate::tuning::State::Off
 }
 
 /// The status line about Aurora's built parts: none before an install, otherwise whether the login script set any
@@ -426,7 +426,7 @@ pub fn status(places: &Places) -> Result<()> {
         ("System", format!("KDE Plasma {}, KWin {}, Qt {}", get("plasma-workspace"), get("kwin"), get("qt6-base"))),
         ("Parts", parts),
         ("Menu logo", logo),
-        ("Tuning", if tuned() { "installed".into() } else { "not installed".into() }),
+        ("Tuning", crate::tuning::current().to_string()),
     ];
     let width = lines.iter().map(|(key, _)| key.len()).max().unwrap_or(0);
     let body: Vec<String> = lines.iter().map(|(key, value)| format!("{key:<width$}   {value}")).collect();

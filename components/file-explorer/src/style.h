@@ -19,6 +19,11 @@ class QRectF;
 namespace fe::style {
 
 inline constexpr int WINDOW_RADIUS = 14;
+// Base times of File Explorer's transitions, before the desktop's animation speed scales them (core/motion.h).
+// A hover fades in about as fast as macOS's toolbar; the file view's wheel scroll glides a little longer.
+inline constexpr int HOVER_FADE_MS = 150;
+inline constexpr int SIDEBAR_HOVER_MS = 160;
+inline constexpr int SCROLL_GLIDE_MS = 220;
 inline constexpr int RESIZE_BORDER = 6;
 inline constexpr int SIDEBAR_WIDTH = 236;
 inline constexpr int SIDEBAR_INSET = 6;

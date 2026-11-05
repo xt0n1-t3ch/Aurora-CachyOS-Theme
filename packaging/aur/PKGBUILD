@@ -21,13 +21,13 @@ license=('GPL-3.0-only' 'LicenseRef-Aurora-Additional-Terms' 'GPL-2.0-or-later' 
 # links and the programs it runs. tests/release/test_pkgbuild.sh keeps these lists equal to the files.
 depends=(
     'qt6-base' 'qt6-declarative' 'qt6-svg' 'qt6-tools' 'qt6-5compat' 'kconfig' 'kcoreaddons' 'kcrash' 'kdbusaddons'
-    'kglobalaccel' 'ki18n' 'kiconthemes' 'kio' 'kitemmodels' 'kjobwidgets' 'knotifications' 'kparts' 'kpackage'
-    'krunner' 'kservice' 'kstatusnotifieritem' 'kwindowsystem' 'kxmlgui' 'kcmutils' 'solid' 'kirigami'
-    'kirigami-addons' 'kdeclarative' 'ksvg' 'kquickcharts' 'plasma-workspace' 'plasma-activities' 'libplasma' 'kwin'
-    'kdecoration' 'layer-shell-qt' 'wayland' 'dolphin' 'kinfocenter' 'xdg-desktop-portal' 'xdg-desktop-portal-kde'
-    'plasma5support' 'milou' 'plasma-nm' 'plasma-pa' 'bluez-qt' 'powerdevil' 'kvantum' 'dconf' 'xsettingsd'
-    'fontconfig' 'inter-font' 'ttf-jetbrains-mono-nerd' 'systemd' 'dbus' 'python' 'python-pillow' 'glibc' 'libgcc'
-    'curl' 'tar' 'pacman-contrib' 'libnotify' 'konsole'
+    'kglobalaccel' 'ki18n' 'kiconthemes' 'kio' 'kitemmodels' 'kjobwidgets' 'knotifications' 'kparts' 'kfilemetadata'
+    'purpose' 'kpackage' 'krunner' 'kservice' 'kstatusnotifieritem' 'kwindowsystem' 'kxmlgui' 'kcmutils' 'solid'
+    'kirigami' 'kirigami-addons' 'kdeclarative' 'ksvg' 'kquickcharts' 'plasma-workspace' 'plasma-activities'
+    'libplasma' 'kwin' 'kdecoration' 'layer-shell-qt' 'wayland' 'dolphin' 'kinfocenter' 'xdg-desktop-portal'
+    'xdg-desktop-portal-kde' 'plasma5support' 'milou' 'plasma-nm' 'plasma-pa' 'bluez-qt' 'powerdevil' 'kvantum' 'dconf'
+    'xsettingsd' 'fontconfig' 'inter-font' 'ttf-jetbrains-mono-nerd' 'systemd' 'dbus' 'python' 'python-pillow' 'glibc'
+    'libgcc' 'curl' 'tar' 'pacman-contrib' 'libnotify' 'konsole'
 )
 # installer/build-dependencies.txt, and Rust for the aurora command.
 makedepends=('base-devel' 'git' 'cmake' 'ninja' 'extra-cmake-modules' 'qt6-shadertools' 'cargo')

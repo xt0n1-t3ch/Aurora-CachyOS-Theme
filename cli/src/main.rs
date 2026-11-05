@@ -6,9 +6,12 @@
 use std::process::ExitCode;
 
 use aurora::app::{self, InstallChoices, Places};
+use aurora::backups;
 use aurora::check::{self, Mode};
+use aurora::icons;
 use aurora::logo::{Colors, Logo};
 use aurora::settings;
+use aurora::tuning::{self, Switch};
 use aurora::ui;
 use clap::{Parser, Subcommand};
 use console::Style;
@@ -62,7 +65,26 @@ enum Action {
         #[arg(long)]
         colors: bool,
     },
-    /// Change Aurora after the install: update notices, animations, the menu bar logo
+    /// Change the icon theme: Aurora's, or any other installed one
+    Icons {
+        /// The theme's folder name (breeze, Win11...) or aurora; without it, aurora asks
+        theme: Option<String>,
+    },
+    /// Turn the measured performance tuning (scheduler, memory, zram) on or off
+    Performance {
+        /// on or off; without it, aurora shows the settings and asks
+        #[arg(value_enum)]
+        switch: Option<Switch>,
+        /// Ask nothing
+        #[arg(long, short)]
+        yes: bool,
+    },
+    /// List the backups of your desktop from before Aurora, or put one back
+    Backups {
+        #[command(subcommand)]
+        action: Option<BackupsAction>,
+    },
+    /// Change Aurora after the install: update notices, animations, the menu bar logo, icons and tuning
     Settings {
         /// How often Aurora looks for a newer version: daily, weekly or never
         #[arg(long, value_name = "WHEN")]
@@ -89,6 +111,20 @@ enum Action {
     },
 }
 
+#[derive(Subcommand)]
+enum BackupsAction {
+    /// List the backups (the same as `aurora backups`)
+    List,
+    /// Remove Aurora and put a backup's settings back; without a name, the one `aurora uninstall` uses
+    Restore {
+        /// The backup's name, as `aurora backups` lists it
+        name: Option<String>,
+        /// Ask nothing
+        #[arg(long, short)]
+        yes: bool,
+    },
+}
+
 fn colors(on: bool) -> Colors {
     if on { Colors::On } else { Colors::Off }
 }
@@ -103,10 +139,17 @@ fn menu(places: &Places) -> anyhow::Result<()> {
     }
     let action: &str = cliclack::select("What would you like to do?")
         .item("update", "Update", "get the newest version and install it")
-        .item("settings", "Settings", "update notices, animations and the menu bar logo")
+        .item("settings", "Settings", "update notices, animations, the menu bar logo, icons and tuning")
         .item("logo", "Change the menu bar logo", "CachyOS, Arch Linux, Apple or Kali Linux")
+        .item("icons", "Change the icons", "Aurora's, or any other installed icon theme")
+        .item(
+            "performance",
+            "Performance tuning",
+            format!("the measured scheduler, memory and zram settings, now {}", tuning::current()),
+        )
         .item("rebuild", "Rebuild after a system update", "when Plasma, KWin or Qt changed")
         .item("status", "Status", "what is installed and from where")
+        .item("backups", "Backups", "the copies of your desktop from before Aurora")
         .item("uninstall", "Remove Aurora", "put your desktop back as it was")
         .item("license", "License and credits", "who made Aurora and the terms it comes with")
         .interact()?;
@@ -114,6 +157,9 @@ fn menu(places: &Places) -> anyhow::Result<()> {
         "update" => app::update(places, false),
         "settings" => settings::settings(places, None, None),
         "logo" => app::logo(None, Colors::Off),
+        "icons" => icons::icons(places, None),
+        "performance" => tuning::performance(places, None, false),
+        "backups" => backups::backups(places, backups::Action::List, false),
         "rebuild" => app::rebuild(places),
         "status" => app::status(places),
         "license" => app::license(places, VERSION.trim()),
@@ -128,6 +174,9 @@ fn shows_banner(command: Option<&Action>, banner: Option<&str>) -> bool {
         command,
         Some(
             Action::Logo { logo: Some(_), .. }
+                | Action::Icons { theme: Some(_) }
+                | Action::Performance { switch: Some(_), .. }
+                | Action::Backups { action: None | Some(BackupsAction::List) }
                 | Action::Settings { updates: Some(_), .. }
                 | Action::Settings { animations: Some(_), .. }
                 | Action::CheckUpdates { .. }
@@ -153,6 +202,14 @@ fn main() -> ExitCode {
             Some(Action::Update { yes }) => app::update(&places, yes),
             Some(Action::Rebuild) => app::rebuild(&places),
             Some(Action::Logo { logo, colors: on }) => app::logo(logo, colors(on)),
+            Some(Action::Icons { theme }) => icons::icons(&places, theme.as_deref()),
+            Some(Action::Performance { switch, yes }) => tuning::performance(&places, switch, yes),
+            Some(Action::Backups { action }) => match action {
+                None | Some(BackupsAction::List) => backups::backups(&places, backups::Action::List, false),
+                Some(BackupsAction::Restore { name, yes }) => {
+                    backups::backups(&places, backups::Action::Restore(name), yes)
+                }
+            },
             Some(Action::Settings { updates, animations }) => {
                 settings::settings(&places, updates.as_deref(), animations.as_deref())
             }
@@ -175,7 +232,8 @@ fn main() -> ExitCode {
 
 #[cfg(test)]
 mod tests {
-    use super::{Action, shows_banner};
+    use super::{Action, BackupsAction, shows_banner};
+    use aurora::tuning::Switch;
 
     #[test]
     fn the_menu_and_the_install_open_with_the_wordmark() {
@@ -199,5 +257,12 @@ mod tests {
             shows_banner(Some(&Action::Settings { updates: None, animations: None }), None),
             "the settings menu is a menu"
         );
+        assert!(!shows_banner(Some(&Action::Icons { theme: Some("breeze".into()) }), None));
+        assert!(!shows_banner(Some(&Action::Performance { switch: Some(Switch::On), yes: false }), None));
+        assert!(!shows_banner(Some(&Action::Backups { action: None }), None), "the list is a few lines");
+        assert!(shows_banner(
+            Some(&Action::Backups { action: Some(BackupsAction::Restore { name: None, yes: false }) }),
+            None
+        ));
     }
 }

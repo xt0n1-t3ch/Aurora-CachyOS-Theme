@@ -22,6 +22,8 @@ struct PathContext {
     QString homePath;
     QString userName;
     QString rootLabel;
+    /// The folder of the tag shelves (fe::tagging::shelfRoot); a shelf reads as "Tags", then its tag. Empty for none.
+    QString tagsPath = {};
 };
 
 /// The path bar segments for a folder, from the outermost place (home or the root disk) to the folder.

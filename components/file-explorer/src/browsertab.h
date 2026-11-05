@@ -54,6 +54,8 @@ public:
     void reload();
     /// Selects these items once the folder has loaded (DolphinPart's filesToSelect).
     void selectItems(const QList<QUrl> &items);
+    /// Selects these items of the folder on screen: it is listed again, and they are selected when it is.
+    void selectInPlace(const QList<QUrl> &items);
     /// In an Open or Save panel a double-clicked file is picked, not opened in its application.
     void setPicking(bool picking);
     [[nodiscard]] bool canGoBack() const;

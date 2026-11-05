@@ -5,6 +5,7 @@
 
 #include "toolbar.h"
 
+#include "addressfield.h"
 #include "style.h"
 
 #include <QButtonGroup>
@@ -17,57 +18,21 @@ namespace fe {
 namespace {
 
 constexpr int SEARCH_MIN_WIDTH = 150;
-constexpr int TITLE_MIN_WIDTH = 60;
+/// The address field never gets narrower than this; below it the buttons fold away first.
+constexpr int ADDRESS_MIN_WIDTH = 200;
+/// The inner padding and gaps of a text button, and the size of its chevron.
+constexpr int LABEL_PADDING = 12;
+constexpr int LABEL_GAP = 6;
+constexpr int CHEVRON_SIZE = 12;
 
 } // namespace
-
-/// The folder name in the toolbar: bold, on one line, and elided only once nothing else can give way.
-class TitleLabel : public QWidget
-{
-public:
-    explicit TitleLabel(QWidget *parent)
-        : QWidget(parent)
-    {
-        setFont(style::uiFont(15, QFont::Bold));
-        setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
-    }
-
-    void setText(const QString &text)
-    {
-        if (text != m_text) {
-            m_text = text;
-            updateGeometry();
-            update();
-        }
-    }
-
-    QSize sizeHint() const override
-    {
-        return {fontMetrics().horizontalAdvance(m_text) + 2, fontMetrics().height()};
-    }
-
-    QSize minimumSizeHint() const override
-    {
-        const QSize full = sizeHint();
-        return {qMin(full.width(), TITLE_MIN_WIDTH), full.height()};
-    }
-
-protected:
-    void paintEvent(QPaintEvent *) override
-    {
-        QPainter painter(this);
-        painter.setPen(style::TEXT);
-        painter.drawText(rect(), Qt::AlignLeft | Qt::AlignVCenter, fontMetrics().elidedText(m_text, Qt::ElideRight, width()));
-    }
-
-private:
-    QString m_text;
-};
 
 GlassButton::GlassButton(QString iconName, const QString &toolTip, QWidget *parent)
     : QAbstractButton(parent)
     , m_iconName(std::move(iconName))
+    , m_hover(new motion::HoverFade(style::HOVER_FADE_MS, this))
 {
+    connect(m_hover, &motion::HoverFade::changed, this, qOverload<>(&QWidget::update));
     setToolTip(toolTip);
     // Set on the button itself, so the window edge's resize cursors never reach it.
     setCursor(Qt::PointingHandCursor);
@@ -88,9 +53,34 @@ void GlassButton::setIconName(const QString &iconName)
     update();
 }
 
+void GlassButton::setLabel(const QString &label)
+{
+    m_label = label;
+    setFont(style::uiFont(13));
+    setFixedSize(sizeHint());
+    update();
+}
+
+void GlassButton::setChevron(bool chevron)
+{
+    m_chevron = chevron;
+    setFixedSize(sizeHint());
+    update();
+}
+
 QSize GlassButton::sizeHint() const
 {
-    return {m_standalone ? style::CAPSULE_HEIGHT : style::BUTTON_WIDTH, style::CAPSULE_HEIGHT};
+    if (m_label.isEmpty()) {
+        return {m_standalone ? style::CAPSULE_HEIGHT : style::BUTTON_WIDTH, style::CAPSULE_HEIGHT};
+    }
+    int width = 2 * LABEL_PADDING + fontMetrics().horizontalAdvance(m_label);
+    if (!m_iconName.isEmpty()) {
+        width += style::TOOL_ICON_SIZE + LABEL_GAP;
+    }
+    if (m_chevron) {
+        width += CHEVRON_SIZE + 2;
+    }
+    return {width, style::CAPSULE_HEIGHT};
 }
 
 void GlassButton::paintEvent(QPaintEvent *)
@@ -107,8 +97,9 @@ void GlassButton::paintEvent(QPaintEvent *)
         state = style::CAPSULE_PRESSED;
     } else if (isChecked()) {
         state = style::SEGMENT_CHECKED;
-    } else if (m_hover && isEnabled()) {
+    } else if (m_hover->progress() > 0.0 && isEnabled()) {
         state = style::CAPSULE_HOVER;
+        state.setAlphaF(state.alphaF() * m_hover->progress());
     }
     if (state.isValid()) {
         const QRectF inner = m_standalone ? bounds : bounds.adjusted(2, 3, -2, -3);
@@ -118,22 +109,37 @@ void GlassButton::paintEvent(QPaintEvent *)
     }
 
     const QColor iconColor = isEnabled() ? style::TEXT : style::TEXT_TERTIARY;
-    const QPixmap icon = style::tintedIcon(m_iconName, style::TOOL_ICON_SIZE, iconColor, devicePixelRatioF());
-    const QPointF topLeft((width() - style::TOOL_ICON_SIZE) / 2.0, (height() - style::TOOL_ICON_SIZE) / 2.0);
-    painter.drawPixmap(topLeft, icon);
+    if (m_label.isEmpty()) {
+        const QPixmap icon = style::tintedIcon(m_iconName, style::TOOL_ICON_SIZE, iconColor, devicePixelRatioF());
+        const QPointF topLeft((width() - style::TOOL_ICON_SIZE) / 2.0, (height() - style::TOOL_ICON_SIZE) / 2.0);
+        painter.drawPixmap(topLeft, icon);
+        return;
+    }
+    qreal x = LABEL_PADDING;
+    if (!m_iconName.isEmpty()) {
+        const QPixmap icon = style::tintedIcon(m_iconName, style::TOOL_ICON_SIZE, iconColor, devicePixelRatioF());
+        painter.drawPixmap(QPointF(x, (height() - style::TOOL_ICON_SIZE) / 2.0), icon);
+        x += style::TOOL_ICON_SIZE + LABEL_GAP;
+    }
+    painter.setPen(iconColor);
+    const int textWidth = fontMetrics().horizontalAdvance(m_label);
+    painter.drawText(QRectF(x, 0, textWidth + 1, height()), Qt::AlignLeft | Qt::AlignVCenter, m_label);
+    if (m_chevron) {
+        const QPixmap chevron = style::tintedIcon(QStringLiteral(":/icons/actions/chevron-down.svg"), CHEVRON_SIZE, iconColor,
+                                                  devicePixelRatioF());
+        painter.drawPixmap(QPointF(x + textWidth + 2, (height() - CHEVRON_SIZE) / 2.0 + 1), chevron);
+    }
 }
 
 void GlassButton::enterEvent(QEnterEvent *event)
 {
-    m_hover = true;
-    update();
+    m_hover->setHovered(true);
     QAbstractButton::enterEvent(event);
 }
 
 void GlassButton::leaveEvent(QEvent *event)
 {
-    m_hover = false;
-    update();
+    m_hover->setHovered(false);
     QAbstractButton::leaveEvent(event);
 }
 
@@ -202,16 +208,19 @@ void SearchField::paintEvent(QPaintEvent *event)
     QLineEdit::paintEvent(event);
 }
 
-Toolbar::Toolbar(QWidget *parent)
+Toolbar::Toolbar(const QString &homePath, QWidget *parent)
     : QWidget(parent)
     , m_leading(new QHBoxLayout)
     , m_trailing(new QHBoxLayout)
     , m_back(new GlassButton(QStringLiteral("go-previous-symbolic"), QStringLiteral("Back")))
     , m_forward(new GlassButton(QStringLiteral("go-next-symbolic"), QStringLiteral("Forward")))
-    , m_up(new GlassButton(QStringLiteral("go-up-symbolic"), QStringLiteral("Enclosing Folder")))
-    , m_title(new TitleLabel(this))
+    , m_up(new GlassButton(QStringLiteral("go-up-symbolic"), QStringLiteral("Enclosing Folder"), this))
+    , m_address(new AddressField(homePath, this))
     , m_viewModes(new QButtonGroup(this))
-    , m_sort(new GlassButton(QStringLiteral(":/icons/sort.svg"), QStringLiteral("Sort By")))
+    , m_group(new GlassButton(QString(), QStringLiteral("Group files by name, kind, date or size"), this))
+    , m_share(new GlassButton(QStringLiteral(":/icons/actions/share.svg"), QStringLiteral("Share"), this))
+    , m_tags(new GlassButton(QStringLiteral(":/icons/actions/tag.svg"), QStringLiteral("Tag the selected items with a color"), this))
+    , m_more(new GlassButton(QStringLiteral(":/icons/actions/more.svg"), QStringLiteral("More"), this))
     , m_search(new SearchField(this))
 {
     setFixedHeight(style::TOOLBAR_HEIGHT);
@@ -219,14 +228,12 @@ Toolbar::Toolbar(QWidget *parent)
     auto *navigation = new Capsule(this);
     navigation->addButton(m_back);
     navigation->addButton(m_forward);
-    navigation->addButton(m_up);
     connect(m_back, &QAbstractButton::clicked, this, &Toolbar::backClicked);
     connect(m_forward, &QAbstractButton::clicked, this, &Toolbar::forwardClicked);
+    m_up->setStandalone(true);
     connect(m_up, &QAbstractButton::clicked, this, &Toolbar::upClicked);
-
-    auto *newFolder = new GlassButton(QStringLiteral("folder-new-symbolic"), QStringLiteral("New Folder"), this);
-    newFolder->setStandalone(true);
-    connect(newFolder, &QAbstractButton::clicked, this, &Toolbar::newFolderClicked);
+    m_address->setMinimumWidth(ADDRESS_MIN_WIDTH);
+    m_address->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 
     auto *views = new Capsule(this);
     const struct {
@@ -247,14 +254,17 @@ Toolbar::Toolbar(QWidget *parent)
     m_viewModes->setExclusive(true);
     connect(m_viewModes, &QButtonGroup::idClicked, this, [this](int id) { Q_EMIT viewModeChosen(static_cast<ViewMode>(id)); });
 
-    auto *sortCapsule = new Capsule(this);
-    sortCapsule->addButton(m_sort);
-    connect(m_sort, &QAbstractButton::clicked, this, &Toolbar::sortClicked);
-
-    m_addToSidebar = new GlassButton(QStringLiteral(":/icons/bookmark.svg"), QStringLiteral("Add to Sidebar"), this);
-    m_addToSidebar->setStandalone(true);
-    connect(m_addToSidebar, &QAbstractButton::clicked, this, &Toolbar::addToSidebarClicked);
-
+    m_group->setStandalone(true);
+    m_group->setLabel(QStringLiteral("Group"));
+    m_group->setChevron(true);
+    m_share->setStandalone(true);
+    m_tags->setStandalone(true);
+    m_tags->setLabel(QStringLiteral("Edit Tags"));
+    m_more->setStandalone(true);
+    connect(m_group, &QAbstractButton::clicked, this, &Toolbar::groupClicked);
+    connect(m_share, &QAbstractButton::clicked, this, &Toolbar::shareClicked);
+    connect(m_tags, &QAbstractButton::clicked, this, &Toolbar::editTagsClicked);
+    connect(m_more, &QAbstractButton::clicked, this, &Toolbar::moreClicked);
     connect(m_search, &QLineEdit::textChanged, this, &Toolbar::searchChanged);
 
     auto *layout = new QHBoxLayout(this);
@@ -264,20 +274,21 @@ Toolbar::Toolbar(QWidget *parent)
     m_leading->setSpacing(0);
     layout->addLayout(m_leading);
     layout->addWidget(navigation);
-    layout->addSpacing(6);
-    layout->addWidget(m_title);
-    layout->addStretch(1);
-    layout->addWidget(newFolder);
+    layout->addWidget(m_up);
+    layout->addWidget(m_address, 1);
     layout->addWidget(views);
-    layout->addWidget(sortCapsule);
-    layout->addWidget(m_addToSidebar);
+    layout->addWidget(m_group);
+    layout->addWidget(m_share);
+    layout->addWidget(m_tags);
+    layout->addWidget(m_more);
     layout->addWidget(m_search);
     m_trailing->setContentsMargins(0, 0, 0, 0);
     m_trailing->setSpacing(0);
     layout->addSpacing(4);
     layout->addLayout(m_trailing);
 
-    m_collapsible = {m_addToSidebar, newFolder, sortCapsule, views};
+    // Everything they do stays in the More menu, the context menu and the menu bar.
+    m_collapsible = {m_tags, m_share, m_group, views};
 }
 
 void Toolbar::resizeEvent(QResizeEvent *event)
@@ -289,7 +300,7 @@ void Toolbar::resizeEvent(QResizeEvent *event)
 void Toolbar::fitToWidth()
 {
     QLayout *bar = layout();
-    // The size hint counts the title at its full width and skips hidden buttons.
+    // The size hint counts the address field at its minimum width and skips hidden buttons.
     const auto overflow = [this, bar] {
         bar->invalidate();
         return bar->sizeHint().width() - width();
@@ -298,8 +309,13 @@ void Toolbar::fitToWidth()
     for (QWidget *button : std::as_const(m_collapsible)) {
         button->setVisible(true);
     }
+    m_tags->setLabel(QStringLiteral("Edit Tags"));
     if (const int excess = overflow(); excess > 0) {
         m_search->setFixedWidth(qMax(SEARCH_MIN_WIDTH, style::SEARCH_WIDTH - excess));
+    }
+    // Edit Tags keeps its icon a while after its words go.
+    if (overflow() > 0) {
+        m_tags->setLabel(QString());
     }
     for (QWidget *button : std::as_const(m_collapsible)) {
         if (overflow() <= 0) {
@@ -307,16 +323,6 @@ void Toolbar::fitToWidth()
         }
         button->setVisible(false);
     }
-}
-
-void Toolbar::setTitle(const QString &title)
-{
-    m_title->setText(title);
-}
-
-void Toolbar::setAddToSidebarEnabled(bool enabled)
-{
-    m_addToSidebar->setEnabled(enabled);
 }
 
 void Toolbar::setNavigationState(bool canGoBack, bool canGoForward, bool canGoUp)
@@ -357,9 +363,29 @@ SearchField *Toolbar::searchField() const
     return m_search;
 }
 
-GlassButton *Toolbar::sortButton() const
+AddressField *Toolbar::addressField() const
 {
-    return m_sort;
+    return m_address;
+}
+
+GlassButton *Toolbar::groupButton() const
+{
+    return m_group;
+}
+
+GlassButton *Toolbar::shareButton() const
+{
+    return m_share;
+}
+
+GlassButton *Toolbar::tagsButton() const
+{
+    return m_tags;
+}
+
+GlassButton *Toolbar::moreButton() const
+{
+    return m_more;
 }
 
 } // namespace fe

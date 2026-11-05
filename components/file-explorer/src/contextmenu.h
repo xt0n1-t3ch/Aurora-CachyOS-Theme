@@ -27,13 +27,15 @@ struct WindowActions {
     std::function<bool(const QUrl &)> inSidebar;
     /// Puts folders at the end of the sidebar's Favorites.
     std::function<void(const QList<QUrl> &)> addToSidebar;
+    /// Shows the selection in Quick Look.
+    std::function<void()> quickLook;
 };
 
 /// Shows the Finder-style context menu at globalPos: for the items, or for the folder itself when
 /// Dolphin passes the folder as the only item (a click on the empty background). Does nothing without items.
 /// window is the parent of the menu and of the dialogs it starts.
 void execContextMenu(BrowserTab *tab, const QPoint &globalPos, const KFileItemList &items,
-                     const KParts::NavigationExtension::ActionGroupMap &groups, const WindowActions &actions, QWidget *window);
+                     const WindowActions &actions, QWidget *window);
 
 /// Opens the system terminal in a local folder.
 void openTerminalAt(const QString &path, QWidget *window);

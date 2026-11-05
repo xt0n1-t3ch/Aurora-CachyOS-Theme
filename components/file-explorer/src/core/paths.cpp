@@ -46,6 +46,20 @@ QList<Crumb> crumbsFor(const QUrl &url, const PathContext &context)
     const QString path = QDir::cleanPath(url.toLocalFile());
     const QString home = QDir::cleanPath(context.homePath);
 
+    if (!context.tagsPath.isEmpty()) {
+        const QString tags = QDir::cleanPath(context.tagsPath);
+        if (path.startsWith(tags + u'/')) {
+            // A tagged folder opened from its shelf goes on under the tag.
+            QList<Crumb> crumbs{{QStringLiteral("Tags"), QUrl::fromLocalFile(tags)}};
+            QString base = tags;
+            for (const QString &part : path.mid(tags.size() + 1).split(u'/', Qt::SkipEmptyParts)) {
+                base += u'/' + part;
+                crumbs.append({part, QUrl::fromLocalFile(base)});
+            }
+            return crumbs;
+        }
+    }
+
     QList<Crumb> crumbs;
     QString base;
     QString rest;

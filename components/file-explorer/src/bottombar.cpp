@@ -17,57 +17,13 @@ namespace fe {
 
 namespace {
 
-constexpr int STATUS_ICON_SIZE = 16;
 constexpr int CRUMB_ICON_SIZE = 14;
 constexpr qreal CRUMB_ICON_GAP = 5.0;
 constexpr qreal CHEVRON_WIDTH = 16.0;
 constexpr qreal PATH_LEFT = 14.0;
-
-/// A borderless icon button of the status row; the accent color marks it as on.
-class FlatButton : public QAbstractButton
-{
-public:
-    FlatButton(QString iconName, const QString &toolTip, QWidget *parent)
-        : QAbstractButton(parent)
-        , m_iconName(std::move(iconName))
-    {
-        setToolTip(toolTip);
-        setFocusPolicy(Qt::NoFocus);
-        setFixedSize(28, 24);
-    }
-
-protected:
-    void paintEvent(QPaintEvent *) override
-    {
-        QPainter painter(this);
-        QColor color = style::TEXT_SECONDARY;
-        if (isChecked()) {
-            color = style::ACCENT;
-        } else if (m_hover) {
-            color = style::TEXT;
-        }
-        const QPixmap icon = style::tintedIcon(m_iconName, STATUS_ICON_SIZE, color, devicePixelRatioF());
-        painter.drawPixmap(QPointF((width() - STATUS_ICON_SIZE) / 2.0, (height() - STATUS_ICON_SIZE) / 2.0), icon);
-    }
-
-    void enterEvent(QEnterEvent *event) override
-    {
-        m_hover = true;
-        update();
-        QAbstractButton::enterEvent(event);
-    }
-
-    void leaveEvent(QEvent *event) override
-    {
-        m_hover = false;
-        update();
-        QAbstractButton::leaveEvent(event);
-    }
-
-private:
-    QString m_iconName;
-    bool m_hover = false;
-};
+/// Space kept free between the path and the status text at the right end.
+constexpr qreal STATUS_GAP = 24.0;
+constexpr qreal STATUS_RIGHT = 14.0;
 
 /// The colored icon in front of a path segment: home, the disk, a special place or a folder.
 QString crumbIcon(const Crumb &crumb, bool first)
@@ -90,60 +46,6 @@ QString crumbIcon(const Crumb &crumb, bool first)
 
 } // namespace
 
-StatusRow::StatusRow(QWidget *parent)
-    : QWidget(parent)
-    , m_hidden(new FlatButton(QStringLiteral("view-hidden-symbolic"), QStringLiteral("Show Hidden Files"), this))
-    , m_previews(new FlatButton(QStringLiteral("view-preview-symbolic"), QStringLiteral("Show Previews"), this))
-{
-    setFixedHeight(style::STATUS_HEIGHT);
-    m_hidden->setCheckable(true);
-    m_previews->setCheckable(true);
-    auto *info = new FlatButton(QStringLiteral("dialog-information-symbolic"), QStringLiteral("Get Info"), this);
-
-    auto *layout = new QHBoxLayout(this);
-    layout->setContentsMargins(6, 0, 14, 0);
-    layout->setSpacing(2);
-    layout->addWidget(m_hidden);
-    layout->addWidget(m_previews);
-    layout->addWidget(info);
-    layout->addStretch();
-
-    // The buttons only ask; the window flips the setting and reports the new state back.
-    connect(m_hidden, &QAbstractButton::clicked, this, &StatusRow::hiddenToggled);
-    connect(m_previews, &QAbstractButton::clicked, this, &StatusRow::previewsToggled);
-    connect(info, &QAbstractButton::clicked, this, &StatusRow::infoClicked);
-}
-
-void StatusRow::setText(const QString &text)
-{
-    if (text != m_text) {
-        m_text = text;
-        update();
-    }
-}
-
-void StatusRow::setHiddenShown(bool shown)
-{
-    m_hidden->setChecked(shown);
-    m_hidden->setToolTip(shown ? QStringLiteral("Hide Hidden Files") : QStringLiteral("Show Hidden Files"));
-}
-
-void StatusRow::setPreviewsShown(bool shown)
-{
-    m_previews->setChecked(shown);
-    m_previews->setToolTip(shown ? QStringLiteral("Hide Previews") : QStringLiteral("Show Previews"));
-}
-
-void StatusRow::paintEvent(QPaintEvent *)
-{
-    QPainter painter(this);
-    painter.setFont(style::uiFont(12));
-    painter.setPen(style::TEXT_SECONDARY);
-    const QRect textRect = rect().adjusted(110, 0, -14, 0);
-    painter.drawText(textRect, Qt::AlignRight | Qt::AlignVCenter,
-                     painter.fontMetrics().elidedText(m_text, Qt::ElideMiddle, textRect.width()));
-}
-
 PathBar::PathBar(QWidget *parent)
     : QWidget(parent)
 {
@@ -152,9 +54,10 @@ PathBar::PathBar(QWidget *parent)
     setFont(style::uiFont(12));
 }
 
-void PathBar::setCrumbs(const QList<Crumb> &crumbs)
+void PathBar::setCrumbs(const QList<Crumb> &crumbs, const QString &lastIconName)
 {
     m_crumbs = crumbs;
+    m_lastIconName = lastIconName;
     m_hover = -1;
     layoutSegments();
     update();
@@ -165,6 +68,9 @@ void PathBar::layoutSegments()
     m_segments.clear();
     for (qsizetype i = 0; i < m_crumbs.size(); ++i) {
         m_segments.append({m_crumbs.at(i), crumbIcon(m_crumbs.at(i), i == 0), {}, false});
+    }
+    if (!m_lastIconName.isEmpty() && !m_segments.isEmpty()) {
+        m_segments.last().iconName = m_lastIconName;
     }
 
     const QFontMetricsF metrics(font());
@@ -181,8 +87,10 @@ void PathBar::layoutSegments()
         }
         return total;
     };
-    // Too long for the window: fold the segments between the first and the last into one "…", the outermost first.
-    while (totalWidth() > width() - PATH_LEFT && m_segments.size() > 3) {
+    // Too long for the room the status text leaves: fold the segments between the first and the last into one "…",
+    // the outermost first.
+    const qreal room = width() - PATH_LEFT - statusWidth();
+    while (totalWidth() > room && m_segments.size() > 3) {
         if (m_segments.at(1).ellipsis) {
             m_segments.removeAt(2);
         } else {
@@ -196,6 +104,20 @@ void PathBar::layoutSegments()
         segment.rect = QRectF(x, 0, segmentW, height());
         x += segmentW + CHEVRON_WIDTH;
     }
+}
+
+void PathBar::setStatusText(const QString &text)
+{
+    if (text != m_status) {
+        m_status = text;
+        layoutSegments();
+        update();
+    }
+}
+
+qreal PathBar::statusWidth() const
+{
+    return m_status.isEmpty() ? 0.0 : QFontMetricsF(font()).horizontalAdvance(m_status) + STATUS_GAP + STATUS_RIGHT;
 }
 
 int PathBar::segmentAt(QPointF pos) const
@@ -215,6 +137,11 @@ void PathBar::paintEvent(QPaintEvent *)
     painter.setFont(font());
     const qreal dpr = devicePixelRatioF();
     const qreal middle = height() / 2.0;
+
+    if (!m_status.isEmpty()) {
+        painter.setPen(style::TEXT_SECONDARY);
+        painter.drawText(QRectF(rect()).adjusted(0, 0, -STATUS_RIGHT, 0), Qt::AlignRight | Qt::AlignVCenter, m_status);
+    }
 
     for (qsizetype i = 0; i < m_segments.size(); ++i) {
         const Segment &segment = m_segments.at(i);

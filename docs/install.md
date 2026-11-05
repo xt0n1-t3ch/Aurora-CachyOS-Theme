@@ -47,7 +47,7 @@ P=~/.local/lib/qt6/plugins
 sudo ln -sfn $P/org.kde.kdecoration3/org.aurora.decoration.so /usr/lib/qt6/plugins/org.kde.kdecoration3/
 sudo ln -sfn $P/kwin/plugins/aurora-pointer.so /usr/lib/qt6/plugins/kwin/plugins/
 qdbus6 org.kde.KWin /Plugins org.kde.KWin.Plugins.LoadPlugin aurora-pointer
-# --performance (performance/system/, reasons in performance.md):
+# The tuning (aurora performance on, or --performance; performance/system/, reasons in performance.md):
 sudo install -Dm644 performance/system/scx_loader.toml /etc/scx_loader.toml && sudo systemctl enable --now scx_loader.service
 sudo install -Dm644 performance/system/thp.conf /etc/tmpfiles.d/thp.conf
 sudo install -Dm644 performance/system/99-aurora-memory.conf /etc/sysctl.d/99-aurora-memory.conf && sudo sysctl -q --system

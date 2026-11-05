@@ -5,6 +5,8 @@
 
 #pragma once
 
+#include "core/motion.h"
+
 #include <QWidget>
 
 /// The window buttons in Windows order (minimize, maximize, close), in one Liquid Glass capsule with
@@ -40,5 +42,6 @@ private:
 
     bool m_maximized = false;
     int m_hover = -1;
+    fe::motion::HoverFade *m_fade;
     int m_pressed = -1;
 };

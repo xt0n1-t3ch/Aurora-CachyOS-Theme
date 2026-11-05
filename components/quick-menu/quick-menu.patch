@@ -1,6 +1,6 @@
 diff -ruN -x '*.qsb' a/CMakeLists.txt b/CMakeLists.txt
---- a/CMakeLists.txt	2026-11-04 22:29:45.208282077 -0500
-+++ b/CMakeLists.txt	2026-11-04 22:57:08.778055130 -0500
+--- a/CMakeLists.txt	2026-11-05 02:44:25.332371661 -0500
++++ b/CMakeLists.txt	2026-11-05 02:44:25.333585775 -0500
 @@ -15,6 +15,19 @@
  add_executable(krunner ${krunner_SRCS})
  
@@ -23,8 +23,8 @@ diff -ruN -x '*.qsb' a/CMakeLists.txt b/CMakeLists.txt
      Qt::Quick
 diff -ruN -x '*.qsb' a/qml/QuickMenuApps.qml b/qml/QuickMenuApps.qml
 --- a/qml/QuickMenuApps.qml	1969-12-31 19:00:00.000000000 -0500
-+++ b/qml/QuickMenuApps.qml	2026-11-04 22:57:04.481050752 -0500
-@@ -0,0 +1,428 @@
++++ b/qml/QuickMenuApps.qml	2026-11-05 13:28:11.745956904 -0500
+@@ -0,0 +1,483 @@
 +/*
 +    SPDX-FileCopyrightText: 2026 xt0n1-t3ch
 +    SPDX-License-Identifier: GPL-2.0-or-later
@@ -34,7 +34,8 @@ diff -ruN -x '*.qsb' a/qml/QuickMenuApps.qml b/qml/QuickMenuApps.qml
 +// models Kickoff uses (org.kde.plasma.private.kicker), so new apps and launches show up as they do there. An app
 +// dragged onto another of its section takes that one's place, and the section keeps that order. A right-click (or the
 +// Menu key) opens an app's menu: Open, its jump list, Pin to Top (the Pinned section above Suggestions), Pin to Dock,
-+// Remove from Suggestions, and Plasma's Edit Application and Uninstall.
++// Remove from Suggestions, and Plasma's Edit Application and Uninstall. The grid button beside ⋯ shows All Applications:
++// every app under its first letter, like Windows' All apps, with Back where a section has Show More.
 +import QtCore
 +import QtQuick
 +import QtQuick.Controls as QQC2
@@ -53,6 +54,8 @@ diff -ruN -x '*.qsb' a/qml/QuickMenuApps.qml b/qml/QuickMenuApps.qml
 +    property int sidePadding: Kirigami.Units.gridUnit
 +
 +    property var sections: []
++    // All Applications: every app under its first letter instead of the sections.
++    property bool allApps: false
 +    // Section title -> shown in full.
 +    property var expanded: ({})
 +    // {section, index} of the app the arrow keys stand on, or null while the search field has them.
@@ -174,6 +177,13 @@ diff -ruN -x '*.qsb' a/qml/QuickMenuApps.qml b/qml/QuickMenuApps.qml
 +            categories.push({icon: String(menu.data(index, Qt.DecorationRole) || ""), name: String(menu.data(index, Qt.DisplayRole) || ""),
 +                             apps: entriesOf(menu.modelForRow(row), Infinity)})
 +        }
++        if (allApps) {
++            sections = QuickMenu.alphabeticalSections(categories)
++            if (current && current.section >= sections.length) {
++                current = null
++            }
++            return
++        }
 +        const built = QuickMenu.buildSections(categories, savedOrders())
 +        // Three rows at most behind Show More: the apps used most, not a second full list.
 +        const suggested = entriesOf(popular, 3 * columns)
@@ -194,6 +204,7 @@ diff -ruN -x '*.qsb' a/qml/QuickMenuApps.qml b/qml/QuickMenuApps.qml
 +
 +    // Back to a fresh view each time Quick Menu opens: all sections folded, nothing selected, at the top.
 +    function reset() {
++        allApps = false
 +        expanded = ({})
 +        current = null
 +        lastPointer = null
@@ -317,6 +328,14 @@ diff -ruN -x '*.qsb' a/qml/QuickMenuApps.qml b/qml/QuickMenuApps.qml
 +        }
 +    }
 +
++    // Switches between the sections and All Applications, from the top of the list.
++    function showAllApps(all) {
++        allApps = all
++        current = null
++        contentY = 0
++        rebuild()
++    }
++
 +    function toggle(title) {
 +        const next = Object.assign({}, expanded)
 +        next[title] = !next[title]
@@ -347,6 +366,41 @@ diff -ruN -x '*.qsb' a/qml/QuickMenuApps.qml b/qml/QuickMenuApps.qml
 +        topPadding: Kirigami.Units.mediumSpacing
 +        bottomPadding: Kirigami.Units.mediumSpacing
 +
++        // All Applications' heading, drawn like a section's: its title, and Back where a section has Show More. The
++        // way in is the grid button beside ⋯ in the search row.
++        RowLayout {
++            x: view.sidePadding
++            width: content.width - 2 * view.sidePadding
++            height: Kirigami.Units.gridUnit * 2.2
++            visible: view.allApps
++
++            QQC2.Label {
++                Layout.fillWidth: true
++                text: i18nc("@title Quick Menu's list of every app", "All Applications")
++                font.weight: Font.Bold
++                color: Qt.rgba(1, 1, 1, 0.95)
++                elide: Text.ElideRight
++                textFormat: Text.PlainText
++            }
++            QQC2.Label {
++                text: i18nc("@action:button back from Quick Menu's list of every app", "Back")
++                font.weight: Font.DemiBold
++                color: back.hovered ? Qt.lighter(Kirigami.Theme.highlightColor, 1.6) : Qt.lighter(Kirigami.Theme.highlightColor, 1.35)
++                textFormat: Text.PlainText
++                Accessible.role: Accessible.Button
++                Accessible.name: text
++                Accessible.onPressAction: view.showAllApps(false)
++
++                HoverHandler {
++                    id: back
++                    cursorShape: Qt.PointingHandCursor
++                }
++                TapHandler {
++                    onTapped: view.showAllApps(false)
++                }
++            }
++        }
++
 +        Repeater {
 +            id: sectionRepeater
 +            model: view.sections
@@ -365,7 +419,8 @@ diff -ruN -x '*.qsb' a/qml/QuickMenuApps.qml b/qml/QuickMenuApps.qml
 +                width: content.width
 +
 +                Rectangle {
-+                    visible: section.index > 0
++                    // Under All Applications' heading the first letter has a divider too.
++                    visible: section.index > 0 || view.allApps
 +                    x: view.sidePadding
 +                    width: parent.width - 2 * view.sidePadding
 +                    height: 1
@@ -455,7 +510,7 @@ diff -ruN -x '*.qsb' a/qml/QuickMenuApps.qml b/qml/QuickMenuApps.qml
 +}
 diff -ruN -x '*.qsb' a/qml/QuickMenuBlur.qml b/qml/QuickMenuBlur.qml
 --- a/qml/QuickMenuBlur.qml	1969-12-31 19:00:00.000000000 -0500
-+++ b/qml/QuickMenuBlur.qml	2026-11-04 22:56:30.594339582 -0500
++++ b/qml/QuickMenuBlur.qml	2026-11-05 02:44:25.334227431 -0500
 @@ -0,0 +1,12 @@
 +/*
 +    SPDX-FileCopyrightText: 2026 xt0n1-t3ch
@@ -471,7 +526,7 @@ diff -ruN -x '*.qsb' a/qml/QuickMenuBlur.qml b/qml/QuickMenuBlur.qml
 +}
 diff -ruN -x '*.qsb' a/qml/QuickMenuGlass.qml b/qml/QuickMenuGlass.qml
 --- a/qml/QuickMenuGlass.qml	1969-12-31 19:00:00.000000000 -0500
-+++ b/qml/QuickMenuGlass.qml	2026-11-04 22:56:30.594648380 -0500
++++ b/qml/QuickMenuGlass.qml	2026-11-05 02:44:25.334227431 -0500
 @@ -0,0 +1,37 @@
 +/*
 +    SPDX-FileCopyrightText: 2026 xt0n1-t3ch
@@ -512,8 +567,8 @@ diff -ruN -x '*.qsb' a/qml/QuickMenuGlass.qml b/qml/QuickMenuGlass.qml
 +}
 diff -ruN -x '*.qsb' a/qml/quickmenu.js b/qml/quickmenu.js
 --- a/qml/quickmenu.js	1969-12-31 19:00:00.000000000 -0500
-+++ b/qml/quickmenu.js	2026-11-04 22:57:08.778412588 -0500
-@@ -0,0 +1,303 @@
++++ b/qml/quickmenu.js	2026-11-05 05:11:20.859243250 -0500
+@@ -0,0 +1,347 @@
 +/*
 +    SPDX-FileCopyrightText: 2026 xt0n1-t3ch
 +    SPDX-License-Identifier: GPL-2.0-or-later
@@ -713,12 +768,44 @@ diff -ruN -x '*.qsb' a/qml/quickmenu.js b/qml/quickmenu.js
 +        + " print(out.join('|'));";
 +}
 +
++// A section with `full` set (All Applications' letters) always shows every app.
 +function visibleApps(section, expanded, columns) {
-+    return expanded ? section.apps : section.apps.slice(0, columns);
++    return expanded || section.full ? section.apps : section.apps.slice(0, columns);
 +}
 +
 +function canExpand(section, columns) {
-+    return section.apps.length > columns;
++    return !section.full && section.apps.length > columns;
++}
++
++// The letter an app is filed under in All Applications: its first letter without accents, or "#" for a digit or a sign.
++function initialOf(name) {
++    const first = String(name).normalize("NFD").replace(/[\u0300-\u036f]/g, "").charAt(0).toLocaleUpperCase();
++    return first.toLocaleLowerCase() !== first ? first : "#";
++}
++
++// categories as for buildSections -> every app once, alphabetical, in one full section per letter, "#" first, the
++// way Windows' All apps list reads.
++function alphabeticalSections(categories) {
++    const byId = new Map();
++    for (const category of categories) {
++        for (const entry of category.apps) {
++            if (!byId.has(entry.id)) {
++                byId.set(entry.id, entry);
++            }
++        }
++    }
++    const apps = [...byId.values()].sort((a, b) => a.name.localeCompare(b.name, undefined, {sensitivity: "base"}));
++    const sections = [];
++    for (const entry of apps) {
++        const letter = initialOf(entry.name);
++        let section = sections.find(candidate => candidate.title === letter);
++        if (!section) {
++            section = {title: letter, apps: [], full: true};
++            sections.push(section);
++        }
++        section.apps.push(entry);
++    }
++    return sections.sort((a, b) => a.title === "#" ? -1 : b.title === "#" ? 1 : a.title.localeCompare(b.title));
 +}
 +
 +// counts: how many apps each section shows; current: {section, index} or null for the search field.
@@ -817,9 +904,21 @@ diff -ruN -x '*.qsb' a/qml/quickmenu.js b/qml/quickmenu.js
 +    session[method]();
 +    return true;
 +}
++
++// How the panel opens, like Spotlight: a fade over Kirigami's long duration, then a small scale and a fall of 10 px
++// that slow down at the end over a little longer. `longDuration` already carries the desktop's animation speed, so
++// instant animations (0) open the panel at once.
++function openingMotion(longDuration) {
++    return {
++        scaleFrom: 0.96,
++        liftFrom: -10,
++        fadeDuration: longDuration,
++        moveDuration: Math.round(longDuration * 1.4),
++    }
++}
 diff -ruN -x '*.qsb' a/qml/QuickMenuPopup.qml b/qml/QuickMenuPopup.qml
 --- a/qml/QuickMenuPopup.qml	1969-12-31 19:00:00.000000000 -0500
-+++ b/qml/QuickMenuPopup.qml	2026-11-04 22:56:30.596012463 -0500
++++ b/qml/QuickMenuPopup.qml	2026-11-05 02:44:25.334227431 -0500
 @@ -0,0 +1,220 @@
 +/*
 +    SPDX-FileCopyrightText: 2026 xt0n1-t3ch
@@ -1043,7 +1142,7 @@ diff -ruN -x '*.qsb' a/qml/QuickMenuPopup.qml b/qml/QuickMenuPopup.qml
 +}
 diff -ruN -x '*.qsb' a/qml/QuickMenuRail.qml b/qml/QuickMenuRail.qml
 --- a/qml/QuickMenuRail.qml	1969-12-31 19:00:00.000000000 -0500
-+++ b/qml/QuickMenuRail.qml	2026-11-04 22:57:04.480906873 -0500
++++ b/qml/QuickMenuRail.qml	2026-11-05 02:44:25.334227431 -0500
 @@ -0,0 +1,171 @@
 +/*
 +    SPDX-FileCopyrightText: 2026 xt0n1 (https://github.com/xt0n1-t3ch)
@@ -1218,7 +1317,7 @@ diff -ruN -x '*.qsb' a/qml/QuickMenuRail.qml b/qml/QuickMenuRail.qml
 +}
 diff -ruN -x '*.qsb' a/qml/QuickMenuResult.qml b/qml/QuickMenuResult.qml
 --- a/qml/QuickMenuResult.qml	1969-12-31 19:00:00.000000000 -0500
-+++ b/qml/QuickMenuResult.qml	2026-11-04 22:29:45.209073783 -0500
++++ b/qml/QuickMenuResult.qml	2026-11-05 02:44:25.334487279 -0500
 @@ -0,0 +1,184 @@
 +/*
 +    SPDX-FileCopyrightText: 2013-2014 Vishesh Handa <me@vhanda.in>
@@ -1406,7 +1505,7 @@ diff -ruN -x '*.qsb' a/qml/QuickMenuResult.qml b/qml/QuickMenuResult.qml
 +}
 diff -ruN -x '*.qsb' a/qml/QuickMenuScrollBar.qml b/qml/QuickMenuScrollBar.qml
 --- a/qml/QuickMenuScrollBar.qml	1969-12-31 19:00:00.000000000 -0500
-+++ b/qml/QuickMenuScrollBar.qml	2026-11-04 22:29:45.209073783 -0500
++++ b/qml/QuickMenuScrollBar.qml	2026-11-05 02:44:25.334487279 -0500
 @@ -0,0 +1,28 @@
 +/*
 +    SPDX-FileCopyrightText: 2026 xt0n1-t3ch
@@ -1438,7 +1537,7 @@ diff -ruN -x '*.qsb' a/qml/QuickMenuScrollBar.qml b/qml/QuickMenuScrollBar.qml
 +}
 diff -ruN -x '*.qsb' a/qml/QuickMenuTile.qml b/qml/QuickMenuTile.qml
 --- a/qml/QuickMenuTile.qml	1969-12-31 19:00:00.000000000 -0500
-+++ b/qml/QuickMenuTile.qml	2026-11-04 22:56:30.597975363 -0500
++++ b/qml/QuickMenuTile.qml	2026-11-05 02:44:25.334487279 -0500
 @@ -0,0 +1,151 @@
 +/*
 +    SPDX-FileCopyrightText: 2026 xt0n1-t3ch
@@ -1592,8 +1691,8 @@ diff -ruN -x '*.qsb' a/qml/QuickMenuTile.qml b/qml/QuickMenuTile.qml
 +    }
 +}
 diff -ruN -x '*.qsb' a/qml/RunCommand.qml b/qml/RunCommand.qml
---- a/qml/RunCommand.qml	2026-11-04 22:29:45.208331505 -0500
-+++ b/qml/RunCommand.qml	2026-11-04 23:04:36.983679378 -0500
+--- a/qml/RunCommand.qml	2026-11-05 02:44:25.333278976 -0500
++++ b/qml/RunCommand.qml	2026-11-05 13:28:11.746293923 -0500
 @@ -1,12 +1,16 @@
  /*
      SPDX-FileCopyrightText: 2014 Marco Martin <mart@kde.org>
@@ -1613,16 +1712,18 @@ diff -ruN -x '*.qsb' a/qml/RunCommand.qml b/qml/RunCommand.qml
  import QtQuick.Window
  
  import org.kde.config // KAuthorized
-@@ -17,7 +21,7 @@
+@@ -16,8 +20,9 @@
+ import org.kde.milou as Milou
  import org.kde.krunner.private.view
  import org.kde.kirigami as Kirigami
++import "quickmenu.js" as QuickMenu
  
 -ColumnLayout {
 +Item {
      id: root
  
      required property RunnerWindow runnerWindow
-@@ -27,8 +31,20 @@
+@@ -27,8 +32,20 @@
      property string priorSearch: ""
      property alias runnerManager: results.runnerManager
  
@@ -1645,7 +1746,7 @@ diff -ruN -x '*.qsb' a/qml/RunCommand.qml b/qml/RunCommand.qml
  
      function isKeyUp(event) {
          return (event.modifiers === Qt.NoModifier && event.key === Qt.Key_Up) || (event.modifiers & Qt.ControlModifier && event.key === Qt.Key_K)
-@@ -36,9 +52,23 @@
+@@ -36,9 +53,23 @@
      function isKeyDown(event) {
          return (event.modifiers === Qt.NoModifier && event.key === Qt.Key_Down) || (event.modifiers & Qt.ControlModifier && event.key === Qt.Key_J)
      }
@@ -1671,7 +1772,7 @@ diff -ruN -x '*.qsb' a/qml/RunCommand.qml b/qml/RunCommand.qml
  
      Connections {
          target: root.runnerWindow
-@@ -50,28 +80,17 @@
+@@ -50,28 +81,17 @@
                  root.runnerManager.setHistoryEnvironmentIdentifier(activity)
              }
          }
@@ -1708,7 +1809,7 @@ diff -ruN -x '*.qsb' a/qml/RunCommand.qml b/qml/RunCommand.qml
                  }
              } else {
                  if (root.runnerWindow.retainPriorSearch) {
-@@ -79,412 +98,583 @@
+@@ -79,412 +99,637 @@
                  }
                  root.singleRunner = ""
                  root.query = ""
@@ -1749,10 +1850,13 @@ diff -ruN -x '*.qsb' a/qml/RunCommand.qml b/qml/RunCommand.qml
 +        source: "QuickMenuBlur.qml"
 +    }
 +
++    // Spotlight's entrance (quickmenu.js openingMotion); Aurora Motion fades the window out when it closes.
++    readonly property var motion: QuickMenu.openingMotion(Kirigami.Units.longDuration)
 +    ParallelAnimation {
 +        id: opening
-+        NumberAnimation { target: panel; property: "opacity"; from: 0; to: 1; duration: Kirigami.Units.shortDuration; easing.type: Easing.OutCubic }
-+        NumberAnimation { target: panel; property: "scale"; from: 0.97; to: 1; duration: Kirigami.Units.longDuration; easing.type: Easing.OutCubic }
++        NumberAnimation { target: panel; property: "opacity"; from: 0; to: 1; duration: root.motion.fadeDuration; easing.type: Easing.OutCubic }
++        NumberAnimation { target: panel; property: "scale"; from: root.motion.scaleFrom; to: 1; duration: root.motion.moveDuration; easing.type: Easing.OutQuint }
++        NumberAnimation { target: panelLift; property: "y"; from: root.motion.liftFrom; to: 0; duration: root.motion.moveDuration; easing.type: Easing.OutQuint }
 +    }
 +
 +    Item {
@@ -1760,6 +1864,7 @@ diff -ruN -x '*.qsb' a/qml/RunCommand.qml b/qml/RunCommand.qml
 +
 +        x: root.shadowPad
 +        y: root.shadowPad
++        transform: Translate { id: panelLift }
 +        width: root.panelWidth
 +        height: header.height + (body.visible ? divider.height + body.height : 0) + (rail.visible ? rail.height : 0)
  
@@ -2082,32 +2187,42 @@ diff -ruN -x '*.qsb' a/qml/RunCommand.qml b/qml/RunCommand.qml
 -                    if (suggestedText.length > 0) {
 -                        text = text + suggestedText.substr(oldText.length)
 -                        select(text.length, oldText.length)
-+            // Tahoe's ⋯: a ring with three dots, opening KRunner's own controls.
++            // All Applications: a ring like ⋯ beside it, with four squares for the app grid; filled while the list shows.
 +            T.AbstractButton {
-+                id: moreButton
-+                readonly property int dotSize: Math.max(2, Math.round(width / 9))
++                id: allAppsButton
++                readonly property int cell: Math.max(3, Math.round(width / 6))
++                visible: root.mode === "apps"
 +                implicitWidth: Math.round(root.headerHeight * 0.5)
 +                implicitHeight: implicitWidth
-+                Accessible.name: i18nc("@action:button Quick Menu options", "More")
++                checkable: true
++                checked: apps.allApps
++                Accessible.name: checked ? i18nc("@action:button back from Quick Menu's list of every app", "Back to Suggestions")
++                                         : i18nc("@action:button Quick Menu's list of every app", "All Applications")
 +                QQC2.ToolTip.visible: hovered
 +                QQC2.ToolTip.text: Accessible.name
 +                background: Rectangle {
 +                    radius: width / 2
-+                    color: Qt.rgba(1, 1, 1, moreButton.hovered || moreButton.down ? 0.14 : 0)
++                    color: allAppsButton.checked ? Qt.rgba(1, 1, 1, 0.9)
++                                                 : Qt.rgba(1, 1, 1, allAppsButton.hovered || allAppsButton.down ? 0.14 : 0)
 +                    border.width: 1.5
-+                    border.color: Qt.rgba(1, 1, 1, 0.66)
++                    border.color: Qt.rgba(1, 1, 1, allAppsButton.checked ? 0.9 : 0.66)
++
++                    Behavior on color {
++                        ColorAnimation { duration: Kirigami.Units.shortDuration }
++                    }
 +                }
 +                contentItem: Item {
-+                    Row {
++                    Grid {
 +                        anchors.centerIn: parent
-+                        spacing: moreButton.dotSize
++                        columns: 2
++                        spacing: Math.max(2, Math.round(allAppsButton.cell / 2))
 +                        Repeater {
-+                            model: 3
++                            model: 4
 +                            Rectangle {
-+                                width: moreButton.dotSize
++                                width: allAppsButton.cell
 +                                height: width
-+                                radius: width / 2
-+                                color: Qt.rgba(1, 1, 1, 0.8)
++                                radius: Math.max(1, width / 4)
++                                color: allAppsButton.checked ? Qt.rgba(0, 0, 0, 0.75) : Qt.rgba(1, 1, 1, 0.8)
 +                            }
 +                        }
                      }
@@ -2137,8 +2252,90 @@ diff -ruN -x '*.qsb' a/qml/RunCommand.qml b/qml/RunCommand.qml
 -                        activeListView.currentIndex = activeListView.count - 1
 -                    } else {
 -                        activeListView.incrementCurrentIndex();
-+                onClicked: moreMenu.openRelative()
+-                    }
+-                    if (queryField.text.length === 0) {
+-                        event.accepted = true
+-                        root.showHistory = true
+-                        focusCurrentListView()
+-                    } else {
+-                        return; // pass to KeyNavigation
+-                    }
++                // The binding to apps.allApps stays: the click asks the view, and the view's state checks the button.
++                onClicked: {
++                    apps.showAllApps(!apps.allApps)
++                    checked = Qt.binding(() => apps.allApps)
+                 }
+-                !event.accepted && results.navigationKeyHandler(event)
+             }
+-            Keys.onTabPressed: event => {
+-                if (root.runnerWindow.historyBehavior === RunnerWindow.CompletionSuggestion
+-                    && fadedTextCompletion.text && queryField.text !== fadedTextCompletion.text) {
+-                    queryField.text = fadedTextCompletion.text
+-                    fadedTextCompletion.text = ""
+-                } else {
+-                    event.accepted = false
 +
++            // Tahoe's ⋯: a ring with three dots, opening KRunner's own controls.
++            T.AbstractButton {
++                id: moreButton
++                readonly property int dotSize: Math.max(2, Math.round(width / 9))
++                implicitWidth: Math.round(root.headerHeight * 0.5)
++                implicitHeight: implicitWidth
++                Accessible.name: i18nc("@action:button Quick Menu options", "More")
++                QQC2.ToolTip.visible: hovered
++                QQC2.ToolTip.text: Accessible.name
++                background: Rectangle {
++                    radius: width / 2
++                    color: Qt.rgba(1, 1, 1, moreButton.hovered || moreButton.down ? 0.14 : 0)
++                    border.width: 1.5
++                    border.color: Qt.rgba(1, 1, 1, 0.66)
++                }
++                contentItem: Item {
++                    Row {
++                        anchors.centerIn: parent
++                        spacing: moreButton.dotSize
++                        Repeater {
++                            model: 3
++                            Rectangle {
++                                width: moreButton.dotSize
++                                height: width
++                                radius: width / 2
++                                color: Qt.rgba(1, 1, 1, 0.8)
++                            }
++                        }
++                    }
+                 }
+-            }
+-            function closeOrRun(event) {
+-                // Close KRunner if no text was typed and enter was pressed, FEATURE: 211225
+-                if (!root.query) {
+-                    root.runnerWindow.visible = false
+-                } else {
+-                    results.runCurrentIndex(event)
++                HoverHandler {
++                    cursorShape: Qt.PointingHandCursor
+                 }
+-            }
+-            Keys.onEnterPressed: event => closeOrRun(event)
+-            Keys.onReturnPressed: event => closeOrRun(event)
++                onClicked: moreMenu.openRelative()
+ 
+-            Kirigami.Icon {
+-                anchors {
+-                    right: parent.right
+-                    rightMargin: 6 // from PlasmaStyle TextFieldStyle
+-                    verticalCenter: parent.verticalCenter
+-                }
+-                // match clear button
+-                width: Math.max(parent.height * 0.8, Kirigami.Units.iconSizes.small)
+-                height: width
+-                source: "expand"
+-                visible: queryField.length === 0 && root.runnerManager.historyEnabled
+-                enabled: root.runnerManager.history.length > 0
+-                rotation: root.showHistory ? 180 : 0
+-                Behavior on rotation {
+-                    RotationAnimation {
+-                        duration: Kirigami.Units.shortDuration
 +                PlasmaExtras.Menu {
 +                    id: moreMenu
 +                    visualParent: moreButton
@@ -2160,12 +2357,15 @@ diff -ruN -x '*.qsb' a/qml/RunCommand.qml b/qml/RunCommand.qml
 +                            queryField.forceActiveFocus()
 +                        }
                      }
--                    if (queryField.text.length === 0) {
--                        event.accepted = true
--                        root.showHistory = true
--                        focusCurrentListView()
--                    } else {
--                        return; // pass to KeyNavigation
+-                }
+-                MouseArea {
+-                    anchors.fill: parent
+-                    onPressed: {
+-                        root.showHistory = !root.showHistory
+-                        if (root.showHistory) {
+-                            listView.forceActiveFocus(); // is the history list
+-                        } else {
+-                            queryField.forceActiveFocus();
 +                    PlasmaExtras.MenuItem {
 +                        separator: true
 +                    }
@@ -2176,28 +2376,38 @@ diff -ruN -x '*.qsb' a/qml/RunCommand.qml b/qml/RunCommand.qml
 +                        onClicked: {
 +                            root.runnerWindow.visible = false
 +                            KCMLauncher.open("plasma/kcms/desktop/kcm_krunnersettings")
-+                        }
+                         }
                      }
--                }
--                !event.accepted && results.navigationKeyHandler(event)
--            }
--            Keys.onTabPressed: event => {
--                if (root.runnerWindow.historyBehavior === RunnerWindow.CompletionSuggestion
--                    && fadedTextCompletion.text && queryField.text !== fadedTextCompletion.text) {
--                    queryField.text = fadedTextCompletion.text
--                    fadedTextCompletion.text = ""
--                } else {
--                    event.accepted = false
                  }
              }
--            function closeOrRun(event) {
--                // Close KRunner if no text was typed and enter was pressed, FEATURE: 211225
--                if (!root.query) {
--                    root.runnerWindow.visible = false
--                } else {
--                    results.runCurrentIndex(event)
--                }
-+        }
+         }
+-        PlasmaComponents3.ToolButton {
+-            id: configureButton
+-            icon.name: "configure"
+-            onClicked: {
+-                root.runnerWindow.visible = false
+-                KCMLauncher.open("plasma/kcms/desktop/kcm_krunnersettings")
+-            }
+-            Accessible.name: i18n("Configure")
+-            Accessible.description: i18n("Configure KRunner Behavior")
+-            visible: KAuthorized.authorizeControlModule("kcm_krunnersettings")
+-            KeyNavigation.right: pinButton
+-            KeyNavigation.down: queryField.activeListView
+-            PlasmaComponents3.ToolTip {
+-                text: i18n("Configure KRunner…")
+-            }
+-        }
+-        PlasmaComponents3.ToolButton {
+-            id: pinButton
+-            checkable: true
+-            checked: root.runnerWindow.pinned
+-            onToggled: root.runnerWindow.pinned = checked
+-            icon.name: "window-pin"
+-            Accessible.name: i18n("Pin")
+-            Accessible.description: i18n("Pin Search")
+-            KeyNavigation.down: queryField.activeListView
+-            PlasmaComponents3.ToolTip {
+-                text: i18n("Keep Open")
 +
 +        Rectangle {
 +            id: divider
@@ -2237,37 +2447,37 @@ diff -ruN -x '*.qsb' a/qml/RunCommand.qml b/qml/RunCommand.qml
 +                sidePadding: root.sidePadding
 +                onLaunched: root.hideUnlessPinned()
              }
--            Keys.onEnterPressed: event => closeOrRun(event)
--            Keys.onReturnPressed: event => closeOrRun(event)
+-        }
+-    }
  
--            Kirigami.Icon {
--                anchors {
--                    right: parent.right
--                    rightMargin: 6 // from PlasmaStyle TextFieldStyle
--                    verticalCenter: parent.verticalCenter
--                }
--                // match clear button
--                width: Math.max(parent.height * 0.8, Kirigami.Units.iconSizes.small)
--                height: width
--                source: "expand"
--                visible: queryField.length === 0 && root.runnerManager.historyEnabled
--                enabled: root.runnerManager.history.length > 0
--                rotation: root.showHistory ? 180 : 0
--                Behavior on rotation {
--                    RotationAnimation {
--                        duration: Kirigami.Units.shortDuration
--                    }
--                }
--                MouseArea {
+-    PlasmaComponents3.ScrollView {
+-        visible: results.count > 0
+-        enabled: visible
+-        Layout.fillWidth: true
+-        Layout.fillHeight: true
+-        Layout.maximumHeight: Math.max(listView.contentHeight, results.contentHeight)
+-        // This replaces the ColumnLayout spacing
+-        Layout.topMargin: Kirigami.Units.smallSpacing
+-
+-        Milou.ResultsView {
+-            id: results
+-            queryString: root.query
+-            queryField: queryField
+-            singleRunner: root.singleRunner
+-
+-            keyNavigationWraps: false
+-            Keys.onEscapePressed: {
+-                root.runnerWindow.visible = false
+-            }
+-            KeyNavigation.up: queryField
+-            KeyNavigation.down: queryField
+-
+-            onActivated: {
+-                if (!root.runnerWindow.pinned) {
+-                    root.runnerWindow.visible = false
 +            Milou.ResultsView {
 +                    id: results
-                     anchors.fill: parent
--                    onPressed: {
--                        root.showHistory = !root.showHistory
--                        if (root.showHistory) {
--                            listView.forceActiveFocus(); // is the history list
--                        } else {
--                            queryField.forceActiveFocus();
++                    anchors.fill: parent
 +                    visible: root.mode === "results"
 +                    enabled: visible
 +                    clip: true
@@ -2351,7 +2561,7 @@ diff -ruN -x '*.qsb' a/qml/RunCommand.qml b/qml/RunCommand.qml
 +                            source: "view-history-symbolic"
 +                            color: pastSearch.isCurrent ? Kirigami.Theme.highlightedTextColor : Qt.rgba(1, 1, 1, 0.7)
 +                            isMask: true
-                         }
++                        }
 +                        QQC2.Label {
 +                            Layout.fillWidth: true
 +                            text: pastSearch.modelData
@@ -2387,66 +2597,17 @@ diff -ruN -x '*.qsb' a/qml/RunCommand.qml b/qml/RunCommand.qml
 +                    onClicked: {
 +                        listView.currentIndex = index
 +                        listView.runCurrentIndex(null)
-                     }
++                    }
                  }
 -            }
--        }
--        PlasmaComponents3.ToolButton {
--            id: configureButton
--            icon.name: "configure"
--            onClicked: {
--                root.runnerWindow.visible = false
--                KCMLauncher.open("plasma/kcms/desktop/kcm_krunnersettings")
--            }
--            Accessible.name: i18n("Configure")
--            Accessible.description: i18n("Configure KRunner Behavior")
--            visible: KAuthorized.authorizeControlModule("kcm_krunnersettings")
--            KeyNavigation.right: pinButton
--            KeyNavigation.down: queryField.activeListView
--            PlasmaComponents3.ToolTip {
--                text: i18n("Configure KRunner…")
--            }
--        }
--        PlasmaComponents3.ToolButton {
--            id: pinButton
--            checkable: true
--            checked: root.runnerWindow.pinned
--            onToggled: root.runnerWindow.pinned = checked
--            icon.name: "window-pin"
--            Accessible.name: i18n("Pin")
--            Accessible.description: i18n("Pin Search")
--            KeyNavigation.down: queryField.activeListView
--            PlasmaComponents3.ToolTip {
--                text: i18n("Keep Open")
+ 
+-            onUpdateQueryString: (text, cursorPosition) => {
+-                queryField.text = text
+-                queryField.select(cursorPosition, root.query.length)
+-                queryField.focus = true;
 -            }
 -        }
 -    }
- 
--    PlasmaComponents3.ScrollView {
--        visible: results.count > 0
--        enabled: visible
--        Layout.fillWidth: true
--        Layout.fillHeight: true
--        Layout.maximumHeight: Math.max(listView.contentHeight, results.contentHeight)
--        // This replaces the ColumnLayout spacing
--        Layout.topMargin: Kirigami.Units.smallSpacing
--
--        Milou.ResultsView {
--            id: results
--            queryString: root.query
--            queryField: queryField
--            singleRunner: root.singleRunner
--
--            keyNavigationWraps: false
--            Keys.onEscapePressed: {
--                root.runnerWindow.visible = false
--            }
--            KeyNavigation.up: queryField
--            KeyNavigation.down: queryField
--
--            onActivated: {
--                if (!root.runnerWindow.pinned) {
--                    root.runnerWindow.visible = false
 +                onActiveFocusChanged: {
 +                    if (!activeFocus && currentIndex == listView.count - 1) {
 +                        currentIndex = 0
@@ -2493,16 +2654,7 @@ diff -ruN -x '*.qsb' a/qml/RunCommand.qml b/qml/RunCommand.qml
 +                        }
 +                        queryField.focus = true
 +                    }
-                 }
--            }
--
--            onUpdateQueryString: (text, cursorPosition) => {
--                queryField.text = text
--                queryField.select(cursorPosition, root.query.length)
--                queryField.focus = true;
--            }
--        }
--    }
++                }
  
 -    PlasmaComponents3.ScrollView {
 -        id: historyScrollView
@@ -2646,7 +2798,7 @@ diff -ruN -x '*.qsb' a/qml/RunCommand.qml b/qml/RunCommand.qml
  }
 diff -ruN -x '*.qsb' a/qml/shaders/glass.frag b/qml/shaders/glass.frag
 --- a/qml/shaders/glass.frag	1969-12-31 19:00:00.000000000 -0500
-+++ b/qml/shaders/glass.frag	2026-11-04 22:29:45.209073783 -0500
++++ b/qml/shaders/glass.frag	2026-11-05 02:44:25.334487279 -0500
 @@ -0,0 +1,57 @@
 +#version 440
 +// SPDX-License-Identifier: GPL-3.0-only
@@ -2706,8 +2858,8 @@ diff -ruN -x '*.qsb' a/qml/shaders/glass.frag b/qml/shaders/glass.frag
 +    fragColor = (glass * coverage + outside * (1.0 - coverage)) * qt_Opacity;
 +}
 diff -ruN -x '*.qsb' a/view.cpp b/view.cpp
---- a/view.cpp	2026-11-04 22:29:45.208331505 -0500
-+++ b/view.cpp	2026-11-04 22:56:30.606667216 -0500
+--- a/view.cpp	2026-11-05 02:44:25.333278976 -0500
++++ b/view.cpp	2026-11-05 02:44:25.335555874 -0500
 @@ -34,8 +34,10 @@
  
  KCONFIGGROUP_DECLARE_ENUM_QOBJECT(View, HistoryBehavior)
@@ -2776,8 +2928,8 @@ diff -ruN -x '*.qsb' a/view.cpp b/view.cpp
  {
      const auto screens = QGuiApplication::screens();
 diff -ruN -x '*.qsb' a/view.h b/view.h
---- a/view.h	2026-11-04 22:29:45.208331505 -0500
-+++ b/view.h	2026-11-04 22:56:30.607307633 -0500
+--- a/view.h	2026-11-05 02:44:25.333278976 -0500
++++ b/view.h	2026-11-05 02:44:25.335555874 -0500
 @@ -31,6 +31,9 @@
      Q_PROPERTY(bool helpEnabled READ helpEnabled NOTIFY helpEnabledChanged)
      Q_PROPERTY(bool retainPriorSearch READ retainPriorSearch NOTIFY retainPriorSearchChanged)

@@ -96,6 +96,10 @@ void MainWindow::buildMenuBar()
         ->setIcon(QIcon::fromTheme(QStringLiteral("document-properties")));
     addPartProxy(file, QStringLiteral("Rename…"), QStringLiteral("renamefile"));
     addPartProxy(file, QStringLiteral("Duplicate"), QStringLiteral("duplicate"));
+    // Space itself reaches Quick Look through the window's key filter, so the entry only shows it.
+    QAction *look = file->addAction(QStringLiteral("Quick Look"), this, [this] { quickLook(); });
+    look->setShortcut(Qt::Key_Space);
+    look->setShortcutContext(Qt::WidgetShortcut);
     // Finder's place in the File menu and its keys: ⌃⌘T.
     m_addToSidebar = addWindowAction(file, QStringLiteral("Add to Sidebar"), {keys(Qt::CTRL | Qt::META | Qt::Key_T)},
                                      [this] { addSelectionToSidebar(); });
@@ -129,6 +133,8 @@ void MainWindow::buildMenuBar()
     addPartProxy(view, QStringLiteral("Show Hidden Files"), QStringLiteral("show_hidden_files"));
     addPartProxy(view, QStringLiteral("Show Previews"), QStringLiteral("show_preview"));
     view->addSeparator();
+    // Dolphin's key for its split view.
+    addWindowAction(view, QStringLiteral("Split View"), {keys(Qt::Key_F3)}, [this] { toggleSplit(); });
     m_sidebarAction = addWindowAction(view, QStringLiteral("Hide Sidebar"), {keys(Qt::CTRL | Qt::ALT | Qt::Key_S)},
                                       [this] { setSidebarVisible(!m_sidebar->isVisible()); });
     addWindowAction(view, QStringLiteral("Reload"), {keys(Qt::Key_F5)}, [this] { currentTab()->reload(); })
@@ -171,7 +177,9 @@ void MainWindow::buildMenuBar()
             ->setIcon(QIcon::fromTheme(QString::fromLatin1(place.icon)));
     }
     go->addSeparator();
-    addWindowAction(go, QStringLiteral("Go to Folder…"), {keys(Qt::CTRL | Qt::SHIFT | Qt::Key_G), keys(Qt::CTRL | Qt::Key_L)},
+    // Finder's keys, and the address bar keys of Windows' File Explorer and of browsers.
+    addWindowAction(go, QStringLiteral("Go to Folder…"),
+                    {keys(Qt::CTRL | Qt::Key_L), keys(Qt::ALT | Qt::Key_D), keys(Qt::CTRL | Qt::SHIFT | Qt::Key_G)},
                     [this] { goToFolder(); });
 
     QMenu *window = bar->addMenu(QStringLiteral("Window"));

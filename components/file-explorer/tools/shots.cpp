@@ -4,18 +4,22 @@
 // fe-shots: drives a File Explorer window through the states worth checking by eye and captures
 // each one with Spectacle. It runs inside the test sandbox session and is not installed.
 //
-//   fe-shots OUTPUT_DIR FOLDER [states|menus|controls|drives]
+//   fe-shots OUTPUT_DIR FOLDER [states|menus|controls|drives|finder]
 //
+// "finder" needs FOLDER two levels below a folder it adds to the sidebar (X/2-Dev/<project>), holding get.sh,
+// README.md, CHANGELOG.md and a scripts folder: the scene of the File Explorer mockup.
 // FOLDER must hold "nnsd0zj.jpeg", a "Wallpapers" folder and a file whose name contains "ready".
 // "menus" needs QT_QPA_PLATFORM=xcb: a Wayland compositor dismisses a popup that no real input
 // event opened, so menus can only be captured from an X11 client.
 
+#include "addressfield.h"
 #include "application.h"
 #include "browsertab.h"
 #include "mainwindow.h"
 #include "tabbar.h"
 #include "toolbar.h"
 #include "sidebar.h"
+#include "tagging.h"
 #include "windowcontrols.h"
 
 #include <KParts/ReadOnlyPart>
@@ -27,6 +31,7 @@
 #include <QMimeData>
 #include <QStandardPaths>
 #include <QDir>
+#include <QFileInfo>
 #include <QGraphicsView>
 #include <QKeyEvent>
 #include <QLineEdit>
@@ -274,7 +279,7 @@ int main(int argc, char *argv[])
     fe::configureApplication();
     const QStringList arguments = QApplication::arguments();
     if (arguments.size() < 3 || arguments.size() > 4) {
-        qCritical("usage: fe-shots OUTPUT_DIR FOLDER [states|menus|controls|drives]");
+        qCritical("usage: fe-shots OUTPUT_DIR FOLDER [states|menus|controls|drives|finder]");
         return 2;
     }
     const QString mode = arguments.size() == 4 ? arguments.at(3) : QStringLiteral("states");
@@ -321,7 +326,7 @@ int main(int argc, char *argv[])
              const KFileItem folderItem(tab()->url(), QStringLiteral("inode/directory"), S_IFDIR);
              captureContextMenu(out, QStringLiteral("fe-menu-folder"), tab(), viewPoint(tab(), 0.55, 0.62), KFileItemList{folderItem}, {});
          }},
-        {QStringLiteral("fe-menu-sort"), 1500, [window] { Q_EMIT window->findChild<fe::Toolbar *>()->sortClicked(); }},
+        {QStringLiteral("fe-menu-group"), 1500, [window] { Q_EMIT window->findChild<fe::Toolbar *>()->groupClicked(); }},
         {QString(), 300, [] {
              if (QWidget *popup = QApplication::activePopupWidget()) {
                  popup->close();
@@ -405,7 +410,87 @@ int main(int argc, char *argv[])
         {QStringLiteral("drv-7-default"), 1200, [sidebar] { typeRename(sidebar(), QString()); }},
         {QString(), 200, [sidebar] { qInfo("default again: %s", qPrintable(systemDriveRow(sidebar()).data(Qt::DisplayRole).toString())); }},
     };
-    const QList<Step> &steps = mode == u"menus" ? menuSteps : mode == u"controls" ? controlSteps : mode == u"drives" ? driveSteps : stateSteps;
+    // The mockup's scene: the project's grandparent in Favorites, unfolded down to the project, two tagged files, get.sh
+    // selected; then its menu, a typed path with suggestions, Quick Look, Split View and a tag's shelf.
+    const QString grandparent = QFileInfo(QFileInfo(folder).absolutePath()).absolutePath();
+    const auto file = [folder](const char *name) { return QUrl::fromLocalFile(folder + u'/' + QLatin1String(name)); };
+    const auto select = [tab](const QList<QUrl> &files) {
+        tab()->selectInPlace(files);
+        tab()->focusView();
+    };
+    const auto typeInto = [](QWidget *widget, const QString &text) {
+        for (const QChar ch : text) {
+            QKeyEvent press(QEvent::KeyPress, 0, Qt::NoModifier, QString(ch));
+            QCoreApplication::sendEvent(widget, &press);
+        }
+    };
+    const auto windowAction = [window](const QString &text) {
+        for (QAction *action : window->findChildren<QAction *>()) {
+            if (action->text() == text) {
+                action->trigger();
+                return;
+            }
+        }
+        qWarning("no action %s", qPrintable(text));
+    };
+    const QList<Step> finderSteps{
+        {QString(), 3000, [sidebar, sidebarModel, grandparent, file] {
+             fe::tagging::setTag({file("CHANGELOG.md")}, QStringLiteral("Green"), true);
+             fe::tagging::setTag({file("README.md")}, QStringLiteral("Blue"), true);
+             // The sandbox keeps its places between runs: the folder joins once and unfolds only when folded.
+             if (!sidebarModel()->indexForUrl(QUrl::fromLocalFile(grandparent)).isValid()) {
+                 sidebar()->addFolder(QUrl::fromLocalFile(grandparent), QFileInfo(grandparent).fileName());
+             }
+             const auto unfold = [sidebarModel](const QString &path) {
+                 const QModelIndex row = sidebarModel()->indexForUrl(QUrl::fromLocalFile(path));
+                 if (!row.data(fe::SidebarModel::ExpandedRole).toBool()) {
+                     sidebarModel()->toggleExpanded(row);
+                 }
+             };
+             QTimer::singleShot(1200, [unfold, grandparent] {
+                 unfold(grandparent);
+                 unfold(grandparent + u'/' + QDir(grandparent).entryList(QDir::Dirs | QDir::NoDotAndDotDot).constFirst());
+             });
+         }},
+        {QStringLiteral("fe-f1-main"), 3000, [tab, select, file] {
+             tab()->setViewMode(fe::ViewMode::List);
+             select({file("get.sh")});
+         }},
+        {QString(), 300, [out, tab] {
+             captureContextMenu(out, QStringLiteral("fe-f2-menu"), tab(), viewPoint(tab(), 0.42, 0.40), tab()->selectedItems(), {});
+         }},
+        {QStringLiteral("fe-f3-address"), 1500, [window, typeInto, folder] {
+             fe::AddressField *field = window->findChild<fe::AddressField *>();
+             field->startEditing();
+             // After the field's own select-all, as a person types after clicking.
+             QTimer::singleShot(300, [field, typeInto, folder] {
+                 field->clear();
+                 typeInto(field, folder + QStringLiteral("/s"));
+             });
+         }},
+        {QStringLiteral("fe-f4-quicklook"), 2500, [window, select, file, windowAction] {
+             window->findChild<fe::AddressField *>()->editingCancelled();
+             select({file("README.md")});
+             QTimer::singleShot(1200, [windowAction] { windowAction(QStringLiteral("Quick Look")); });
+         }},
+        {QStringLiteral("fe-f5-split"), 2500, [window, windowAction] {
+             for (QWidget *top : QApplication::topLevelWidgets()) {
+                 if (top != window && top->isVisible() && top->windowTitle() == u"Quick Look") {
+                     top->close();
+                 }
+             }
+             windowAction(QStringLiteral("Split View"));
+         }},
+        {QStringLiteral("fe-f6-tag"), 2500, [sidebarModel, windowAction] {
+             windowAction(QStringLiteral("Split View"));
+             sidebarModel()->activate(sidebarModel()->indexForUrl(QUrl::fromLocalFile(fe::tagging::shelfRoot() + QStringLiteral("/Green"))));
+         }},
+    };
+    const QList<Step> &steps = mode == u"menus"      ? menuSteps
+        : mode == u"controls"                         ? controlSteps
+        : mode == u"drives"                           ? driveSteps
+        : mode == u"finder"                           ? finderSteps
+                                                      : stateSteps;
     Script script(out, steps);
     script.start();
     return QApplication::exec();

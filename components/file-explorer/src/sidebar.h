@@ -32,7 +32,8 @@ enum class OpenIn {
 };
 
 /// The Finder sidebar rows: section headers and places, built from KDE's places (the same list
-/// Dolphin shows, so bookmarks stay in sync), regrouped as Favorites and Locations.
+/// Dolphin shows, so bookmarks stay in sync), regrouped as Favorites and Locations, then the color Tags. A folder
+/// the user added unfolds into its subfolders, and a section folds away under its title.
 class SidebarModel : public QAbstractListModel
 {
     Q_OBJECT
@@ -50,6 +51,14 @@ public:
         CapacityRole,
         /// The drive's fill level (fe::Capacity::Level) as an int.
         CapacityLevelRole,
+        /// How deep a subfolder row sits under its favorite: 0 for the sidebar's own rows.
+        DepthRole,
+        /// The row can unfold into subfolders (and draws a chevron).
+        ExpandableRole,
+        /// The row shows its subfolders, or for a section title, its section is open.
+        ExpandedRole,
+        /// For a tag row, the tag's color; nothing for any other row.
+        TagColorRole,
     };
 
     /// context supplies the home folder and the user name that Home shows.
@@ -84,6 +93,10 @@ public:
     /// Moves the row at from right above or right below the row at to, in their section; the order is saved
     /// ([Sidebar Order] in file-explorerrc) and outlives the places changing.
     void moveRow(const QModelIndex &from, const QModelIndex &to, bool below);
+    /// Unfolds a folder row into its subfolders, or folds them away; remembered in file-explorerrc.
+    void toggleExpanded(const QModelIndex &index);
+    /// Opens or folds the section under a section title; remembered in file-explorerrc.
+    void toggleSection(const QModelIndex &index);
 
 Q_SIGNALS:
     /// A place is ready to open, after it was mounted if it needed to be.
@@ -103,6 +116,12 @@ private:
         QString driveKey;
         /// For a drive, its name when the user has given it none.
         QString defaultTitle;
+        int depth = 0;
+        bool expandable = false;
+        /// Shows its subfolders; for a section title, its section is open.
+        bool expanded = false;
+        /// For a tag row, the tag's name; empty for any other row.
+        QString tag = {};
     };
     struct FreeSpace {
         quint64 size = 0;
@@ -116,6 +135,10 @@ private:
     [[nodiscard]] QStringList sectionKeys(bool favorites) const;
     [[nodiscard]] QModelIndex placeIndexFor(const QUrl &url) const;
     void rebuild();
+    /// Adds a section title and, unless the section is folded, its rows; tree unfolds the folders the user added.
+    void appendSection(const QString &title, const QList<Row> &rows, bool tree);
+    /// The place of a row among the sidebar's own rows of its section, leaving out subfolder rows.
+    [[nodiscard]] qsizetype topLevelPosition(int row) const;
     /// Asks KIO how full each mounted drive is; rows update as the answers come.
     void refreshFreeSpace();
 
@@ -124,8 +147,12 @@ private:
     QList<Row> m_rows;
     QPersistentModelIndex m_pendingSetup;
     OpenIn m_pendingTarget = OpenIn::CurrentTab;
-    /// The row of the Locations header, which ends Favorites.
+    /// The row of the Locations header, which ends Favorites, and of the Tags header, which ends Locations.
     int m_locationsHeader = 0;
+    int m_tagsHeader = 0;
+    /// The folders shown unfolded, and the sections folded away ([Sidebar Tree] in file-explorerrc).
+    QSet<QString> m_expanded;
+    QSet<QString> m_foldedSections;
     /// The user's names for drives, by fe::Drive::key ([Drive Names] in file-explorerrc).
     QMap<QString, QString> m_names;
     QString m_hostName;

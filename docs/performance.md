@@ -3,7 +3,7 @@
 # Measured tuning
 
 Every value here was measured on my own machine before it was kept: a Ryzen 7 5800X with 32 GB of RAM and an RTX 4070
-Ti SUPER, on linux-cachyos 7.3.1 (2026-11-04). Your machine may differ, which is why the tuning is optional. `./install.sh --performance` applies them from [`performance/system/`](../performance/system); the measuring kit is in
+Ti SUPER, on linux-cachyos 7.3.1 (2026-11-04). Your machine may differ, which is why the tuning is optional. `aurora performance on` applies them from [`performance/system/`](../performance/system) and `aurora performance off` puts CachyOS's settings back (`installer/root-steps.sh` `tune` and `untune`, one sudo call each; `./install.sh --performance` does the same as part of an install); the measuring kit is in
 [`performance/measure/`](../performance/measure). Re-measure before changing any of them.
 
 ## CPU scheduler: scx_lavd (autopilot)

@@ -12,6 +12,7 @@
 #include "core/chooser.h"
 #include "core/drives.h"
 #include "core/reveal.h"
+#include "core/motion.h"
 
 #include <algorithm>
 
@@ -853,6 +854,62 @@ private Q_SLOTS:
             }
             QVERIFY2(fe::sidebarOrder(keys, moved) == expected, where.constData());
         }
+    }
+
+    // Every transition follows the desktop's animation speed (kdeglobals [KDE] AnimationDurationFactor): it scales
+    // the base time, and 0 turns animations off, as everywhere in Plasma.
+    void a_duration_follows_the_desktop_s_animation_speed()
+    {
+        QCOMPARE(fe::motion::scaled(150, 1.0), 150);
+        QCOMPARE(fe::motion::scaled(150, 0.5), 75);
+        QCOMPARE(fe::motion::scaled(150, 1.5), 225);
+        QCOMPARE(fe::motion::scaled(150, 0.0), 0);
+        QCOMPARE(fe::motion::scaled(150, -1.0), 0);
+    }
+
+    void a_hover_fades_in_and_out_instead_of_switching()
+    {
+        fe::motion::HoverFade fade(150, 1.0);
+        int changes = 0;
+        connect(&fade, &fe::motion::HoverFade::changed, this, [&changes] { ++changes; });
+        fade.setHovered(true);
+        QVERIFY(fade.progress() < 1.0);
+        QTRY_COMPARE_WITH_TIMEOUT(fade.progress(), 1.0, 1000);
+        QVERIFY2(changes > 2, "the widget is told on every frame, so it repaints the fade");
+        fade.setHovered(false);
+        QTRY_COMPARE_WITH_TIMEOUT(fade.progress(), 0.0, 1000);
+    }
+
+    void instant_animations_switch_the_hover_at_once()
+    {
+        fe::motion::HoverFade fade(150, 0.0);
+        fade.setHovered(true);
+        QCOMPARE(fade.progress(), 1.0);
+        fade.setHovered(false);
+        QCOMPARE(fade.progress(), 0.0);
+    }
+
+    // Tabs and the window buttons have one hover for several segments: the next segment fades in from nothing.
+    void a_hover_moved_to_another_segment_fades_in_from_nothing()
+    {
+        fe::motion::HoverFade fade(150, 1.0);
+        fade.setHovered(true);
+        QTRY_COMPARE_WITH_TIMEOUT(fade.progress(), 1.0, 1000);
+        fade.reset();
+        QCOMPARE(fade.progress(), 0.0);
+        fade.setHovered(true);
+        QVERIFY(fade.progress() < 1.0);
+        QTRY_COMPARE_WITH_TIMEOUT(fade.progress(), 1.0, 1000);
+    }
+
+    void a_hover_that_turns_around_halfway_fades_back_from_where_it_is()
+    {
+        fe::motion::HoverFade fade(400, 1.0);
+        fade.setHovered(true);
+        QTRY_VERIFY_WITH_TIMEOUT(fade.progress() > 0.3, 1000);
+        const qreal reached = fade.progress();
+        fade.setHovered(false);
+        QVERIFY2(fade.progress() <= reached && fade.progress() > 0.0, "no jump back to fully hovered or to none");
     }
 };
 

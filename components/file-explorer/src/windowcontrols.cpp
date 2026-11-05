@@ -89,7 +89,9 @@ QString toolTipFor(int segment, bool maximized)
 
 WindowControls::WindowControls(QWidget *parent)
     : QWidget(parent)
+    , m_fade(new fe::motion::HoverFade(fe::style::HOVER_FADE_MS, this))
 {
+    connect(m_fade, &fe::motion::HoverFade::changed, this, qOverload<>(&QWidget::update));
     setMouseTracking(true);
     setFixedSize(sizeHint());
 }
@@ -127,6 +129,8 @@ int WindowControls::segmentAt(QPointF pos) const
 void WindowControls::setHover(int index)
 {
     if (index != m_hover) {
+        m_fade->reset();
+        m_fade->setHovered(index >= 0);
         m_hover = index;
         setToolTip(toolTipFor(index, m_maximized));
         // The hand over a button. The arrow is set, not inherited, so a resize cursor of the window's edge never shows here.
@@ -154,6 +158,9 @@ void WindowControls::paintEvent(QPaintEvent *)
             QColor fill = pressed ? fe::style::CAPSULE_PRESSED : fe::style::CAPSULE_HOVER;
             if (close) {
                 fill = pressed ? CLOSE_PRESSED : CLOSE_HOVER;
+            }
+            if (!pressed) {
+                fill.setAlphaF(fill.alphaF() * m_fade->progress());
             }
             QPainterPath path;
             path.addRoundedRect(pill, pill.height() / 2.0, pill.height() / 2.0);

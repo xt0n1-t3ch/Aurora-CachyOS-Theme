@@ -1,0 +1,7 @@
+{
+    "KPlugin": {
+        "Description": "Shows a file's color tags as dots on its icon",
+        "Id": "aurora-tags",
+        "Name": "Aurora color tags"
+    }
+}

@@ -105,7 +105,7 @@ impl Speed {
     #[must_use]
     pub fn factor(self) -> &'static str {
         match self {
-            Speed::Smooth => "0.75",
+            Speed::Smooth => "1",
             Speed::Fast => "0.5",
             Speed::Instant => "0",
         }
@@ -371,10 +371,10 @@ mod tests {
         assert_eq!(Settings::parse("[updates]\nanimations=instant\n").animations, Speed::Smooth, "only [look] counts");
     }
 
-    // Steps of Plasma's own speed slider; under 0.25 KWin treats some animations as instant.
+    // Steps of Plasma's own speed slider (4, 2, 1.5, 1, 0.75, 0.5, 0): smooth is its designed speed.
     #[test]
     fn each_speed_is_a_step_of_plasma_s_slider() {
-        assert_eq!(Speed::ALL.map(Speed::factor), ["0.75", "0.5", "0"]);
+        assert_eq!(Speed::ALL.map(Speed::factor), ["1", "0.5", "0"]);
     }
 
     #[test]

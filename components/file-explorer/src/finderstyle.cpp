@@ -8,6 +8,7 @@
 #include "core/format.h"
 #include "shadow.h"
 #include "style.h"
+#include "core/motion.h"
 
 #include <KWindowEffects>
 
@@ -501,6 +502,16 @@ QSize FinderStyle::sizeFromContents(ContentsType type, const QStyleOption *optio
         }
     }
     return QProxyStyle::sizeFromContents(type, option, size, widget);
+}
+
+int FinderStyle::styleHint(StyleHint hint, const QStyleOption *option, const QWidget *widget, QStyleHintReturn *returnData) const
+{
+    // The file view's wheel scrolling glides over this time (Dolphin's KItemListSmoothScroller reads it); Breeze's
+    // 100 ms reads as a jump. It follows the desktop's animation speed like every other transition.
+    if (hint == SH_Widget_Animation_Duration) {
+        return motion::scaled(style::SCROLL_GLIDE_MS, motion::speed());
+    }
+    return QProxyStyle::styleHint(hint, option, widget, returnData);
 }
 
 } // namespace fe

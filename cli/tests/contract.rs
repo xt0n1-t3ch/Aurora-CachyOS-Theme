@@ -129,3 +129,49 @@ fn the_animation_speeds_are_the_ones_the_installer_applies() {
         .join(", ");
     assert_eq!(table, format!("ANIMATIONS = {{{want}}}"));
 }
+
+/// The files after `install -Dm644 ... ` in root-steps.sh's tune step, and the paths its untune step removes.
+fn root_steps_files() -> (Vec<String>, Vec<String>) {
+    let script = read("installer/root-steps.sh");
+    let installed = script
+        .lines()
+        .filter_map(|line| line.trim().strip_prefix("install -Dm644 "))
+        .map(|rest| rest.split_whitespace().last().expect("a target").to_string())
+        .collect();
+    let untune = script.split("untune)").nth(1).expect("an untune step");
+    let removed = untune
+        .split("rm -f ")
+        .nth(1)
+        .expect("untune removes files")
+        .split("systemctl")
+        .next()
+        .expect("then the loader")
+        .split_whitespace()
+        .filter(|word| word.starts_with('/'))
+        .map(str::to_string)
+        .collect();
+    (installed, removed)
+}
+
+#[test]
+fn performance_turns_on_and_off_exactly_the_files_root_steps_writes_and_removes() {
+    let ours: Vec<String> = aurora::tuning::SETTINGS.iter().map(|setting| setting.file.to_string()).collect();
+    let (installed, removed) = root_steps_files();
+    assert_eq!(ours, installed, "root-steps.sh tune");
+    assert_eq!(ours, removed, "root-steps.sh untune");
+    // uninstall.sh's restore script removes the same files (installer/install.py, RESTORE).
+    let install = read("installer/install.py");
+    for file in &ours {
+        assert!(install.contains(file.as_str()), "the restore script leaves {file} behind");
+    }
+}
+
+#[test]
+fn aurora_s_icon_theme_is_the_one_the_install_applies() {
+    let install = read("installer/install.py");
+    assert!(
+        install.contains(&format!("ICON_THEME = \"{}\"", aurora::icons::AURORA)),
+        "install.py's ICON_THEME is not {}",
+        aurora::icons::AURORA
+    );
+}

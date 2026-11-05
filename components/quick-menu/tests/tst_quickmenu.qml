@@ -64,6 +64,36 @@ TestCase {
         compare(titles(sections), ["Creativity"])
     }
 
+    function test_all_applications_lists_every_app_once_under_its_first_letter() {
+        const kate = app("Kate", "applications:org.kde.kate.desktop")
+        const sections = QuickMenu.alphabeticalSections([
+            {icon: "applications-system", name: "System", apps: [kate, app("konsole"), app("Ark")]},
+            {icon: "applications-utilities", name: "Utilities", apps: [kate, app("Ébano"), app("Discord")]},
+        ])
+        compare(titles(sections), ["A", "D", "E", "K"])
+        compare(names(sections[3]), ["Kate", "konsole"])
+        // An accent files a name under its plain letter, as Windows' All apps list does.
+        compare(names(sections[2]), ["Ébano"])
+    }
+
+    function test_names_that_start_with_a_digit_or_a_sign_come_first_under_a_hash() {
+        const sections = QuickMenu.alphabeticalSections([
+            {icon: "applications-other", name: "Other", apps: [app("Zoom"), app("7-Zip"), app("&Notes")]},
+        ])
+        compare(titles(sections), ["#", "Z"])
+        compare(names(sections[0]), ["&Notes", "7-Zip"])
+    }
+
+    function test_all_applications_shows_every_app_without_show_more() {
+        const many = []
+        for (let i = 0; i < 12; ++i) {
+            many.push(app("App " + i))
+        }
+        const section = QuickMenu.alphabeticalSections([{icon: "applications-other", name: "Other", apps: many}])[0]
+        compare(QuickMenu.visibleApps(section, false, 5).length, 12)
+        verify(!QuickMenu.canExpand(section, 5))
+    }
+
     function test_a_section_shows_one_row_until_show_more() {
         const apps = ["A", "B", "C", "D", "E", "F", "G"].map(name => app(name))
         const section = {title: "Utilities", apps: apps}
@@ -301,6 +331,22 @@ TestCase {
             verify(QuickMenu.runSessionAction(session, item.action))
         }
         compare(calls, ["lock", "switchUser", "requestLogout", "suspend", "hibernate", "requestReboot", "requestShutdown"])
+    }
+
+    // Spotlight drops in: a fade, a small scale that slows down at the end and a short fall from above, all scaled by
+    // the desktop's animation speed through Kirigami's durations; at speed 0 nothing moves.
+    function test_the_panel_drops_in_like_spotlight() {
+        const motion = QuickMenu.openingMotion(200)
+        compare(motion.scaleFrom, 0.96)
+        compare(motion.liftFrom, -10)
+        compare(motion.fadeDuration, 200)
+        compare(motion.moveDuration, 280)
+    }
+
+    function test_instant_animations_open_the_panel_at_once() {
+        const motion = QuickMenu.openingMotion(0)
+        compare(motion.fadeDuration, 0)
+        compare(motion.moveDuration, 0)
     }
 
     function test_an_unknown_entry_calls_nothing() {

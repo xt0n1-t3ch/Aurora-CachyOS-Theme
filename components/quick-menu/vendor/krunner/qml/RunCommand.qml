@@ -20,6 +20,7 @@ import org.kde.plasma.extras as PlasmaExtras
 import org.kde.milou as Milou
 import org.kde.krunner.private.view
 import org.kde.kirigami as Kirigami
+import "quickmenu.js" as QuickMenu
 
 Item {
     id: root
@@ -122,10 +123,13 @@ Item {
         source: "QuickMenuBlur.qml"
     }
 
+    // Spotlight's entrance (quickmenu.js openingMotion); Aurora Motion fades the window out when it closes.
+    readonly property var motion: QuickMenu.openingMotion(Kirigami.Units.longDuration)
     ParallelAnimation {
         id: opening
-        NumberAnimation { target: panel; property: "opacity"; from: 0; to: 1; duration: Kirigami.Units.shortDuration; easing.type: Easing.OutCubic }
-        NumberAnimation { target: panel; property: "scale"; from: 0.97; to: 1; duration: Kirigami.Units.longDuration; easing.type: Easing.OutCubic }
+        NumberAnimation { target: panel; property: "opacity"; from: 0; to: 1; duration: root.motion.fadeDuration; easing.type: Easing.OutCubic }
+        NumberAnimation { target: panel; property: "scale"; from: root.motion.scaleFrom; to: 1; duration: root.motion.moveDuration; easing.type: Easing.OutQuint }
+        NumberAnimation { target: panelLift; property: "y"; from: root.motion.liftFrom; to: 0; duration: root.motion.moveDuration; easing.type: Easing.OutQuint }
     }
 
     Item {
@@ -133,6 +137,7 @@ Item {
 
         x: root.shadowPad
         y: root.shadowPad
+        transform: Translate { id: panelLift }
         width: root.panelWidth
         height: header.height + (body.visible ? divider.height + body.height : 0) + (rail.visible ? rail.height : 0)
 
@@ -354,6 +359,56 @@ Item {
                     onTriggered: if (!queryDisplay) {
                         queryDisplay = true
                     }
+                }
+            }
+
+            // All Applications: a ring like ⋯ beside it, with four squares for the app grid; filled while the list shows.
+            T.AbstractButton {
+                id: allAppsButton
+                readonly property int cell: Math.max(3, Math.round(width / 6))
+                visible: root.mode === "apps"
+                implicitWidth: Math.round(root.headerHeight * 0.5)
+                implicitHeight: implicitWidth
+                checkable: true
+                checked: apps.allApps
+                Accessible.name: checked ? i18nc("@action:button back from Quick Menu's list of every app", "Back to Suggestions")
+                                         : i18nc("@action:button Quick Menu's list of every app", "All Applications")
+                QQC2.ToolTip.visible: hovered
+                QQC2.ToolTip.text: Accessible.name
+                background: Rectangle {
+                    radius: width / 2
+                    color: allAppsButton.checked ? Qt.rgba(1, 1, 1, 0.9)
+                                                 : Qt.rgba(1, 1, 1, allAppsButton.hovered || allAppsButton.down ? 0.14 : 0)
+                    border.width: 1.5
+                    border.color: Qt.rgba(1, 1, 1, allAppsButton.checked ? 0.9 : 0.66)
+
+                    Behavior on color {
+                        ColorAnimation { duration: Kirigami.Units.shortDuration }
+                    }
+                }
+                contentItem: Item {
+                    Grid {
+                        anchors.centerIn: parent
+                        columns: 2
+                        spacing: Math.max(2, Math.round(allAppsButton.cell / 2))
+                        Repeater {
+                            model: 4
+                            Rectangle {
+                                width: allAppsButton.cell
+                                height: width
+                                radius: Math.max(1, width / 4)
+                                color: allAppsButton.checked ? Qt.rgba(0, 0, 0, 0.75) : Qt.rgba(1, 1, 1, 0.8)
+                            }
+                        }
+                    }
+                }
+                HoverHandler {
+                    cursorShape: Qt.PointingHandCursor
+                }
+                // The binding to apps.allApps stays: the click asks the view, and the view's state checks the button.
+                onClicked: {
+                    apps.showAllApps(!apps.allApps)
+                    checked = Qt.binding(() => apps.allApps)
                 }
             }
 

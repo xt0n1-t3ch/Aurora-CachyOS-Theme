@@ -7,7 +7,8 @@
 // models Kickoff uses (org.kde.plasma.private.kicker), so new apps and launches show up as they do there. An app
 // dragged onto another of its section takes that one's place, and the section keeps that order. A right-click (or the
 // Menu key) opens an app's menu: Open, its jump list, Pin to Top (the Pinned section above Suggestions), Pin to Dock,
-// Remove from Suggestions, and Plasma's Edit Application and Uninstall.
+// Remove from Suggestions, and Plasma's Edit Application and Uninstall. The grid button beside ⋯ shows All Applications:
+// every app under its first letter, like Windows' All apps, with Back where a section has Show More.
 import QtCore
 import QtQuick
 import QtQuick.Controls as QQC2
@@ -26,6 +27,8 @@ Flickable {
     property int sidePadding: Kirigami.Units.gridUnit
 
     property var sections: []
+    // All Applications: every app under its first letter instead of the sections.
+    property bool allApps: false
     // Section title -> shown in full.
     property var expanded: ({})
     // {section, index} of the app the arrow keys stand on, or null while the search field has them.
@@ -147,6 +150,13 @@ Flickable {
             categories.push({icon: String(menu.data(index, Qt.DecorationRole) || ""), name: String(menu.data(index, Qt.DisplayRole) || ""),
                              apps: entriesOf(menu.modelForRow(row), Infinity)})
         }
+        if (allApps) {
+            sections = QuickMenu.alphabeticalSections(categories)
+            if (current && current.section >= sections.length) {
+                current = null
+            }
+            return
+        }
         const built = QuickMenu.buildSections(categories, savedOrders())
         // Three rows at most behind Show More: the apps used most, not a second full list.
         const suggested = entriesOf(popular, 3 * columns)
@@ -167,6 +177,7 @@ Flickable {
 
     // Back to a fresh view each time Quick Menu opens: all sections folded, nothing selected, at the top.
     function reset() {
+        allApps = false
         expanded = ({})
         current = null
         lastPointer = null
@@ -290,6 +301,14 @@ Flickable {
         }
     }
 
+    // Switches between the sections and All Applications, from the top of the list.
+    function showAllApps(all) {
+        allApps = all
+        current = null
+        contentY = 0
+        rebuild()
+    }
+
     function toggle(title) {
         const next = Object.assign({}, expanded)
         next[title] = !next[title]
@@ -320,6 +339,41 @@ Flickable {
         topPadding: Kirigami.Units.mediumSpacing
         bottomPadding: Kirigami.Units.mediumSpacing
 
+        // All Applications' heading, drawn like a section's: its title, and Back where a section has Show More. The
+        // way in is the grid button beside ⋯ in the search row.
+        RowLayout {
+            x: view.sidePadding
+            width: content.width - 2 * view.sidePadding
+            height: Kirigami.Units.gridUnit * 2.2
+            visible: view.allApps
+
+            QQC2.Label {
+                Layout.fillWidth: true
+                text: i18nc("@title Quick Menu's list of every app", "All Applications")
+                font.weight: Font.Bold
+                color: Qt.rgba(1, 1, 1, 0.95)
+                elide: Text.ElideRight
+                textFormat: Text.PlainText
+            }
+            QQC2.Label {
+                text: i18nc("@action:button back from Quick Menu's list of every app", "Back")
+                font.weight: Font.DemiBold
+                color: back.hovered ? Qt.lighter(Kirigami.Theme.highlightColor, 1.6) : Qt.lighter(Kirigami.Theme.highlightColor, 1.35)
+                textFormat: Text.PlainText
+                Accessible.role: Accessible.Button
+                Accessible.name: text
+                Accessible.onPressAction: view.showAllApps(false)
+
+                HoverHandler {
+                    id: back
+                    cursorShape: Qt.PointingHandCursor
+                }
+                TapHandler {
+                    onTapped: view.showAllApps(false)
+                }
+            }
+        }
+
         Repeater {
             id: sectionRepeater
             model: view.sections
@@ -338,7 +392,8 @@ Flickable {
                 width: content.width
 
                 Rectangle {
-                    visible: section.index > 0
+                    // Under All Applications' heading the first letter has a divider too.
+                    visible: section.index > 0 || view.allApps
                     x: view.sidePadding
                     width: parent.width - 2 * view.sidePadding
                     height: 1

@@ -43,6 +43,8 @@ public:
 
 protected:
     /// Blurs and shadows a glass popup each time it shows or resizes.
+    [[nodiscard]] int styleHint(StyleHint hint, const QStyleOption *option = nullptr, const QWidget *widget = nullptr,
+                                QStyleHintReturn *returnData = nullptr) const override;
     bool eventFilter(QObject *watched, QEvent *event) override;
 };
 

@@ -8,14 +8,30 @@ source is, what is installed and how it is tested. Build commands are in [build.
 
 ## File Explorer (`components/file-explorer`)
 
-A Finder-style file manager in C++ and Qt Widgets on top of Dolphin's KParts view. A sidebar with Favorites and drives
-(drives can be renamed inline, kept in `file-explorerrc [Drive Names]`; SF-style symbols; a capacity bar with a tooltip,
-amber above 90 % and red above 95 %), tabs, a toolbar, a status line, Finder menus with shortcuts written the Windows way
-(`fe::shortcutLabel`: "Ctrl+Alt+C", "Alt+Enter", "Win+E"), and the pointing hand on every clickable widget. It also
-serves `org.freedesktop.FileManager1` (`--service`: "Show in folder" selects the file) and the FileChooser portal
-backend (`--portal`: Open and Save panels with a chooser bar; it quits after three idle minutes). Installed as
-`~/.local/bin/file-explorer`; Win+E launches it. Tests: `fe_tests` (67). Sandbox: `explorer.sh`, `explorer-menus.sh`,
-`explorer-drives.sh`, `show-in-folder.sh`, `open-save.sh`.
+A Finder-style file manager in C++ and Qt Widgets on top of Dolphin's KParts view. A sidebar with Favorites, drives
+and color Tags (drives can be renamed inline, kept in `file-explorerrc [Drive Names]`; SF-style symbols; a capacity bar
+with a tooltip, amber above 90 % and red above 95 %; a folder the user added unfolds into its subfolders and each
+section folds away, kept in `file-explorerrc [Sidebar Tree]`), tabs, a toolbar with a typed address field
+(`fe::AddressField`, rules in `core/address`: `~`, relative paths, suggestions, shell Tab) and the Group, Share
+(Purpose), Edit Tags and More menus, a row of file actions (`fe::ActionBar`), Quick Look (`fe::QuickLook`, Space;
+rules in `core/quicklook`), Split View (`fe::TabPage`, F3), a path bar that names the selected file and shows the item
+count, Finder menus with shortcuts written the Windows way (`fe::shortcutLabel`: "Ctrl+Alt+C", "Alt+Enter", "Win+E"),
+and the pointing hand on every clickable widget.
+
+Color tags (`tagging.cpp`, rules in `core/tags`) live in the file's `user.xdg.tags` attribute through KFileMetaData, so
+Dolphin and Baloo read them too. Each tag's sidebar row opens its shelf, `~/.local/share/file-explorer/tags/<Tag>`, a
+folder of links to the tagged files that File Explorer keeps in step and tidies as it opens, so tags work without
+Baloo's index. The `aurora-tags` KIO overlay plugin (`src/plugins`, installed in
+`~/.local/lib/qt6/plugins/kf6/overlayicon`) draws a tagged file's colors as dots on its icon, in File Explorer and in
+Dolphin, with the 63 emblems `themes/icons/tag_emblems.py` adds to the icon theme.
+
+It also serves `org.freedesktop.FileManager1` (`--service`: "Show in folder" selects the file) and the FileChooser
+portal backend (`--portal`: Open and Save panels with a chooser bar; it quits after three idle minutes). Installed as
+`~/.local/bin/file-explorer`; Win+E launches it. Folders without a view of their own show Finder's columns (Name,
+Modified, Size, Type) from `~/.local/share/file-explorer/view_properties/global/.directory`. Tests: `fe_tests` (78),
+`fe_finder_tests` (33), `tests/installer/test_tag_emblems.sh` (5). Sandbox: `explorer.sh`, `explorer-finder.sh` (the
+mockup's scene: tags, the unfolded sidebar, the menu, a typed path, Quick Look, Split View, a tag's shelf),
+`explorer-menus.sh`, `explorer-drives.sh`, `show-in-folder.sh`, `open-save.sh`.
 
 ## Window buttons (`components/window-buttons`)
 
@@ -46,7 +62,10 @@ KRunner from plasma-workspace 6.8.2 (`upstream/`, `vendor/`, `quick-menu.patch`)
 frameless glass window floating a quarter of the way down the active screen. With nothing typed it shows the
 Applications view: Suggestions (the apps used most, from Plasma's activity statistics through Kicker's
 `RecentUsageModel`) and Plasma's menu in Tahoe's sections (`quickmenu.js`: categories keyed by their `.directory`
-icon, merged, de-duplicated, sorted), one row of five per section until "Show More". The arrow keys walk the grid, the
+icon, merged, de-duplicated, sorted), one row of five per section until "Show More". The grid button beside ⋯ in the search
+row opens All Applications: every app once under its first letter, accents filed under the plain letter and digits and signs under "#" first
+(`alphabeticalSections()`, like Windows' All apps), under a heading drawn like a section's with Back where a
+section has Show More; the button, filled while the list shows, also goes back. The arrow keys walk the grid, the
 pointer selects only when it really moves, Return launches. An app dragged onto another of its section takes that
 app's place, and the section keeps that order (`~/.config/aurora/quick-menu.conf`; Suggestions stay ordered by
 use). A right-click on an app, or the Menu key or Shift+F10 on the selected one, opens its menu (`QuickMenuPopup.qml`,
@@ -58,7 +77,7 @@ everything KRunner's runners find, listed
 with their actions, drag-out and section headers; Up in the empty field recalls past searches. The ⋯ menu keeps Keep
 Open, Usage Help and KRunner's settings. It starts through `krunner-launch.sh` and the `plasma-krunner` drop-in
 ([architecture.md](architecture.md)); the menu bar's search icon calls `org.kde.krunner /App toggleDisplay`. Tests:
-`tests/tst_quickmenu.qml` (34), `tests/test_launch.sh` (5). Sandbox: `quick-menu.sh`, `quick-menu-drag.sh`,
+`tests/tst_quickmenu.qml` (43), `tests/test_launch.sh` (5). Sandbox: `quick-menu.sh`, `quick-menu-all.sh`, `quick-menu-drag.sh`,
 `quick-menu-app-menu.sh`.
 
 ## The Windows key (`components/windows-key`)
@@ -71,7 +90,7 @@ first check reproduces the old bug, then four PASS).
 ## Control Center (`components/control-center`)
 
 The widget `org.aurora.controlcenter`, Tahoe's floating glass modules: Wi-Fi or Ethernet, Bluetooth, Focus, sound with a device panel, the player,
-Night Light, screen mirroring, settings and screenshots. The blur comes from `org.aurora.glass`. Tests: `tests/tst_cc.qml` (18). Sandbox: `control-center*.sh`.
+Night Light, screen mirroring, settings and screenshots. The blur comes from `org.aurora.glass`. Tests: `tests/tst_cc.qml` (20). Sandbox: `control-center*.sh`.
 
 ## Glass and pointer hints (`components/glass`)
 

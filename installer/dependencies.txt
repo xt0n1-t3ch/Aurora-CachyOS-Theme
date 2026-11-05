@@ -25,6 +25,8 @@ kitemmodels
 kjobwidgets
 knotifications
 kparts                 # File Explorer embeds Dolphin's view
+kfilemetadata          # File Explorer's color tags (the user.xdg.tags attribute)
+purpose                # File Explorer's Share menu
 kpackage
 krunner
 kservice               # kbuildsycoca6
