@@ -11,6 +11,8 @@ it changes. A change that needs a fresh install, or that an earlier backup canno
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-11-05
+
 The first release: a macOS Tahoe-inspired desktop for CachyOS and KDE Plasma 6, installed with one command and one
 question, and removed with one command.
 
@@ -63,4 +65,5 @@ question, and removed with one command.
 - After a Plasma, KWin or Qt update, the parts built for the old version step aside on their own until the package
   brings them built for the new one; `aurora rebuild` builds them right away.
 
-[Unreleased]: https://github.com/xt0n1-t3ch/Aurora-CachyOS-Theme/commits/HEAD
+[Unreleased]: https://github.com/xt0n1-t3ch/Aurora-CachyOS-Theme/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/xt0n1-t3ch/Aurora-CachyOS-Theme/releases/tag/v1.0.0
