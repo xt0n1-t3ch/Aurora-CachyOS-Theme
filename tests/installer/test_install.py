@@ -268,6 +268,30 @@ class Look(unittest.TestCase):
         self.assertIn(f'"gtk-cursor-theme-name": "{install.CURSORS}",', source)
 
 
+class Animations(unittest.TestCase):
+    """How fast the desktop animates comes from `aurora settings` ([look] animations in aurora.conf): smooth by
+    default, a step of Plasma's own speed slider (0.75), never the near-instant values that make it feel abrupt."""
+
+    def factor(self, conf):
+        with tempfile.TemporaryDirectory() as home:
+            if conf is not None:
+                os.makedirs(os.path.join(home, ".config/aurora"))
+                with open(os.path.join(home, ".config/aurora/aurora.conf"), "w") as f:
+                    f.write(conf)
+            return install.animation_factor(home)
+
+    def test_a_new_install_animates_smoothly(self):
+        self.assertEqual(self.factor(None), "0.75")
+
+    def test_the_chosen_speed_is_used(self):
+        self.assertEqual(self.factor("[updates]\ncheck=daily\n\n[look]\nanimations=fast\n"), "0.5")
+        self.assertEqual(self.factor("[look]\nanimations = instant\n"), "0")
+
+    def test_an_unknown_speed_or_another_group_keeps_smooth(self):
+        self.assertEqual(self.factor("[look]\nanimations=warp\n"), "0.75")
+        self.assertEqual(self.factor("[updates]\nanimations=instant\n"), "0.75")
+
+
 class Restore(unittest.TestCase):
     """The backup the installer writes before it changes anything."""
 

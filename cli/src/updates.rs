@@ -72,10 +72,61 @@ impl fmt::Display for Frequency {
     }
 }
 
+/// How fast the desktop animates: Plasma's `AnimationDurationFactor`, one step of its own speed slider each.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Speed {
+    #[default]
+    Smooth,
+    Fast,
+    Instant,
+}
+
+impl Speed {
+    /// Every choice, in the order the settings menu shows them.
+    pub const ALL: [Speed; 3] = [Speed::Smooth, Speed::Fast, Speed::Instant];
+
+    /// The word in `aurora.conf`; installer/install.py's ANIMATIONS reads the same words.
+    #[must_use]
+    pub fn id(self) -> &'static str {
+        match self {
+            Speed::Smooth => "smooth",
+            Speed::Fast => "fast",
+            Speed::Instant => "instant",
+        }
+    }
+
+    /// The word in `aurora.conf`, read back; `None` for anything else.
+    #[must_use]
+    pub fn from_id(id: &str) -> Option<Speed> {
+        Speed::ALL.into_iter().find(|speed| speed.id() == id.trim())
+    }
+
+    /// Plasma's `AnimationDurationFactor` for this speed (kdeglobals, [KDE]).
+    #[must_use]
+    pub fn factor(self) -> &'static str {
+        match self {
+            Speed::Smooth => "0.75",
+            Speed::Fast => "0.5",
+            Speed::Instant => "0",
+        }
+    }
+}
+
+impl fmt::Display for Speed {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            Speed::Smooth => "Smooth",
+            Speed::Fast => "Fast",
+            Speed::Instant => "Instant",
+        })
+    }
+}
+
 /// The user's settings, in `~/.config/aurora/aurora.conf`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct Settings {
     pub updates: Frequency,
+    pub animations: Speed,
 }
 
 impl Settings {
@@ -87,11 +138,14 @@ impl Settings {
         for line in text.lines().map(str::trim) {
             if let Some(name) = line.strip_prefix('[').and_then(|rest| rest.strip_suffix(']')) {
                 group = name;
-            } else if let Some((key, value)) = line.split_once('=')
-                && (group, key.trim()) == ("updates", "check")
-                && let Some(frequency) = Frequency::from_id(value)
-            {
-                settings.updates = frequency;
+            } else if let Some((key, value)) = line.split_once('=') {
+                match (group, key.trim()) {
+                    ("updates", "check") => settings.updates = Frequency::from_id(value).unwrap_or(settings.updates),
+                    ("look", "animations") => {
+                        settings.animations = Speed::from_id(value).unwrap_or(settings.animations);
+                    }
+                    _ => {}
+                }
             }
         }
         settings
@@ -102,8 +156,10 @@ impl Settings {
     pub fn render(self) -> String {
         format!(
             "# Aurora's settings: `aurora settings` changes them.\n\n[updates]\n# How often Aurora looks for a newer \
-             version: daily, weekly or never.\ncheck={}\n",
-            self.updates.id()
+             version: daily, weekly or never.\ncheck={}\n\n[look]\n# How fast the desktop animates: smooth, fast or \
+             instant.\nanimations={}\n",
+            self.updates.id(),
+            self.animations.id()
         )
     }
 
@@ -300,9 +356,25 @@ mod tests {
     #[test]
     fn settings_read_back_what_they_wrote() {
         for updates in Frequency::ALL {
-            let settings = Settings { updates };
-            assert_eq!(Settings::parse(&settings.render()), settings, "{updates:?}");
+            for animations in Speed::ALL {
+                let settings = Settings { updates, animations };
+                assert_eq!(Settings::parse(&settings.render()), settings, "{updates:?} {animations:?}");
+            }
         }
+    }
+
+    #[test]
+    fn animations_are_smooth_unless_another_speed_is_chosen() {
+        assert_eq!(Settings::parse("").animations, Speed::Smooth);
+        assert_eq!(Settings::parse("[look]\nanimations = fast\n").animations, Speed::Fast);
+        assert_eq!(Settings::parse("[look]\nanimations=warp\n").animations, Speed::Smooth);
+        assert_eq!(Settings::parse("[updates]\nanimations=instant\n").animations, Speed::Smooth, "only [look] counts");
+    }
+
+    // Steps of Plasma's own speed slider; under 0.25 KWin treats some animations as instant.
+    #[test]
+    fn each_speed_is_a_step_of_plasma_s_slider() {
+        assert_eq!(Speed::ALL.map(Speed::factor), ["0.75", "0.5", "0"]);
     }
 
     #[test]

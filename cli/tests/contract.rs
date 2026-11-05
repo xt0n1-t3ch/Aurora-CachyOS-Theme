@@ -117,3 +117,15 @@ fn the_cli_shows_the_attribution_notice_md_requires() {
     );
     assert!(legal::ATTRIBUTION.contains(aurora::ui::AUTHOR));
 }
+
+#[test]
+fn the_animation_speeds_are_the_ones_the_installer_applies() {
+    let install = read("installer/install.py");
+    let table = install.lines().find(|line| line.starts_with("ANIMATIONS = {")).expect("install.py has ANIMATIONS");
+    let want: String = aurora::updates::Speed::ALL
+        .iter()
+        .map(|speed| format!("\"{}\": \"{}\"", speed.id(), speed.factor()))
+        .collect::<Vec<_>>()
+        .join(", ");
+    assert_eq!(table, format!("ANIMATIONS = {{{want}}}"));
+}

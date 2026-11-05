@@ -41,7 +41,7 @@ install=aurora-theme.install
 # few that are machine code instead.
 options=('!debug' '!strip')
 source=("aurora-$pkgver.tar.gz::$url/releases/download/v$pkgver/aurora-$pkgver.tar.gz")
-sha256sums=('f4f47a08254814a95db56277cd5b20ad2d22f0eb0babbde90bfb01df4018d407')
+sha256sums=('505618588da7e82bb247136b48160e0a3f4d05b18f007993ca935bb5ccf86290')
 
 prepare() {
     cd "aurora-$pkgver/cli"

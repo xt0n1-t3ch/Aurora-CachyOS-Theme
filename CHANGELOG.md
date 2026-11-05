@@ -11,6 +11,12 @@ it changes. A change that needs a fresh install, or that an earlier backup canno
 
 ## [Unreleased]
 
+### Added
+
+- Smooth animations across the desktop: Plasma, KWin, Qt and GTK apps move at a step of Plasma's own speed slider
+  (smooth, 0.75) instead of near-instant values, and windows minimize into the Dock with the magic lamp, as on macOS.
+  `aurora settings` chooses smooth, fast or instant (`--animations` from a script) and applies it at once.
+
 ## [1.0.0] - 2026-11-05
 
 The first release: a macOS Tahoe-inspired desktop for CachyOS and KDE Plasma 6, installed with one command and one

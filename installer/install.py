@@ -56,6 +56,10 @@ GLASS = ("glass", "qml/org/aurora/glass", ".local/lib/qt6/qml/org/aurora/glass")
 # The aurora command, built when Rust is installed (build.sh's cli part). It is not tied to a Plasma version.
 CLI = ("cli/aurora", ".local/bin/aurora")
 SYSTEM_CLI = "/usr/bin/aurora"  # the aurora-theme package's
+# The animation speeds `aurora settings` offers ([look] animations in aurora.conf), as Plasma's AnimationDurationFactor:
+# steps of its own speed slider. Plasma 6.7's spring animations treat factors under 0.25 as instant in places
+# (kwin slidingnotifications), which feels abrupt; smooth is the default.
+ANIMATIONS = {"smooth": "0.75", "fast": "0.5", "instant": "0"}
 # The login timer that looks for updates (installer/session/systemd), and where systemd finds user units.
 UPDATE_UNITS = ("aurora-updates.service", "aurora-updates.timer")
 USER_UNITS = ".config/systemd/user"
@@ -271,6 +275,21 @@ def kwrite(file, groups, key, value=None):
         args += ["--group", group]
     args += ["--key", key]
     run(*(args + (["--delete"] if value is None else [value])), quiet=True)
+
+
+def animation_factor(home):
+    """The AnimationDurationFactor for the speed chosen in ~/.config/aurora/aurora.conf, smooth when none is."""
+    group, choice = "", "smooth"
+    try:
+        with open(os.path.join(home, ".config/aurora/aurora.conf")) as f:
+            for line in (line.strip() for line in f):
+                if line.startswith("[") and line.endswith("]"):
+                    group = line[1:-1]
+                elif group == "look" and "=" in line and line.split("=", 1)[0].strip() == "animations":
+                    choice = line.split("=", 1)[1].strip()
+    except FileNotFoundError:
+        pass
+    return ANIMATIONS.get(choice, ANIMATIONS["smooth"])
 
 
 def kread(file, group, key):
@@ -653,7 +672,15 @@ def look():
     run(sys.executable, "-I", os.path.join(ROOT, "components/windows-key/windows_key.py"), "quick-menu", quiet=True)
     # One touch of the bottom edge brings the Dock back, as on macOS; KWin's default 1 px pushback wants a second push.
     kwrite(".config/kwinrc", ["Windows"], "ElectricBorderPushbackPixels", "0")
+    # Animations at the chosen speed, told to every running app; windows minimize into the Dock like macOS's genie.
+    run("kwriteconfig6", "--notify", "--file", os.path.join(HOME, ".config/kdeglobals"), "--group", "KDE", "--key",
+        "AnimationDurationFactor", animation_factor(HOME), quiet=True)
+    kwrite(".config/kwinrc", ["Plugins"], "magiclampEnabled", "true")
+    kwrite(".config/kwinrc", ["Plugins"], "squashEnabled", "false")
     run("qdbus6", "org.kde.KWin", "/KWin", "reconfigure", check=False, quiet=True)
+    # A running KWin keeps its loaded effects through reconfigure, so the minimize effect is swapped by hand.
+    session("qdbus6", "org.kde.KWin", "/Effects", "org.kde.kwin.Effects.unloadEffect", "squash", check=False)
+    session("qdbus6", "org.kde.KWin", "/Effects", "org.kde.kwin.Effects.loadEffect", "magiclamp", check=False)
     set_default_file_manager()
     set_explorer_shortcut()
     print("look applied")

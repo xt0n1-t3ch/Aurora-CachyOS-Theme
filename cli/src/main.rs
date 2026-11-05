@@ -62,11 +62,14 @@ enum Action {
         #[arg(long)]
         colors: bool,
     },
-    /// Change Aurora after the install: update notices, the menu bar logo
+    /// Change Aurora after the install: update notices, animations, the menu bar logo
     Settings {
         /// How often Aurora looks for a newer version: daily, weekly or never
         #[arg(long, value_name = "WHEN")]
         updates: Option<String>,
+        /// How fast the desktop animates: smooth, fast or instant
+        #[arg(long, value_name = "SPEED")]
+        animations: Option<String>,
     },
     /// Look for a newer Aurora now
     CheckUpdates {
@@ -100,7 +103,7 @@ fn menu(places: &Places) -> anyhow::Result<()> {
     }
     let action: &str = cliclack::select("What would you like to do?")
         .item("update", "Update", "get the newest version and install it")
-        .item("settings", "Settings", "update notices and the menu bar logo")
+        .item("settings", "Settings", "update notices, animations and the menu bar logo")
         .item("logo", "Change the menu bar logo", "CachyOS, Arch Linux, Apple or Kali Linux")
         .item("rebuild", "Rebuild after a system update", "when Plasma, KWin or Qt changed")
         .item("status", "Status", "what is installed and from where")
@@ -109,7 +112,7 @@ fn menu(places: &Places) -> anyhow::Result<()> {
         .interact()?;
     match action {
         "update" => app::update(places, false),
-        "settings" => settings::settings(places, None),
+        "settings" => settings::settings(places, None, None),
         "logo" => app::logo(None, Colors::Off),
         "rebuild" => app::rebuild(places),
         "status" => app::status(places),
@@ -125,7 +128,8 @@ fn shows_banner(command: Option<&Action>, banner: Option<&str>) -> bool {
         command,
         Some(
             Action::Logo { logo: Some(_), .. }
-                | Action::Settings { updates: Some(_) }
+                | Action::Settings { updates: Some(_), .. }
+                | Action::Settings { animations: Some(_), .. }
                 | Action::CheckUpdates { .. }
                 | Action::Status
                 | Action::License
@@ -149,7 +153,9 @@ fn main() -> ExitCode {
             Some(Action::Update { yes }) => app::update(&places, yes),
             Some(Action::Rebuild) => app::rebuild(&places),
             Some(Action::Logo { logo, colors: on }) => app::logo(logo, colors(on)),
-            Some(Action::Settings { updates }) => settings::settings(&places, updates.as_deref()),
+            Some(Action::Settings { updates, animations }) => {
+                settings::settings(&places, updates.as_deref(), animations.as_deref())
+            }
             Some(Action::CheckUpdates { notify }) => {
                 check::check_updates(&places, if notify { Mode::Notify } else { Mode::Print })
             }
@@ -187,7 +193,11 @@ mod tests {
         assert!(!shows_banner(Some(&Action::Status), None));
         assert!(!shows_banner(Some(&Action::License), None));
         assert!(!shows_banner(Some(&Action::CheckUpdates { notify: true }), None), "the login timer prints nothing");
-        assert!(!shows_banner(Some(&Action::Settings { updates: Some("weekly".into()) }), None));
-        assert!(shows_banner(Some(&Action::Settings { updates: None }), None), "the settings menu is a menu");
+        assert!(!shows_banner(Some(&Action::Settings { updates: Some("weekly".into()), animations: None }), None));
+        assert!(!shows_banner(Some(&Action::Settings { updates: None, animations: Some("fast".into()) }), None));
+        assert!(
+            shows_banner(Some(&Action::Settings { updates: None, animations: None }), None),
+            "the settings menu is a menu"
+        );
     }
 }
