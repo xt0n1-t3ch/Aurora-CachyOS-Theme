@@ -117,10 +117,15 @@ fn system_line() -> Result<String> {
     let session = env::var("XDG_SESSION_TYPE").unwrap_or_default();
     let get = |name: &str| versions.get(name).cloned().unwrap_or_else(|| "?".into());
     Ok(format!(
-        "KDE Plasma {plasma}, KWin {}, Qt {} on {}",
+        "KDE Plasma {plasma} · KWin {} · Qt {} · {}",
         get("kwin"),
         get("qt6-base"),
-        if session.is_empty() { "an unknown session" } else { &session }
+        match session.as_str() {
+            "wayland" => "Wayland",
+            "x11" => "X11",
+            "" => "an unknown session",
+            other => other,
+        }
     ))
 }
 
@@ -164,23 +169,23 @@ pub fn install(places: &Places, choices: InstallChoices) -> Result<()> {
     if run::capture("id", &["-u"])?.trim() == "0" {
         bail!("run aurora as your own user, not with sudo: it installs into your home folder");
     }
-    cliclack::log::step(format!("Your system: {}", system_line()?))?;
+    cliclack::log::step(format!("Detected  {}", system_line()?))?;
     let (mut logo, mut colors, performance) = (choices.logo.unwrap_or_default(), choices.colors, choices.performance);
     // One question: the logo. Choosing it starts the install; Esc leaves everything as it is.
     if interactive(choices.yes) {
         let parts = if source.root.join("prebuilt").is_dir() {
-            "Aurora's parts come built with the package: nothing is compiled."
+            "Everything comes ready to use: nothing is compiled."
         } else {
-            "Builds Aurora's parts for your Plasma first (about 3 minutes)."
+            "Aurora's parts are built for your Plasma first, in about 3 minutes."
         };
         cliclack::note(
-            "Installing Aurora",
+            "Before it starts",
             format!(
-                "{parts}\nSaves your current settings first, so `aurora uninstall` can put them back.\n\
-                 Asks for your password once, for pacman and two links KWin needs."
+                "{parts}\nYour current look is saved, so `aurora uninstall` can bring it back.\n\
+                 Your password is asked at most once."
             ),
         )?;
-        (logo, colors) = pick_logo("Pick the menu bar's logo to install Aurora", logo, colors)?;
+        (logo, colors) = pick_logo("Choose the logo for your menu bar", logo, colors)?;
     }
     let askpass = askpass(places);
     sudo_ready(askpass.as_deref())?;
@@ -194,13 +199,13 @@ pub fn install(places: &Places, choices: InstallChoices) -> Result<()> {
     let icon = logo.icon(colors);
     if show_logo(icon) == 0 {
         cliclack::log::warning(format!(
-            "The menu bar was not running; run `aurora logo {}` after you log in",
+            "Aurora's menu bar is not running yet: after you log in again, run `aurora logo {}`",
             logo.id()
         ))?;
     }
     cliclack::outro_note(
-        Style::new().bold().apply_to("Aurora is installed. Log out and back in to finish."),
-        "aurora logo        change the logo in the menu bar\naurora update      get the newest version\naurora uninstall   put your desktop back as it was",
+        Style::new().bold().apply_to("Aurora is installed. Log out and back in to see it."),
+        "aurora settings    update notices and the menu bar logo\naurora update      get the newest version\naurora uninstall   bring your previous desktop back",
     )?;
     Ok(())
 }
@@ -212,7 +217,7 @@ pub fn install(places: &Places, choices: InstallChoices) -> Result<()> {
 pub fn rebuild(places: &Places) -> Result<()> {
     let source = source(places)?;
     cliclack::intro(Style::new().bold().apply_to("Rebuild Aurora's parts"))?;
-    cliclack::log::step(format!("Your system: {}", system_line()?))?;
+    cliclack::log::step(format!("Detected  {}", system_line()?))?;
     let askpass = askpass(places);
     sudo_ready(askpass.as_deref())?;
     let env: Vec<(&str, &Path)> = askpass.iter().map(|dialog| ("SUDO_ASKPASS", dialog.as_path())).collect();

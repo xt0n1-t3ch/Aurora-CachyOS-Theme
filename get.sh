@@ -59,9 +59,8 @@ banner() {
         sgr 0
         echo
     done
-    printf '\n   %sAurora installer%s\n' "$(sgr 1)" "$(sgr 0)"
-    printf '   A macOS Tahoe-inspired desktop for CachyOS and KDE Plasma 6\n'
-    printf '   %sDeveloped by xt0n1%s\n\n' "$(sgr 2)" "$(sgr 0)"
+    printf '\n   %sThe macOS Tahoe look for KDE Plasma, made for CachyOS%s\n' "$(sgr 1)" "$(sgr 0)"
+    printf '   %sby xt0n1%s\n\n' "$(sgr 2)" "$(sgr 0)"
 }
 # The steps, drawn like the aurora command's prompts: a violet bar, sky for what runs, mint for what is done.
 VIOLET='38;2;167;139;250' SKY='38;2;56;189;248' MINT='38;2;79;242;176'
@@ -86,6 +85,8 @@ step() {
     bar
     printf '%s◆%s  %s%d/%d%s  %s\n' "$(sgr "$SKY")" "$(sgr 0)" "$(sgr 2)" "$step_number" "$STEPS" "$(sgr 0)" "$*"
 }
+# Prints, under the step, in a line, why it is there. Arguments: the words.
+detail() { printf '%s│%s      %s%s%s\n' "$(sgr "$VIOLET")" "$(sgr 0)" "$(sgr 2)" "$*" "$(sgr 0)"; }
 # Prints that the step is done, with how long it took. Arguments: the words.
 done_step() {
     printf '%s✓%s  %s  %s(%s)%s\n' "$(sgr "$MINT")" "$(sgr 0)" "$*" "$(sgr 2)" "$(span $(($(now_ms) - step_started)))" \
@@ -112,20 +113,22 @@ main() {
     local started plasma
     started=$(now_ms)
     banner
-    [ "$(id -u)" -ne 0 ] || fail "run it as yourself, not with sudo: sudo asks for your password when it needs it"
-    command -v pacman > /dev/null || fail "Aurora needs CachyOS or another Arch-based system with pacman"
+    [ "$(id -u)" -ne 0 ] || fail "Please run this as your normal user, without sudo. It asks for your password when it needs it."
+    command -v pacman > /dev/null || fail "Aurora is made for CachyOS and other Arch-based systems with pacman."
     plasma=$(plasma_version)
-    [ "${plasma%%.*}" = 6 ] || fail "Aurora needs KDE Plasma 6, and this system has ${plasma:+Plasma $plasma}${plasma:-no Plasma}; nothing was changed"
-    printf '   %sYour system%s  %s · KDE Plasma %s · %s\n\n' "$(sgr 2)" "$(sgr 0)" "$(system_name)" "$plasma" \
+    [ "${plasma%%.*}" = 6 ] || fail "Aurora needs KDE Plasma 6, and this system has ${plasma:+Plasma $plasma}${plasma:-no Plasma}. Nothing was changed."
+    printf '   %sDetected%s  %s · KDE Plasma %s · %s\n\n' "$(sgr 2)" "$(sgr 0)" "$(system_name)" "$plasma" \
         "$(session_name)"
-    printf '%s┌%s  %sGetting Aurora ready%s\n' "$(sgr "$VIOLET")" "$(sgr 0)" "$(sgr 1)" "$(sgr 0)"
+    printf '%s┌%s  %sInstalling Aurora%s\n' "$(sgr "$VIOLET")" "$(sgr 0)" "$(sgr 1)" "$(sgr 0)"
 
     # One password, asked first and explained, before anything changes; the steps below reuse it.
-    step "Your password, once: pacman needs it to add Aurora's repository and install the package"
-    sudo -v -p "   Password for $(id -un): " || fail "sudo did not accept the password; nothing was changed"
-    done_step "Thanks, that is the only time it asks"
+    step "Permission to install"
+    detail "pacman needs your password to add Aurora. You only type it once."
+    sudo -v -p "   Password: " || fail "The password was not accepted. Nothing was changed."
+    done_step "Thank you"
 
-    step "Aurora's signing key"
+    step "Aurora's signature"
+    detail "Every Aurora download is signed, so pacman can check it really comes from Aurora."
     if sudo pacman-key --list-keys "$KEY" > /dev/null 2>&1; then
         done_step "Already trusted"
     else
@@ -133,31 +136,33 @@ main() {
         curl -fsSL "$KEY_URL" -o "$KEY_FILE"
         local got
         got=$(gpg --show-keys --with-colons "$KEY_FILE" 2> /dev/null | awk -F: '$1 == "fpr" { print $10; exit }')
-        [ "$got" = "$KEY" ] || fail "the downloaded key is ${got:-not a key}, not Aurora's $KEY; nothing was changed"
+        [ "$got" = "$KEY" ] || fail "The downloaded key is not Aurora's ($KEY), so nothing was trusted or changed."
         sudo pacman-key --add "$KEY_FILE" > /dev/null 2>&1
         sudo pacman-key --lsign-key "$KEY" > /dev/null 2>&1
-        done_step "Trusted, after checking its fingerprint"
+        done_step "Verified and trusted"
     fi
 
-    step "Aurora's pacman repository"
+    step "Aurora's download source"
+    detail "pacman learns where to find Aurora and, later, its updates."
     if grep -qx '\[aurora\]' "$CONF"; then
-        done_step "Already in $CONF"
+        done_step "Already set up"
     else
         printf '\n[aurora]\nServer = %s\n' "$SERVER" | sudo tee -a "$CONF" > /dev/null
         done_step "Added to $CONF"
     fi
 
-    step "The aurora-theme package, already built, with the rest of your system (pacman -Syu)"
+    step "Downloading Aurora"
+    detail "It comes ready to use, nothing to compile. Your system updates come along, as Arch requires."
     sudo pacman -Syu --needed aurora-theme
     done_step "Installed"
 
     local version
     version=$(pacman -Q aurora-theme 2> /dev/null | awk '{ sub(/-1$/, "", $2); print $2 }')
     bar
-    printf '%s◇%s  %sAurora%s is installed%s, built for KDE Plasma %s, in %s\n' "$(sgr "$MINT")" "$(sgr 0)" "$(sgr 1)" \
-        "${version:+ $version}" "$(sgr 0)" "$plasma" "$(span $(($(now_ms) - started)))"
+    printf '%s◇%s  %sAurora%s is ready for KDE Plasma %s%s %s· %s%s\n' "$(sgr "$MINT")" "$(sgr 0)" "$(sgr 1)" \
+        "${version:+ $version}" "$plasma" "$(sgr 0)" "$(sgr 2)" "$(span $(($(now_ms) - started)))" "$(sgr 0)"
     bar
-    printf '%s└%s  Opening the Aurora installer: one question, the menu bar'"'"'s logo\n' "$(sgr "$VIOLET")" "$(sgr 0)"
+    printf '%s└%s  Last step: choose the logo for your menu bar\n' "$(sgr "$VIOLET")" "$(sgr 0)"
     # The banner is on screen already, so aurora does not draw it twice.
     AURORA_BANNER=shown "$CLI" install
 }
