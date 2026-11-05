@@ -121,7 +121,7 @@ The `aurora` command comes with the package, and `./install.sh` installs it too 
 | `aurora update` | Gets the newest release, checks it against its checksums and installs it |
 | `aurora rebuild` | Builds the parts again after a Plasma, KWin or Qt update |
 | `aurora logo arch` | Changes the menu bar logo: `cachyos`, `arch`, `apple` or `kali`; `--colors` shows it in its own colors |
-| `aurora settings` | Update notices (every day, every week or never; `--updates weekly` sets it from a script) and the menu bar logo |
+| `aurora settings` | Update notices (every day, every week or never; `--updates weekly`), animations (smooth, fast or instant; `--animations fast`) and the menu bar logo |
 | `aurora check-updates` | Looks for a newer Aurora right away |
 | `aurora status` | What is installed, from where, and whether a rebuild is due |
 | `aurora uninstall` | Puts your desktop back the way it was |
