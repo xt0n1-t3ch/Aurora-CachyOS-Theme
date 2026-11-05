@@ -5,6 +5,8 @@
 
 #pragma once
 
+#include "core/motion.h"
+
 #include <QAbstractButton>
 #include <QLineEdit>
 #include <QWidget>
@@ -45,7 +47,7 @@ protected:
 private:
     QString m_iconName;
     bool m_standalone = false;
-    bool m_hover = false;
+    motion::HoverFade *m_hover;
 };
 
 /// A glass pill that groups toolbar buttons, like the back/forward and view mode groups of Finder.

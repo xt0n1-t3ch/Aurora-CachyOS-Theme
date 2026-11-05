@@ -1,0 +1,22 @@
+{
+    "KPackageStructure": "KWin/Effect",
+    "KPlugin": {
+        "Authors": [
+            {
+                "Email": "xt0n1@black-watch.net",
+                "Name": "xt0n1"
+            }
+        ],
+        "Category": "Window Open/Close Animation",
+        "Description": "Windows open, close, minimize and come back like macOS: a short fade and a small scale that slows down at the end",
+        "EnabledByDefault": false,
+        "Icon": "preferences-system-windows-effect-scale",
+        "Id": "org.aurora.motion",
+        "License": "GPL-3.0-only",
+        "Name": "Aurora Motion"
+    },
+    "X-KDE-Ordering": 60,
+    "X-KWin-Exclusive-Category": "toplevel-open-close-animation",
+    "X-Plasma-API": "javascript",
+    "X-Plasma-MainScript": "code/main.js"
+}

@@ -57,9 +57,15 @@ GLASS = ("glass", "qml/org/aurora/glass", ".local/lib/qt6/qml/org/aurora/glass")
 CLI = ("cli/aurora", ".local/bin/aurora")
 SYSTEM_CLI = "/usr/bin/aurora"  # the aurora-theme package's
 # The animation speeds `aurora settings` offers ([look] animations in aurora.conf), as Plasma's AnimationDurationFactor:
-# steps of its own speed slider. Plasma 6.7's spring animations treat factors under 0.25 as instant in places
-# (kwin slidingnotifications), which feels abrupt; smooth is the default.
-ANIMATIONS = {"smooth": "0.75", "fast": "0.5", "instant": "0"}
+# steps of its own speed slider (4, 2, 1.5, 1, 0.75, 0.5, 0). Smooth is Plasma's designed speed: faster ones, and the
+# factors under 0.25 that some effects treat as instant (kwin slidingnotifications), feel abrupt.
+ANIMATIONS = {"smooth": "1", "fast": "0.5", "instant": "0"}
+# Popups slide in and out like macOS menus, in milliseconds before the speed scales them (KWin 6.8.2's own: 200).
+EFFECT_TIMINGS = [("Effect-slidingpopups", "SlideInTime", "250"), ("Effect-slidingpopups", "SlideOutTime", "250")]
+# Aurora Motion (components/motion) opens, closes, minimizes and restores windows; KWin's Scale, whose close looks
+# like the window is swallowed, and its two minimize effects step aside so no window animates twice.
+WINDOW_EFFECTS = [("org.aurora.motion", "true"), ("scale", "false"), ("squash", "false"), ("magiclamp", "false")]
+MOTION = (os.path.join(ROOT, "components/motion/package"), ".local/share/kwin/effects/org.aurora.motion")
 # The login timer that looks for updates (installer/session/systemd), and where systemd finds user units.
 UPDATE_UNITS = ("aurora-updates.service", "aurora-updates.timer")
 USER_UNITS = ".config/systemd/user"
@@ -140,7 +146,7 @@ ADDED = [*[f".local/share/icons/{t}" for t in (*BASE_ICONS, ICON_THEME, CURSORS)
          *[f".local/share/dbus-1/services/{name}.service" for name in DBUS_SERVICES],
          ".local/share/xdg-desktop-portal/portals/aurora.portal", ".config/environment.d/90-aurora-portal.conf",
          *[f"{USER_UNITS}/{unit}" for unit in UPDATE_UNITS], f"{USER_UNITS}/timers.target.wants/aurora-updates.timer",
-         ".config/aurora"]  # the order the apps were dragged into in Quick Menu
+         MOTION[1], ".config/aurora"]  # the order the apps were dragged into in Quick Menu
 
 RESTORE = r"""#!/bin/bash
 # Puts the desktop back the way it was before Aurora, from the copies saved next to this script.
@@ -292,12 +298,41 @@ def animation_factor(home):
     return ANIMATIONS.get(choice, ANIMATIONS["smooth"])
 
 
-def reload_effect_timing():
-    """Reloads every loaded KWin effect, so each works out its durations again at the current animation speed: an
-    effect computes them when it loads (kwin src/effect/effect.cpp, animationTime) and keeps them through reconfigure."""
-    loaded = output("qdbus6", "org.kde.KWin", "/Effects", "org.kde.kwin.Effects.loadedEffects")
-    for effect in loaded.split():
-        session("qdbus6", "org.kde.KWin", "/Effects", "org.kde.kwin.Effects.reconfigureEffect", effect, check=False)
+def speed_command(factor):
+    """The command that sets the animation speed and tells the running desktop. The file goes by its name, not its
+    path: KConfig announces a change under the name it was opened with, and KWin, Plasma and the apps listen to
+    /kdeglobals (KConfigWatcher), so a full path reaches none of them. HOME is the user's own (~), so the name finds the
+    same file."""
+    return ["kwriteconfig6", "--notify", "--file", "kdeglobals", "--group", "KDE", "--key", "AnimationDurationFactor",
+            factor]
+
+
+def slide_in_duration(support):
+    """The sliding popups effect's slide-in time in KWin's support information, in milliseconds, or None."""
+    for line in support.splitlines():
+        if line.strip().startswith("slideInDuration:"):
+            return int(line.split(":", 1)[1])
+    return None
+
+
+def reload_effect_timing(factor, seconds=3):
+    """Reloads every loaded KWin effect at the speed `factor`. An effect works out its durations when it loads
+    (kwin src/effect/effect.cpp, animationTime) and keeps them through reconfigure, and KWin takes a new speed on its
+    own timer (Workspace::reconfigure, 200 ms), so the sliding popups effect is reloaded first until it reports
+    SlideInTime x factor. Returns whether it did within `seconds`; the effects reload either way."""
+    slide_in = int(dict(((g, k), v) for g, k, v in EFFECT_TIMINGS)[("Effect-slidingpopups", "SlideInTime")])
+    want = max(int(slide_in * float(factor)), 1)
+    effects = ["qdbus6", "org.kde.KWin", "/Effects", "org.kde.kwin.Effects"]
+    caught_up = False
+    for _ in range(int(seconds / 0.1)):
+        session(*effects[:3], effects[3] + ".reconfigureEffect", "slidingpopups", check=False)
+        if slide_in_duration(output("qdbus6", "org.kde.KWin", "/KWin", "supportInformation")) == want:
+            caught_up = True
+            break
+        time.sleep(0.1)
+    for effect in output(*effects[:3], effects[3] + ".loadedEffects").split():
+        session(*effects[:3], effects[3] + ".reconfigureEffect", effect, check=False)
+    return caught_up
 
 
 def kread(file, group, key):
@@ -578,6 +613,7 @@ def files():
         replace_tree(os.path.join(ROOT, "themes/wallpapers", wallpaper), os.path.join(SHARE, "wallpapers", wallpaper))
     for package in PLASMOIDS:
         replace_tree(package, os.path.join(SHARE, "plasma/plasmoids", plasmoid_id(package)))
+    replace_tree(MOTION[0], os.path.join(HOME, MOTION[1]))
 
     components()
     explorer = os.path.join(HOME, ".local/bin/file-explorer")
@@ -680,16 +716,18 @@ def look():
     run(sys.executable, "-I", os.path.join(ROOT, "components/windows-key/windows_key.py"), "quick-menu", quiet=True)
     # One touch of the bottom edge brings the Dock back, as on macOS; KWin's default 1 px pushback wants a second push.
     kwrite(".config/kwinrc", ["Windows"], "ElectricBorderPushbackPixels", "0")
-    # Animations at the chosen speed, told to every running app; windows minimize into the Dock like macOS's genie.
-    run("kwriteconfig6", "--notify", "--file", os.path.join(HOME, ".config/kdeglobals"), "--group", "KDE", "--key",
-        "AnimationDurationFactor", animation_factor(HOME), quiet=True)
-    kwrite(".config/kwinrc", ["Plugins"], "magiclampEnabled", "true")
-    kwrite(".config/kwinrc", ["Plugins"], "squashEnabled", "false")
+    # Animations at the chosen speed, told to every running app; Aurora Motion animates the windows.
+    run(*speed_command(animation_factor(HOME)), quiet=True)
+    for group, key, value in EFFECT_TIMINGS:
+        kwrite(".config/kwinrc", [group], key, value)
+    for effect, enabled in WINDOW_EFFECTS:
+        kwrite(".config/kwinrc", ["Plugins"], f"{effect}Enabled", enabled)
     run("qdbus6", "org.kde.KWin", "/KWin", "reconfigure", check=False, quiet=True)
-    # A running KWin keeps its loaded effects through reconfigure, so the minimize effect is swapped by hand.
-    session("qdbus6", "org.kde.KWin", "/Effects", "org.kde.kwin.Effects.unloadEffect", "squash", check=False)
-    session("qdbus6", "org.kde.KWin", "/Effects", "org.kde.kwin.Effects.loadEffect", "magiclamp", check=False)
-    reload_effect_timing()
+    # A running KWin keeps its loaded effects through reconfigure, so they are swapped by hand.
+    for effect, enabled in WINDOW_EFFECTS:
+        action = "loadEffect" if enabled == "true" else "unloadEffect"
+        session("qdbus6", "org.kde.KWin", "/Effects", f"org.kde.kwin.Effects.{action}", effect, check=False)
+    reload_effect_timing(animation_factor(HOME))
     set_default_file_manager()
     set_explorer_shortcut()
     print("look applied")

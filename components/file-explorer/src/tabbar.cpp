@@ -36,7 +36,9 @@ void drawCross(QPainter &painter, const QRectF &box, const QColor &color)
 
 PillTabBar::PillTabBar(QWidget *parent)
     : QWidget(parent)
+    , m_fade(new motion::HoverFade(style::HOVER_FADE_MS, this))
 {
+    connect(m_fade, &motion::HoverFade::changed, this, qOverload<>(&QWidget::update));
     setFixedHeight(style::TABBAR_HEIGHT);
     setMouseTracking(true);
     hide();
@@ -156,7 +158,9 @@ void PillTabBar::paintEvent(QPaintEvent *)
             QPainterPath path;
             const QRectF inner = tab.adjusted(TAB_INSET, TAB_INSET, -TAB_INSET, -TAB_INSET);
             path.addRoundedRect(inner, inner.height() / 2.0, inner.height() / 2.0);
-            painter.fillPath(path, style::HOVER);
+            QColor hover = style::HOVER;
+            hover.setAlphaF(hover.alphaF() * m_fade->progress());
+            painter.fillPath(path, hover);
         }
         // A hairline between two tabs that are both flat.
         if (index > 0 && index != m_current && index - 1 != m_current) {
@@ -192,6 +196,10 @@ void PillTabBar::mouseMoveEvent(QMouseEvent *event)
 {
     const Hit hit = hitAt(event->position());
     if (hit.part != m_hover.part || hit.index != m_hover.index) {
+        if (hit.index != m_hover.index) {
+            m_fade->reset();
+            m_fade->setHovered(hit.part != Part::None);
+        }
         m_hover = hit;
         setCursor(hit.part == Part::None ? Qt::ArrowCursor : Qt::PointingHandCursor);
         update();

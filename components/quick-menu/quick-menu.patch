@@ -1,6 +1,6 @@
 diff -ruN -x '*.qsb' a/CMakeLists.txt b/CMakeLists.txt
---- a/CMakeLists.txt	2026-11-04 22:29:45.208282077 -0500
-+++ b/CMakeLists.txt	2026-11-04 22:57:08.778055130 -0500
+--- a/CMakeLists.txt	2026-11-05 02:44:25.332371661 -0500
++++ b/CMakeLists.txt	2026-11-05 02:44:25.333585775 -0500
 @@ -15,6 +15,19 @@
  add_executable(krunner ${krunner_SRCS})
  
@@ -23,7 +23,7 @@ diff -ruN -x '*.qsb' a/CMakeLists.txt b/CMakeLists.txt
      Qt::Quick
 diff -ruN -x '*.qsb' a/qml/QuickMenuApps.qml b/qml/QuickMenuApps.qml
 --- a/qml/QuickMenuApps.qml	1969-12-31 19:00:00.000000000 -0500
-+++ b/qml/QuickMenuApps.qml	2026-11-04 22:57:04.481050752 -0500
++++ b/qml/QuickMenuApps.qml	2026-11-05 02:44:25.333660134 -0500
 @@ -0,0 +1,428 @@
 +/*
 +    SPDX-FileCopyrightText: 2026 xt0n1-t3ch
@@ -455,7 +455,7 @@ diff -ruN -x '*.qsb' a/qml/QuickMenuApps.qml b/qml/QuickMenuApps.qml
 +}
 diff -ruN -x '*.qsb' a/qml/QuickMenuBlur.qml b/qml/QuickMenuBlur.qml
 --- a/qml/QuickMenuBlur.qml	1969-12-31 19:00:00.000000000 -0500
-+++ b/qml/QuickMenuBlur.qml	2026-11-04 22:56:30.594339582 -0500
++++ b/qml/QuickMenuBlur.qml	2026-11-05 02:44:25.334227431 -0500
 @@ -0,0 +1,12 @@
 +/*
 +    SPDX-FileCopyrightText: 2026 xt0n1-t3ch
@@ -471,7 +471,7 @@ diff -ruN -x '*.qsb' a/qml/QuickMenuBlur.qml b/qml/QuickMenuBlur.qml
 +}
 diff -ruN -x '*.qsb' a/qml/QuickMenuGlass.qml b/qml/QuickMenuGlass.qml
 --- a/qml/QuickMenuGlass.qml	1969-12-31 19:00:00.000000000 -0500
-+++ b/qml/QuickMenuGlass.qml	2026-11-04 22:56:30.594648380 -0500
++++ b/qml/QuickMenuGlass.qml	2026-11-05 02:44:25.334227431 -0500
 @@ -0,0 +1,37 @@
 +/*
 +    SPDX-FileCopyrightText: 2026 xt0n1-t3ch
@@ -512,8 +512,8 @@ diff -ruN -x '*.qsb' a/qml/QuickMenuGlass.qml b/qml/QuickMenuGlass.qml
 +}
 diff -ruN -x '*.qsb' a/qml/quickmenu.js b/qml/quickmenu.js
 --- a/qml/quickmenu.js	1969-12-31 19:00:00.000000000 -0500
-+++ b/qml/quickmenu.js	2026-11-04 22:57:08.778412588 -0500
-@@ -0,0 +1,303 @@
++++ b/qml/quickmenu.js	2026-11-05 04:18:03.523717750 -0500
+@@ -0,0 +1,315 @@
 +/*
 +    SPDX-FileCopyrightText: 2026 xt0n1-t3ch
 +    SPDX-License-Identifier: GPL-2.0-or-later
@@ -817,9 +817,21 @@ diff -ruN -x '*.qsb' a/qml/quickmenu.js b/qml/quickmenu.js
 +    session[method]();
 +    return true;
 +}
++
++// How the panel opens, like Spotlight: a fade over Kirigami's long duration, then a small scale and a fall of 10 px
++// that slow down at the end over a little longer. `longDuration` already carries the desktop's animation speed, so
++// instant animations (0) open the panel at once.
++function openingMotion(longDuration) {
++    return {
++        scaleFrom: 0.96,
++        liftFrom: -10,
++        fadeDuration: longDuration,
++        moveDuration: Math.round(longDuration * 1.4),
++    }
++}
 diff -ruN -x '*.qsb' a/qml/QuickMenuPopup.qml b/qml/QuickMenuPopup.qml
 --- a/qml/QuickMenuPopup.qml	1969-12-31 19:00:00.000000000 -0500
-+++ b/qml/QuickMenuPopup.qml	2026-11-04 22:56:30.596012463 -0500
++++ b/qml/QuickMenuPopup.qml	2026-11-05 02:44:25.334227431 -0500
 @@ -0,0 +1,220 @@
 +/*
 +    SPDX-FileCopyrightText: 2026 xt0n1-t3ch
@@ -1043,7 +1055,7 @@ diff -ruN -x '*.qsb' a/qml/QuickMenuPopup.qml b/qml/QuickMenuPopup.qml
 +}
 diff -ruN -x '*.qsb' a/qml/QuickMenuRail.qml b/qml/QuickMenuRail.qml
 --- a/qml/QuickMenuRail.qml	1969-12-31 19:00:00.000000000 -0500
-+++ b/qml/QuickMenuRail.qml	2026-11-04 22:57:04.480906873 -0500
++++ b/qml/QuickMenuRail.qml	2026-11-05 02:44:25.334227431 -0500
 @@ -0,0 +1,171 @@
 +/*
 +    SPDX-FileCopyrightText: 2026 xt0n1 (https://github.com/xt0n1-t3ch)
@@ -1218,7 +1230,7 @@ diff -ruN -x '*.qsb' a/qml/QuickMenuRail.qml b/qml/QuickMenuRail.qml
 +}
 diff -ruN -x '*.qsb' a/qml/QuickMenuResult.qml b/qml/QuickMenuResult.qml
 --- a/qml/QuickMenuResult.qml	1969-12-31 19:00:00.000000000 -0500
-+++ b/qml/QuickMenuResult.qml	2026-11-04 22:29:45.209073783 -0500
++++ b/qml/QuickMenuResult.qml	2026-11-05 02:44:25.334487279 -0500
 @@ -0,0 +1,184 @@
 +/*
 +    SPDX-FileCopyrightText: 2013-2014 Vishesh Handa <me@vhanda.in>
@@ -1406,7 +1418,7 @@ diff -ruN -x '*.qsb' a/qml/QuickMenuResult.qml b/qml/QuickMenuResult.qml
 +}
 diff -ruN -x '*.qsb' a/qml/QuickMenuScrollBar.qml b/qml/QuickMenuScrollBar.qml
 --- a/qml/QuickMenuScrollBar.qml	1969-12-31 19:00:00.000000000 -0500
-+++ b/qml/QuickMenuScrollBar.qml	2026-11-04 22:29:45.209073783 -0500
++++ b/qml/QuickMenuScrollBar.qml	2026-11-05 02:44:25.334487279 -0500
 @@ -0,0 +1,28 @@
 +/*
 +    SPDX-FileCopyrightText: 2026 xt0n1-t3ch
@@ -1438,7 +1450,7 @@ diff -ruN -x '*.qsb' a/qml/QuickMenuScrollBar.qml b/qml/QuickMenuScrollBar.qml
 +}
 diff -ruN -x '*.qsb' a/qml/QuickMenuTile.qml b/qml/QuickMenuTile.qml
 --- a/qml/QuickMenuTile.qml	1969-12-31 19:00:00.000000000 -0500
-+++ b/qml/QuickMenuTile.qml	2026-11-04 22:56:30.597975363 -0500
++++ b/qml/QuickMenuTile.qml	2026-11-05 02:44:25.334487279 -0500
 @@ -0,0 +1,151 @@
 +/*
 +    SPDX-FileCopyrightText: 2026 xt0n1-t3ch
@@ -1592,8 +1604,8 @@ diff -ruN -x '*.qsb' a/qml/QuickMenuTile.qml b/qml/QuickMenuTile.qml
 +    }
 +}
 diff -ruN -x '*.qsb' a/qml/RunCommand.qml b/qml/RunCommand.qml
---- a/qml/RunCommand.qml	2026-11-04 22:29:45.208331505 -0500
-+++ b/qml/RunCommand.qml	2026-11-04 23:04:36.983679378 -0500
+--- a/qml/RunCommand.qml	2026-11-05 02:44:25.333278976 -0500
++++ b/qml/RunCommand.qml	2026-11-05 04:18:13.906521023 -0500
 @@ -1,12 +1,16 @@
  /*
      SPDX-FileCopyrightText: 2014 Marco Martin <mart@kde.org>
@@ -1613,16 +1625,18 @@ diff -ruN -x '*.qsb' a/qml/RunCommand.qml b/qml/RunCommand.qml
  import QtQuick.Window
  
  import org.kde.config // KAuthorized
-@@ -17,7 +21,7 @@
+@@ -16,8 +20,9 @@
+ import org.kde.milou as Milou
  import org.kde.krunner.private.view
  import org.kde.kirigami as Kirigami
++import "quickmenu.js" as QuickMenu
  
 -ColumnLayout {
 +Item {
      id: root
  
      required property RunnerWindow runnerWindow
-@@ -27,8 +31,20 @@
+@@ -27,8 +32,20 @@
      property string priorSearch: ""
      property alias runnerManager: results.runnerManager
  
@@ -1645,7 +1659,7 @@ diff -ruN -x '*.qsb' a/qml/RunCommand.qml b/qml/RunCommand.qml
  
      function isKeyUp(event) {
          return (event.modifiers === Qt.NoModifier && event.key === Qt.Key_Up) || (event.modifiers & Qt.ControlModifier && event.key === Qt.Key_K)
-@@ -36,9 +52,23 @@
+@@ -36,9 +53,23 @@
      function isKeyDown(event) {
          return (event.modifiers === Qt.NoModifier && event.key === Qt.Key_Down) || (event.modifiers & Qt.ControlModifier && event.key === Qt.Key_J)
      }
@@ -1671,7 +1685,7 @@ diff -ruN -x '*.qsb' a/qml/RunCommand.qml b/qml/RunCommand.qml
  
      Connections {
          target: root.runnerWindow
-@@ -50,28 +80,17 @@
+@@ -50,28 +81,17 @@
                  root.runnerManager.setHistoryEnvironmentIdentifier(activity)
              }
          }
@@ -1708,7 +1722,7 @@ diff -ruN -x '*.qsb' a/qml/RunCommand.qml b/qml/RunCommand.qml
                  }
              } else {
                  if (root.runnerWindow.retainPriorSearch) {
-@@ -79,412 +98,583 @@
+@@ -79,412 +99,587 @@
                  }
                  root.singleRunner = ""
                  root.query = ""
@@ -1749,10 +1763,13 @@ diff -ruN -x '*.qsb' a/qml/RunCommand.qml b/qml/RunCommand.qml
 +        source: "QuickMenuBlur.qml"
 +    }
 +
++    // Spotlight's entrance (quickmenu.js openingMotion); Aurora Motion fades the window out when it closes.
++    readonly property var motion: QuickMenu.openingMotion(Kirigami.Units.longDuration)
 +    ParallelAnimation {
 +        id: opening
-+        NumberAnimation { target: panel; property: "opacity"; from: 0; to: 1; duration: Kirigami.Units.shortDuration; easing.type: Easing.OutCubic }
-+        NumberAnimation { target: panel; property: "scale"; from: 0.97; to: 1; duration: Kirigami.Units.longDuration; easing.type: Easing.OutCubic }
++        NumberAnimation { target: panel; property: "opacity"; from: 0; to: 1; duration: root.motion.fadeDuration; easing.type: Easing.OutCubic }
++        NumberAnimation { target: panel; property: "scale"; from: root.motion.scaleFrom; to: 1; duration: root.motion.moveDuration; easing.type: Easing.OutQuint }
++        NumberAnimation { target: panelLift; property: "y"; from: root.motion.liftFrom; to: 0; duration: root.motion.moveDuration; easing.type: Easing.OutQuint }
 +    }
 +
 +    Item {
@@ -1760,6 +1777,7 @@ diff -ruN -x '*.qsb' a/qml/RunCommand.qml b/qml/RunCommand.qml
 +
 +        x: root.shadowPad
 +        y: root.shadowPad
++        transform: Translate { id: panelLift }
 +        width: root.panelWidth
 +        height: header.height + (body.visible ? divider.height + body.height : 0) + (rail.visible ? rail.height : 0)
  
@@ -2646,7 +2664,7 @@ diff -ruN -x '*.qsb' a/qml/RunCommand.qml b/qml/RunCommand.qml
  }
 diff -ruN -x '*.qsb' a/qml/shaders/glass.frag b/qml/shaders/glass.frag
 --- a/qml/shaders/glass.frag	1969-12-31 19:00:00.000000000 -0500
-+++ b/qml/shaders/glass.frag	2026-11-04 22:29:45.209073783 -0500
++++ b/qml/shaders/glass.frag	2026-11-05 02:44:25.334487279 -0500
 @@ -0,0 +1,57 @@
 +#version 440
 +// SPDX-License-Identifier: GPL-3.0-only
@@ -2706,8 +2724,8 @@ diff -ruN -x '*.qsb' a/qml/shaders/glass.frag b/qml/shaders/glass.frag
 +    fragColor = (glass * coverage + outside * (1.0 - coverage)) * qt_Opacity;
 +}
 diff -ruN -x '*.qsb' a/view.cpp b/view.cpp
---- a/view.cpp	2026-11-04 22:29:45.208331505 -0500
-+++ b/view.cpp	2026-11-04 22:56:30.606667216 -0500
+--- a/view.cpp	2026-11-05 02:44:25.333278976 -0500
++++ b/view.cpp	2026-11-05 02:44:25.335555874 -0500
 @@ -34,8 +34,10 @@
  
  KCONFIGGROUP_DECLARE_ENUM_QOBJECT(View, HistoryBehavior)
@@ -2776,8 +2794,8 @@ diff -ruN -x '*.qsb' a/view.cpp b/view.cpp
  {
      const auto screens = QGuiApplication::screens();
 diff -ruN -x '*.qsb' a/view.h b/view.h
---- a/view.h	2026-11-04 22:29:45.208331505 -0500
-+++ b/view.h	2026-11-04 22:56:30.607307633 -0500
+--- a/view.h	2026-11-05 02:44:25.333278976 -0500
++++ b/view.h	2026-11-05 02:44:25.335555874 -0500
 @@ -31,6 +31,9 @@
      Q_PROPERTY(bool helpEnabled READ helpEnabled NOTIFY helpEnabledChanged)
      Q_PROPERTY(bool retainPriorSearch READ retainPriorSearch NOTIFY retainPriorSearchChanged)

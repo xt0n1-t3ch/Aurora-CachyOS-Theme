@@ -153,4 +153,14 @@ TestCase {
         verify(136 - (text.x + text.width) >= 10, "right inset " + (136 - (text.x + text.width)))
         compare(text.x, 13 + 36 + 6)
     }
+
+    // It drops from the menu bar like macOS's: a fade over Kirigami's long duration, then a small scale that slows down
+    // at the end over a little longer; both follow the desktop's animation speed, and at speed 0 it opens at once.
+    function test_the_window_drops_in_at_the_desktop_s_speed() {
+        const motion = CC.entrance(200)
+        compare(motion.scaleFrom, 0.95)
+        compare(motion.fadeDuration, 200)
+        compare(motion.scaleDuration, 280)
+        compare(CC.entrance(0).scaleDuration, 0)
+    }
 }

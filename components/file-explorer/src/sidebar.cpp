@@ -6,6 +6,8 @@
 
 #include "sidebar.h"
 
+#include "core/motion.h"
+
 #include "contextmenu.h"
 #include "core/drives.h"
 #include "style.h"
@@ -879,7 +881,6 @@ SidebarView::SidebarView(PathContext context, QWidget *parent)
     m_hoverAnimation = new QVariantAnimation(this);
     m_hoverAnimation->setStartValue(0.0);
     m_hoverAnimation->setEndValue(1.0);
-    m_hoverAnimation->setDuration(160);
     m_hoverAnimation->setEasingCurve(QEasingCurve::OutCubic);
     connect(m_hoverAnimation, &QVariantAnimation::valueChanged, this, [this](const QVariant &value) {
         m_hoverProgress = value.toReal();
@@ -906,10 +907,15 @@ void SidebarView::setHoverRow(const QModelIndex &index)
         viewport()->update(visualRect(m_hoverRow));
     }
     m_hoverRow = row;
-    m_hoverProgress = 0;
     m_hoverAnimation->stop();
-    if (row.isValid()) {
+    // At the desktop's animation speed; with animations off the highlight shows at once.
+    const int duration = motion::scaled(style::SIDEBAR_HOVER_MS, motion::speed());
+    m_hoverProgress = duration > 0 ? 0.0 : 1.0;
+    if (row.isValid() && duration > 0) {
+        m_hoverAnimation->setDuration(duration);
         m_hoverAnimation->start();
+    } else if (row.isValid()) {
+        viewport()->update(visualRect(row));
     }
 }
 

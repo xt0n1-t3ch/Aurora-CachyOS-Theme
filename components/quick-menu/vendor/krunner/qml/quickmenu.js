@@ -301,3 +301,15 @@ function runSessionAction(session, action) {
     session[method]();
     return true;
 }
+
+// How the panel opens, like Spotlight: a fade over Kirigami's long duration, then a small scale and a fall of 10 px
+// that slow down at the end over a little longer. `longDuration` already carries the desktop's animation speed, so
+// instant animations (0) open the panel at once.
+function openingMotion(longDuration) {
+    return {
+        scaleFrom: 0.96,
+        liftFrom: -10,
+        fadeDuration: longDuration,
+        moveDuration: Math.round(longDuration * 1.4),
+    }
+}

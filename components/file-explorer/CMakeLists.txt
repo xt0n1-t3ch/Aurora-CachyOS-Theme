@@ -35,7 +35,8 @@ add_library(fe_core STATIC
     src/core/places.cpp
     src/core/reveal.cpp
     src/core/chooser.cpp
-    src/core/drives.cpp)
+    src/core/drives.cpp
+    src/core/motion.cpp)
 target_include_directories(fe_core PUBLIC src)
 target_link_libraries(fe_core PUBLIC Qt6::Core Qt6::Gui)
 

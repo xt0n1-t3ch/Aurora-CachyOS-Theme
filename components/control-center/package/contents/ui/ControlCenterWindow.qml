@@ -4,6 +4,7 @@
 import QtQuick
 import QtQuick.Window
 import org.kde.plasma.core as PlasmaCore
+import org.kde.kirigami as Kirigami
 import "lib"
 import "js/cc.js" as CC
 
@@ -95,10 +96,12 @@ PlasmaCore.Dialog {
 
         GlassBlur {}
 
+        // The macOS drop from the menu bar, at the desktop's animation speed (cc.js entrance).
+        readonly property var motion: CC.entrance(Kirigami.Units.longDuration)
         ParallelAnimation {
             id: intro
-            NumberAnimation { target: content; property: "opacity"; from: 0; to: 1; duration: 150; easing.type: Easing.OutCubic }
-            NumberAnimation { target: content; property: "scale"; from: 0.95; to: 1; duration: 220; easing.type: Easing.OutCubic }
+            NumberAnimation { target: content; property: "opacity"; from: 0; to: 1; duration: frame.motion.fadeDuration; easing.type: Easing.OutCubic }
+            NumberAnimation { target: content; property: "scale"; from: frame.motion.scaleFrom; to: 1; duration: frame.motion.scaleDuration; easing.type: Easing.OutQuint }
         }
     }
 }

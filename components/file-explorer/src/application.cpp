@@ -10,8 +10,10 @@
 #include "style.h"
 
 #include "core/drives.h"
+#include "core/motion.h"
 
 #include <KConfigGroup>
+#include <KConfigWatcher>
 #include <KSharedConfig>
 
 #include <QApplication>
@@ -34,6 +36,16 @@ void configureApplication()
     if (!base) {
         base = QStyleFactory::create(QStringLiteral("Fusion"));
     }
+    // Transitions follow the desktop's animation speed (core/motion.h), and pick up a new one while the app runs.
+    const KSharedConfigPtr globals = KSharedConfig::openConfig(QStringLiteral("kdeglobals"));
+    motion::setSpeed(globals->group(QStringLiteral("KDE")).readEntry("AnimationDurationFactor", 1.0));
+    static const KConfigWatcher::Ptr speedWatcher = KConfigWatcher::create(globals);
+    QObject::connect(speedWatcher.data(), &KConfigWatcher::configChanged, qApp, [](const KConfigGroup &group, const QByteArrayList &names) {
+        if (group.name() == QLatin1String("KDE") && names.contains(QByteArrayLiteral("AnimationDurationFactor"))) {
+            motion::setSpeed(group.readEntry("AnimationDurationFactor", 1.0));
+        }
+    });
+
     QApplication::setStyle(new FinderStyle(base));
     QApplication::setPalette(style::darkPalette());
     QApplication::setFont(style::uiFont(13));

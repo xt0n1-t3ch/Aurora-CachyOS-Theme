@@ -303,6 +303,22 @@ TestCase {
         compare(calls, ["lock", "switchUser", "requestLogout", "suspend", "hibernate", "requestReboot", "requestShutdown"])
     }
 
+    // Spotlight drops in: a fade, a small scale that slows down at the end and a short fall from above, all scaled by
+    // the desktop's animation speed through Kirigami's durations; at speed 0 nothing moves.
+    function test_the_panel_drops_in_like_spotlight() {
+        const motion = QuickMenu.openingMotion(200)
+        compare(motion.scaleFrom, 0.96)
+        compare(motion.liftFrom, -10)
+        compare(motion.fadeDuration, 200)
+        compare(motion.moveDuration, 280)
+    }
+
+    function test_instant_animations_open_the_panel_at_once() {
+        const motion = QuickMenu.openingMotion(0)
+        compare(motion.fadeDuration, 0)
+        compare(motion.moveDuration, 0)
+    }
+
     function test_an_unknown_entry_calls_nothing() {
         let called = false
         compare(QuickMenu.runSessionAction({lock: () => called = true}, "format-disk"), false)

@@ -67,7 +67,9 @@ private:
 GlassButton::GlassButton(QString iconName, const QString &toolTip, QWidget *parent)
     : QAbstractButton(parent)
     , m_iconName(std::move(iconName))
+    , m_hover(new motion::HoverFade(style::HOVER_FADE_MS, this))
 {
+    connect(m_hover, &motion::HoverFade::changed, this, qOverload<>(&QWidget::update));
     setToolTip(toolTip);
     // Set on the button itself, so the window edge's resize cursors never reach it.
     setCursor(Qt::PointingHandCursor);
@@ -107,8 +109,9 @@ void GlassButton::paintEvent(QPaintEvent *)
         state = style::CAPSULE_PRESSED;
     } else if (isChecked()) {
         state = style::SEGMENT_CHECKED;
-    } else if (m_hover && isEnabled()) {
+    } else if (m_hover->progress() > 0.0 && isEnabled()) {
         state = style::CAPSULE_HOVER;
+        state.setAlphaF(state.alphaF() * m_hover->progress());
     }
     if (state.isValid()) {
         const QRectF inner = m_standalone ? bounds : bounds.adjusted(2, 3, -2, -3);
@@ -125,15 +128,13 @@ void GlassButton::paintEvent(QPaintEvent *)
 
 void GlassButton::enterEvent(QEnterEvent *event)
 {
-    m_hover = true;
-    update();
+    m_hover->setHovered(true);
     QAbstractButton::enterEvent(event);
 }
 
 void GlassButton::leaveEvent(QEvent *event)
 {
-    m_hover = false;
-    update();
+    m_hover->setHovered(false);
     QAbstractButton::leaveEvent(event);
 }
 

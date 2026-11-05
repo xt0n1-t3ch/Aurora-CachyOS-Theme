@@ -20,6 +20,7 @@ import org.kde.plasma.extras as PlasmaExtras
 import org.kde.milou as Milou
 import org.kde.krunner.private.view
 import org.kde.kirigami as Kirigami
+import "quickmenu.js" as QuickMenu
 
 Item {
     id: root
@@ -122,10 +123,13 @@ Item {
         source: "QuickMenuBlur.qml"
     }
 
+    // Spotlight's entrance (quickmenu.js openingMotion); Aurora Motion fades the window out when it closes.
+    readonly property var motion: QuickMenu.openingMotion(Kirigami.Units.longDuration)
     ParallelAnimation {
         id: opening
-        NumberAnimation { target: panel; property: "opacity"; from: 0; to: 1; duration: Kirigami.Units.shortDuration; easing.type: Easing.OutCubic }
-        NumberAnimation { target: panel; property: "scale"; from: 0.97; to: 1; duration: Kirigami.Units.longDuration; easing.type: Easing.OutCubic }
+        NumberAnimation { target: panel; property: "opacity"; from: 0; to: 1; duration: root.motion.fadeDuration; easing.type: Easing.OutCubic }
+        NumberAnimation { target: panel; property: "scale"; from: root.motion.scaleFrom; to: 1; duration: root.motion.moveDuration; easing.type: Easing.OutQuint }
+        NumberAnimation { target: panelLift; property: "y"; from: root.motion.liftFrom; to: 0; duration: root.motion.moveDuration; easing.type: Easing.OutQuint }
     }
 
     Item {
@@ -133,6 +137,7 @@ Item {
 
         x: root.shadowPad
         y: root.shadowPad
+        transform: Translate { id: panelLift }
         width: root.panelWidth
         height: header.height + (body.visible ? divider.height + body.height : 0) + (rail.visible ? rail.height : 0)
 

@@ -5,6 +5,8 @@
 
 #pragma once
 
+#include "core/motion.h"
+
 #include <QStringList>
 #include <QWidget>
 
@@ -67,6 +69,7 @@ private:
     QStringList m_titles;
     int m_current = -1;
     Hit m_hover;
+    motion::HoverFade *m_fade;
     Hit m_pressed;
 };
 

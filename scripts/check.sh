@@ -28,7 +28,7 @@ run() {
     shift
     log=$(mktemp)
     if "$@" > "$log" 2>&1; then
-        printf '\033[32mpass\033[0m  %-26s %s\n' "$name" "$(grep -E 'Totals|PASS|^OK|checked|test result' "$log" | tail -1)"
+        printf '\033[32mpass\033[0m  %-26s %s\n' "$name" "$(grep -E 'Totals|PASS|^OK|checked|test result|^ *[0-9]+ pass$' "$log" | tail -1)"
     else
         local unknown
         unknown=$(grep -E '^FAIL' "$log" | grep -v -E "$KNOWN_FAILURES" || true)
@@ -63,6 +63,7 @@ run "kali menu" qml components/kali-menu tests/tst_menu.qml
 run "menu logos" qml components/kali-menu tests/tst_logos.qml
 run "quick-menu logic" qml components/quick-menu tests/tst_quickmenu.qml
 run "quick-menu launcher" components/quick-menu/tests/test_launch.sh
+run "window motion" bun test components/motion/tests
 run "plasma patches" tests/release/test_patches.sh
 run "installer" python3 -I tests/installer/test_install.py
 run "install.sh options" tests/installer/test_cli.sh

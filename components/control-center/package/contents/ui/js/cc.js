@@ -189,3 +189,14 @@ function pillText(width, height, toggleSize) {
     var x = (height - toggleSize) / 2 + toggleSize + PILL_TEXT_GAP;
     return {x: x, width: width - x - PILL_TEXT_END};
 }
+
+// How the window opens, dropping from the menu bar like macOS's: a fade over Kirigami's long duration, then a small
+// scale that slows down at the end over a little longer. `longDuration` already carries the desktop's animation
+// speed, so instant animations (0) open the window at once.
+function entrance(longDuration) {
+    return {
+        scaleFrom: 0.95,
+        fadeDuration: longDuration,
+        scaleDuration: Math.round(longDuration * 1.4)
+    };
+}
