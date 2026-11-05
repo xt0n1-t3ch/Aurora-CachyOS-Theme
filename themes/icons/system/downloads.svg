@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+ <defs>
+  <radialGradient id="ground" cx="512" cy="852" r="380" gradientTransform="matrix(1 0 0 .12 0 750)" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#000" stop-opacity=".45"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient>
+  <linearGradient id="back" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f0b429"/><stop offset="1" stop-color="#c98a0e"/></linearGradient>
+  <linearGradient id="front" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffdd6e"/><stop offset=".6" stop-color="#fcc443"/><stop offset="1" stop-color="#f2ac1f"/></linearGradient>
+  <linearGradient id="lip" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity=".75"/><stop offset="1" stop-color="#fff" stop-opacity=".1"/></linearGradient>
+  <linearGradient id="badge" x1="600" y1="560" x2="860" y2="880" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#5ac8ff"/><stop offset=".5" stop-color="#0a84ff"/><stop offset="1" stop-color="#0057d9"/></linearGradient>
+  <linearGradient id="badgeSheen" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".45"/><stop offset=".5" stop-color="#fff" stop-opacity="0"/></linearGradient>
+ </defs>
+ <ellipse cx="512" cy="852" rx="380" ry="46" fill="url(#ground)"/>
+ <path d="M150,270 Q150,214 206,214 H404 Q436,214 456,238 L494,284 H818 Q874,284 874,340 V760 H150 Z" fill="url(#back)"/>
+ <path d="M150,382 Q150,334 198,334 H826 Q874,334 874,382 V782 Q874,838 818,838 H206 Q150,838 150,782 Z" fill="url(#front)"/>
+ <path d="M188,348 H836" stroke="url(#lip)" stroke-width="10" stroke-linecap="round"/>
+ <circle cx="742" cy="742" r="168" fill="#1c1c1e" fill-opacity=".35"/>
+ <circle cx="736" cy="734" r="156" fill="url(#badge)" stroke="#ffffff" stroke-width="12"/>
+ <path d="M592,700 A146,146 0 0 1 880,700 Q736,660 592,700 Z" fill="url(#badgeSheen)"/>
+ <path d="M736,640 V812 M670,748 L736,814 L802,748" fill="none" stroke="#fff" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

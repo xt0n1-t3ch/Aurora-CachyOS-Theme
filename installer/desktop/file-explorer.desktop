@@ -1,0 +1,13 @@
+# SPDX-FileCopyrightText: 2026 xt0n1 (https://github.com/xt0n1-t3ch)
+# SPDX-License-Identifier: GPL-3.0-only
+# Additional terms (GPL-3.0 section 7, author attribution): see NOTICE.md.
+# Aurora: the launcher of File Explorer. installer/install.py writes the path of the installed binary into Exec.
+[Desktop Entry]
+Type=Application
+Name=File Explorer
+Comment=Browse your files
+Exec=@FILE_EXPLORER@ %U
+Icon=file-explorer-mac
+Categories=System;FileManager;
+MimeType=inode/directory;
+StartupWMClass=file-explorer

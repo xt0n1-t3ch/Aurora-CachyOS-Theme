@@ -1,0 +1,14 @@
+{
+    "KPlugin": {
+        "Description": "Aurora: a macOS 27 Liquid Glass title bar with the window buttons in Windows order",
+        "EnabledByDefault": true,
+        "Id": "org.aurora.decoration",
+        "License": "GPL-3.0-or-later",
+        "Name": "Aurora",
+        "Version": "1.0"
+    },
+    "org.kde.kdecoration3": {
+        "recommendedBorderSize": "None",
+        "styles": ["shadow", "titled"]
+    }
+}

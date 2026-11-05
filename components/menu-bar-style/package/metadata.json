@@ -1,0 +1,25 @@
+{
+    "KPackageStructure": "Plasma/Applet",
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "xt0n1"
+            },
+            {
+                "Email": "luisbocanegra17b@gmail.com",
+                "Name": "Luis Bocanegra"
+            }
+        ],
+        "BugReportUrl": "https://github.com/xt0n1-t3ch/Aurora-CachyOS-Theme/issues",
+        "Category": "Utilities",
+        "Description": "The menu bar's light text and soft shadow, and its spacing",
+        "EnabledByDefault": false,
+        "Icon": "desktop",
+        "Id": "org.aurora.menubarstyle",
+        "License": "GPL-3.0",
+        "Name": "Menu Bar Style",
+        "Version": "8.0.0",
+        "Website": "https://github.com/xt0n1-t3ch/Aurora-CachyOS-Theme"
+    },
+    "X-Plasma-API-Minimum-Version": "6.0"
+}

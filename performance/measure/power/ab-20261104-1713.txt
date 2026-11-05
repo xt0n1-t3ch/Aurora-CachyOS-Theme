@@ -1,0 +1,6 @@
+balanced       44.6 W  busy   7.1 %  burst median  5986 us  p90  6473 us
+performance    56.4 W  busy  12.2 %  burst median  5468 us  p90  5768 us
+balanced       44.2 W  busy   7.2 %  burst median  6125 us  p90  6632 us
+performance    49.0 W  busy   7.4 %  burst median  5502 us  p90  5922 us
+balanced       46.7 W  busy   9.1 %  burst median  6099 us  p90  6775 us
+performance    53.9 W  busy   8.9 %  burst median  5438 us  p90  5552 us

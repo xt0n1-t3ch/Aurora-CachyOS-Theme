@@ -1,0 +1,71 @@
+# SPDX-FileCopyrightText: 2026 xt0n1 (https://github.com/xt0n1-t3ch)
+# SPDX-License-Identifier: GPL-3.0-only
+# Additional terms (GPL-3.0 section 7, author attribution): see NOTICE.md.
+# Every Arch/CachyOS package Aurora needs to run, one per line; the aurora-theme package depends on them.
+# installer/build-dependencies.txt adds what building the parts needs. install.sh installs the missing ones with
+# `pacman -S --needed`; tests/installer/test_dependencies.sh checks that the build and the installer use nothing else.
+
+# Qt 6
+qt6-base
+qt6-declarative        # Qt Quick, and qmltestrunner for the tests
+qt6-svg
+qt6-tools              # qdbus6
+qt6-5compat            # Qt5Compat.GraphicalEffects: the menu bar's text shadow
+
+# KDE Frameworks 6
+kconfig                # kwriteconfig6, kreadconfig6
+kcoreaddons
+kcrash
+kdbusaddons
+kglobalaccel
+ki18n
+kiconthemes
+kio
+kitemmodels
+kjobwidgets
+knotifications
+kparts                 # File Explorer embeds Dolphin's view
+kpackage
+krunner
+kservice               # kbuildsycoca6
+kstatusnotifieritem
+kwindowsystem
+kxmlgui
+kcmutils               # the Info Center energy page
+solid
+kirigami
+kirigami-addons
+kdeclarative           # drag and drop and the controls in the tray and the notifications
+ksvg                   # Plasma's SVG themes in the widgets
+kquickcharts           # the transfer speed chart in the notifications
+
+# Plasma 6
+plasma-workspace       # its system tray, notifications and KRunner are the base of three components
+plasma-activities
+libplasma
+kwin
+kdecoration
+layer-shell-qt
+wayland
+dolphin                # the file view inside File Explorer
+kinfocenter            # the Energy page lives in Info Center
+xdg-desktop-portal
+xdg-desktop-portal-kde
+plasma5support         # data engines the Control Center reads
+milou                  # Quick Menu's search results
+plasma-nm              # the Control Center's network module
+plasma-pa              # the Control Center's sound module
+bluez-qt               # the Control Center's Bluetooth module
+powerdevil             # the Control Center's brightness control
+
+# Look and session tools
+kvantum                # Aurora's application style
+dconf                  # GTK settings
+xsettingsd             # GTK settings for X11 apps
+fontconfig             # fc-list: which fonts are installed
+inter-font             # the interface font (SF Pro takes its place when the user installed it)
+ttf-jetbrains-mono-nerd  # Konsole's font (SF Mono with Nerd symbols takes its place when installed)
+systemd                # systemctl, busctl
+dbus                   # dbus-send
+python
+python-pillow          # draws the menu bar's status icons

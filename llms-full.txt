@@ -1,0 +1,1326 @@
+# Aurora, the full documentation
+
+> Aurora is a macOS Tahoe-inspired desktop theme for KDE Plasma 6 on CachyOS and other Arch-based systems. It adds a menu bar, a Dock, Quick Menu, a Control Center, notification banners, a Finder-style file manager and glass window buttons, keeps the shortcuts people know from Windows, and installs and uninstalls with one command.
+
+---
+
+Source: README.md (README)
+
+(Picture: Aurora: a macOS Tahoe-inspired desktop for CachyOS and KDE Plasma 6. Developed by xt0n1.)
+
+## Overview
+
+Aurora is a macOS Tahoe-inspired theme for KDE Plasma 6 on CachyOS. It is not a copy of Tahoe: it takes its look and its ideas and fits them to Plasma. You get a menu bar at the top, a Dock at the bottom, Quick Menu, the Control Center, notification banners, a Finder-style file manager and glass window buttons.
+
+I moved from Windows 11 to CachyOS and wanted Tahoe's look without relearning my habits. So the Windows key opens Quick Menu, Win+E opens File Explorer, the window buttons are in Windows order (minimize, maximize, close) and menus show shortcuts as `Ctrl+C`.
+
+One command installs it and one removes it. The installer saves every setting before it changes it, and `./uninstall.sh` puts them back.
+
+Nothing in KWin is patched and no file that belongs to a package is edited. Some parts are Plasma's own code rebuilt with a small patch, some are plugins that load ahead of the stock ones, some are Plasma widgets, and the rest are settings. When a system update brings a new Plasma, KWin or Qt, the parts built for the old version are skipped at login and Plasma uses its own until you rebuild them.
+
+## Showcase
+
+(Picture: The desktop: the menu bar with the CachyOS logo, the tray, Quick Menu, Control Center and the clock; File Explorer on the left; the Dock at the bottom; Dawn Bird, Aurora's wallpaper, a bird of folded glass rising on the right)
+
+File Explorer, the menu bar and the Dock on Dawn Bird, Aurora's own wallpaper (KDE Plasma 6.8.2, CachyOS).
+
+(Picture: Quick Menu: a frosted glass panel with the search field, Suggestions and the apps in sections)
+Quick Menu opens on the Windows key. Right-click an app to pin it to the top or to the Dock, or to take it out of Suggestions. Drag apps to reorder them inside a category.
+(Picture: Control Center: glass modules for Ethernet, Bluetooth, the player, Night Light, Focus and sound)
+The Control Center, opened from the switch icon in the menu bar.
+
+(Picture: The menu open under the CachyOS logo, with About This Computer, System Settings, Sleep, Restart, Shut Down, Lock Screen and Log Out)
+CachyOS's logo takes the Apple logo's place. Its settings offer Arch Linux, Apple and Kali Linux too.
+(Picture: Two notification banners in the bottom-right corner, one with Later and Install buttons)
+Notifications arrive as banners in the bottom-right corner.
+
+## Features
+
+| Part | What it does | Source |
+| --- | --- | --- |
+| File Explorer | A Finder-style file manager built on Dolphin. The sidebar lists your drives with their free space, and it has tabs and Finder's menus. Win+E opens it, every app's Open and Save dialogs use it, and "Show in folder" opens it. | [`components/file-explorer`](components/file-explorer) |
+| Window buttons | A glass capsule with minimize, maximize and close, in that order. Qt, GTK and libadwaita apps all get the same buttons at the same size. | [`components/window-buttons`](components/window-buttons) |
+| Menu bar | The system menu under CachyOS's logo (or Arch Linux's, Apple's or Kali Linux's), the name of the active app, the tray, Quick Menu, Control Center and the clock, spaced the way macOS spaces them. There is no global menu. | [`components/kali-menu`](components/kali-menu), [`components/clock`](components/clock), [`themes/panels`](themes/panels) |
+| System tray | Plasma's tray, with drag and drop like Windows 11: drag an icon to move it, or drop it on the arrow to hide it. | [`components/system-tray`](components/system-tray) |
+| Quick Menu | The Windows key opens Tahoe's Applications view: the apps you use most, then every app by category. Right-click an app (or press the Menu key) to pin it to the top or to the Dock, or to take it out of Suggestions. Drag an app onto another one in the same category to move it there; the order is kept. Start typing to search with KRunner. The rail at the bottom works like Windows 11's Start: your picture and name open Lock, Switch User and Log Out, and the power button opens Sleep, Restart and Shut Down. | [`components/quick-menu`](components/quick-menu), [`components/windows-key`](components/windows-key) |
+| Control Center | Network, Bluetooth, Focus, sound and its output devices, the player, Night Light, screen mirroring, settings and screenshots. | [`components/control-center`](components/control-center), [`components/glass`](components/glass) |
+| Notifications | Banners with the app icon, a bold title, the text and the action buttons, in the bottom-right corner. | [`components/notifications`](components/notifications) |
+| Dock | Your pinned apps, a divider, Downloads and Trash. It moves out of the way of windows that reach it; touch the bottom edge to bring it back. | [`components/dock-divider`](components/dock-divider), [`themes/panels`](themes/panels) |
+| Pointer | macOS cursors, and a pointing hand over anything you can click, KWin's window buttons included. | [`components/pointing-hand`](components/pointing-hand), [`themes/cursors`](themes/cursors) |
+| Energy page | A page in Info Center that shows the CPU and GPU power draw, a two-minute chart and the power profiles. | [`components/energy-page`](components/energy-page) |
+| Themes | Dawn Bird, Aurora's own wallpaper; Aurora's colors, Plasma style, Kvantum and GTK themes, cursors and icons with each app's own logo, the Inter font (or SF Pro, if you installed it) and a Konsole profile. | [`themes`](themes) |
+
+## Requirements
+
+| | |
+| --- | --- |
+| System | CachyOS, or another Arch-based distribution with pacman |
+| Desktop | KDE Plasma 6 on Wayland. Tested on Plasma 6.8.2, KWin 6.8.2 and Qt 6.12.0. |
+| Disk | About 700 MB for the build: the `build/` folder of a checkout, or `~/.cache/aurora/build` with the package |
+| Time | Under a minute with the package, which comes with its parts built; about 3 minutes from the source, which builds them |
+
+## Installation
+
+One command, as yourself (not with sudo):
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/xt0n1-t3ch/Aurora-CachyOS-Theme/main/get.sh)
+```
+
+It adds Aurora's pacman repository, installs the `aurora-theme` package and opens `aurora`, the guided install. `aurora` checks your system, asks which logo goes in the menu bar and whether to add the performance tuning, then installs step by step and keeps a log in `~/.local/state/aurora/logs`. sudo asks for your password when it needs it. Log out and back in when it finishes.
+
+From then on, `sudo pacman -Syu` brings each new version with the rest of your system.
+
+<details>
+<summary>What the command does, and how to do it by hand</summary>
+
+[`get.sh`](get.sh) runs these steps; the first two happen once.
+
+1. Trusts Aurora's signing key, [`aurora.asc`](packaging/repo/aurora.asc) (`657D 8110 799A 4E65 BE4E 1AB4 F028 2841 1279 4CC2`), after checking that the downloaded key has that fingerprint.
+2. Adds the `[aurora]` section to `/etc/pacman.conf`. The repository is this project's [`repo` release](https://github.com/xt0n1-t3ch/Aurora-CachyOS-Theme/releases/tag/repo), and every file in it is signed.
+3. Upgrades the system with the package, `sudo pacman -Syu aurora-theme`.
+4. Opens `aurora`.
+
+By hand, the same steps are:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/xt0n1-t3ch/Aurora-CachyOS-Theme/main/packaging/repo/aurora.asc | sudo pacman-key --add -
+sudo pacman-key --lsign-key 657D8110799A4E65BE4E1AB4F028284112794CC2
+printf '\n[aurora]\nServer = https://github.com/xt0n1-t3ch/Aurora-CachyOS-Theme/releases/download/repo\n' | sudo tee -a /etc/pacman.conf
+sudo pacman -Syu aurora-theme
+aurora
+```
+
+</details>
+
+Or from the source:
+
+```bash
+git clone https://github.com/xt0n1-t3ch/Aurora-CachyOS-Theme.git
+cd Aurora-CachyOS-Theme
+./install.sh
+```
+
+Log out and back in when it finishes. The script installs the packages it needs, builds the parts for your version of Plasma, saves your current settings and applies the theme. sudo asks for your password when it runs pacman and when it adds two links KWin needs.
+
+Every [release](https://github.com/xt0n1-t3ch/Aurora-CachyOS-Theme/releases) also has an `aurora-X.Y.Z.tar.gz`, so you can install without git. Unpack it and run `./install.sh` inside.
+
+| Command | What it does |
+| --- | --- |
+| `./install.sh` | Installs everything: packages, build, backup, files, look, menu bar and Dock |
+| `./install.sh --performance` | Also installs the system tuning described under [Performance tuning](#performance-tuning) |
+| `./install.sh --rebuild` | Builds and installs the parts again after a Plasma, KWin or Qt update |
+| `./install.sh --reset-panels` | Puts the menu bar and the Dock back even if you already have them |
+| `./install.sh --check` | Lists what is missing and changes nothing |
+| `./install.sh --yes` | Installs packages without asking first |
+| `./install.sh --version` | Prints the version |
+
+The `aurora` command comes with the package, and `./install.sh` installs it too when Rust is installed:
+
+| Command | What it does |
+| --- | --- |
+| `aurora` | A menu: the install the first time, then update, change the logo, rebuild, status or remove |
+| `aurora install` | The guided install; `--logo`, `--colors`, `--performance` and `--yes` answer its questions up front |
+| `aurora update` | Gets the newest release, checks it against its checksums and installs it |
+| `aurora rebuild` | Builds the parts again after a Plasma, KWin or Qt update |
+| `aurora logo arch` | Changes the menu bar logo: `cachyos`, `arch`, `apple` or `kali`; `--colors` shows it in its own colors |
+| `aurora status` | What is installed, from where, and whether a rebuild is due |
+| `aurora uninstall` | Puts your desktop back the way it was |
+
+Either way, the install runs the same six steps:
+
+(Picture: What the install does, in six steps: packages, sources, build, backup, system and look. The same steps are written out below.)
+
+<details>
+<summary>What install.sh does, step by step</summary>
+
+1. Installs the packages in [`installer/dependencies.txt`](installer/dependencies.txt) that you don't have yet, with `pacman -S --needed`.
+2. Checks Aurora's themes in [`themes/`](themes). Everything Aurora installs is in this repository; nothing else is downloaded.
+3. With the package, uses the eight parts it brings built. From the source, builds them against the Plasma, KWin and Qt on your machine; if your Plasma is a different version from the one in `vendor/`, it downloads that version's source from KDE and applies the same patch.
+4. The first time it runs, it saves every setting it is about to change to `~/.local/state/aurora/backups/`. Then it copies the themes, fonts, icons, widgets and built parts into your home folder.
+5. Links the window buttons and the pointing hand into `/usr/lib/qt6/plugins`, because KWin starts before your session sets its plugin path. With `--performance` it also writes the tuning files.
+6. Sets the colors, Plasma style, icons, cursor, fonts, Kvantum, GTK, Konsole, window buttons, the Windows key and Win+E. Then it adds the menu bar and the Dock, unless they are already there. Apps pinned to your task manager stay pinned in the Dock.
+
+</details>
+
+<details>
+<summary>What changes outside your home folder</summary>
+
+| Path | Why | Removed by |
+| --- | --- | --- |
+| `/usr/lib/qt6/plugins/org.kde.kdecoration3/org.aurora.decoration.so` | A link to the window buttons in your home folder, since KWin loads decorations before your session starts | `./uninstall.sh` |
+| `/usr/lib/qt6/plugins/kwin/plugins/aurora-pointer.so` | A link to the pointing hand for window buttons, for the same reason | `./uninstall.sh` |
+| `/etc/scx_loader.toml`, `/etc/tmpfiles.d/thp.conf`, `/etc/sysctl.d/99-aurora-memory.conf`, `/etc/systemd/zram-generator.conf.d/90-aurora-zram.conf` | Only written with `--performance` | `./uninstall.sh` |
+
+Everything else goes in your home folder. [docs/architecture.md](docs/architecture.md) has the full list.
+
+</details>
+
+## Keyboard shortcuts
+
+| Keys | What it does |
+| --- | --- |
+| <kbd>Win</kbd> | Opens Quick Menu. Press it again or <kbd>Esc</kbd> to close it. |
+| <kbd>Alt</kbd>+<kbd>Space</kbd> | Also opens Quick Menu |
+| <kbd>Win</kbd>+<kbd>E</kbd> | Opens File Explorer |
+| <kbd>Win</kbd>+<kbd>L</kbd> | Locks the screen (Plasma's default) |
+| <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>Del</kbd> | Opens the log out screen (Plasma's default) |
+
+All of Plasma's other shortcuts work as before. Menus write them the Windows way, like `Ctrl+C`, not with Mac symbols.
+
+## Updating
+
+### A new version of Aurora
+
+With the package, `aurora update` upgrades your system and the package with it (through paru or yay if you have one, else `sudo pacman -Syu`), then installs the new version. From the source, pull the changes and run the installer again. It keeps your backup, your menu bar and your Dock.
+
+```bash
+git pull && ./install.sh
+```
+
+[CHANGELOG.md](CHANGELOG.md) lists what changed in each version.
+
+### After a system update
+
+The system tray, the notifications, Quick Menu and the window buttons are compiled for the exact versions of Plasma, KDecoration and Qt you have. If an update changes one of them, those parts are skipped at the next login and Plasma's own versions load instead. Nothing breaks; those parts just look like stock Plasma until you rebuild them:
+
+```bash
+~/.local/share/aurora/rebuild.sh     # same as ./install.sh --rebuild
+```
+
+Then log out and back in. If a new Plasma changes the lines a patch touches, [docs/update.md](docs/update.md) explains how to port it.
+
+## Performance tuning
+
+`./install.sh --performance` adds four system settings. I measured each one on a Ryzen 7 5800X with 32 GB of RAM before keeping it. They are optional, and `./uninstall.sh` removes them.
+
+| Setting | What I measured |
+| --- | --- |
+| scx_lavd CPU scheduler, Auto mode | With 32 busy threads in the background, the emoji picker opened in 666 ms instead of 1099 ms and Konsole in 674 ms instead of 819 ms. 7-Zip scored 101k to 108k MIPS instead of 96k to 97k. |
+| `vm.watermark_scale_factor = 125` | Direct-reclaim stalls dropped from about 1,560 every 15 minutes to zero. It keeps about 400 MB free. |
+| lz4 compression for zram | Swapped-out pages load 2.8 times faster: 3.7 GB/s instead of 1.3 GB/s. |
+| Transparent huge pages set to `defer` | Huge pages are put together in the background instead of making the app wait. Before the change I counted 279,000 of those waits. |
+
+[docs/performance.md](docs/performance.md) has the numbers, the scripts that produced them, and what I tried and dropped.
+
+## Dependencies
+
+### Core projects
+
+| Project | Used for | Version | License |
+| --- | --- | --- | --- |
+| [Plasma Workspace](https://invent.kde.org/plasma/plasma-workspace) by KDE | The system tray, notifications and KRunner, each rebuilt with a patch | 6.8.2 | GPL-2.0-or-later |
+| [Dolphin](https://invent.kde.org/system/dolphin) by KDE | The file view inside File Explorer, loaded at run time | installed version | GPL-2.0-or-later |
+| [Inter](https://rsms.me/inter/) by Rasmus Andersson (`inter-font`) | The interface font, and the text of the pictures on this page | 4.1 | OFL-1.1 |
+| [JetBrains Mono](https://www.jetbrains.com/lp/mono/) with [Nerd Fonts](https://www.nerdfonts.com) symbols (`ttf-jetbrains-mono-nerd`) | Konsole's font | 3.5.1 | OFL-1.1 |
+
+### System packages
+
+[`install.sh`](install.sh) installs these with pacman if they are missing. The list is in [`installer/dependencies.txt`](installer/dependencies.txt), and a test checks that the build and the installer don't use anything that isn't on it.
+
+| Group | Packages |
+| --- | --- |
+| Build tools | `base-devel` `git` `cmake` `ninja` `extra-cmake-modules` |
+| Qt 6 | `qt6-base` `qt6-declarative` `qt6-shadertools` `qt6-svg` `qt6-tools` `qt6-5compat` |
+| KDE Frameworks 6 | `kconfig` `kcoreaddons` `kcrash` `kdbusaddons` `kglobalaccel` `ki18n` `kiconthemes` `kio` `kitemmodels` `kjobwidgets` `knotifications` `kparts` `kpackage` `krunner` `kservice` `kstatusnotifieritem` `kwindowsystem` `kxmlgui` `kcmutils` `solid` `kirigami` `kirigami-addons` `kdeclarative` `ksvg` `kquickcharts` |
+| Plasma 6 | `plasma-workspace` `plasma-activities` `libplasma` `kwin` `kdecoration` `layer-shell-qt` `wayland` `dolphin` `kinfocenter` `xdg-desktop-portal` `xdg-desktop-portal-kde` `plasma5support` `milou` `plasma-nm` `plasma-pa` `bluez-qt` `powerdevil` |
+| Look and session | `kvantum` `dconf` `xsettingsd` `fontconfig` `inter-font` `ttf-jetbrains-mono-nerd` `systemd` `dbus` `python` `python-pillow` |
+| Performance tuning | `scx-scheds` `scx-tools`, only with `--performance` |
+
+## Removal
+
+```bash
+./uninstall.sh
+```
+
+This removes everything Aurora installed and restores every setting `install.sh` saved before changing it: colors, icons, fonts, panels, shortcuts, window buttons, Quick Menu, the default file manager, the two links and the optional tuning. Log out and back in afterwards. The backup stays in `~/.local/state/aurora/backups/`.
+
+## Project structure
+
+```text
+get.sh          the one-command install: the pacman repository, the package, then aurora
+install.sh      installs Aurora: packages, build, backup, files, look
+uninstall.sh    restores the desktop from the backup install.sh made
+LICENSE         the GNU GPL version 3
+NOTICE.md       the attribution terms, and which license covers each part
+CHANGELOG.md    what changed in each version
+CITATION.cff    how to credit Aurora (GitHub's "Cite this repository")
+llms.txt        a map of these documents for coding agents (llms-full.txt: all of them)
+components/     one folder per part: file-explorer, window-buttons, quick-menu,
+                system-tray, notifications, control-center, kali-menu, clock,
+                dock-divider, glass, pointing-hand, energy-page, windows-key
+cli/            the aurora command (Rust)
+themes/         Dawn Bird (the wallpaper), icons, cursors, fonts, GTK, Konsole,
+                and the menu bar and Dock layout
+installer/      build.sh, install.py, the package list, session files, desktop entries
+packaging/      the package aurora-theme and the repository's key
+performance/    the optional system tuning, and the scripts that measured it
+scripts/        check.sh runs every test; release.sh makes a release; the license,
+                llms.txt and GitHub metadata tools
+tests/          installer and release tests, and a sandbox that runs Plasma in a window
+docs/           how each part works, and how to build, update, restore, test and release
+assets/         the logo, the pictures on this page and the social preview
+```
+
+## Development
+
+Start with [docs/index.md](docs/index.md) for how each part works, and [tests/index.md](tests/index.md) for the tests. Coding agents and language models can start from [llms.txt](llms.txt), the map of these documents, or read all of them at once in [llms-full.txt](llms-full.txt).
+
+```bash
+installer/build.sh            # build every part into build/
+scripts/check.sh              # build, then run every test (about 25 seconds after a build)
+python3 -I scripts/llms.py    # write llms.txt and llms-full.txt again after a change to the docs
+tests/sandbox/run.sh "$PWD/tests/sandbox/scenarios/quick-menu.sh" 120   # one scenario in a nested Plasma
+```
+
+Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html), the changelog follows [Keep a Changelog](https://keepachangelog.com/en/2.0.0/), and commit messages follow [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/). To make a release, run `scripts/release.sh 1.2.0`. It runs the checks, dates the changelog, tags `v1.2.0` and builds the archive with its notes and checksums. [docs/releasing.md](docs/releasing.md) has the details.
+
+## FAQ
+
+### Will a Plasma update break my desktop?
+
+No. Each compiled part records the versions it was built for. At login, a part built for different versions is skipped and Plasma loads its own instead; Quick Menu falls back to the stock KRunner. Run `~/.local/share/aurora/rebuild.sh` to get Aurora's parts back.
+
+### Does it change system files?
+
+It adds two symbolic links in `/usr/lib/qt6/plugins`, and four files in `/etc` if you use `--performance`. It doesn't edit any file that belongs to a package, and `./uninstall.sh` removes all of them.
+
+### Can I use Apple's SF Pro font?
+
+Yes. Aurora ships only free fonts, because Apple's license doesn't allow SF Pro to be redistributed. Install it yourself (for example `paru -S apple-fonts`, which downloads it from Apple) and run `./install.sh` again: when SF Pro or SF Mono with Nerd Fonts' symbols is installed, Aurora uses it instead of Inter and JetBrains Mono.
+
+### Do I keep my wallpaper and pinned apps?
+
+Yes. Your wallpaper stays; Dawn Bird, Aurora's own wallpaper, is only added to the list. Apps pinned to your task manager move to the Dock, after File Explorer.
+
+### Does it work on X11?
+
+I only use and test it on Wayland, which is CachyOS's default. X11 is untested.
+
+### Can I try it without touching my desktop?
+
+Yes. [`tests/sandbox`](tests/sandbox) runs a full Plasma session inside a window with its own home folder. [docs/sandbox.md](docs/sandbox.md) explains how to use it.
+
+## License
+
+Aurora is made by [xt0n1](https://github.com/xt0n1-t3ch). Its own code is free software under the [GNU GPL version 3](LICENSE), with [additional terms](NOTICE.md): you can use it, change it and share it, as long as the author attribution stays and a modified version says it is based on Aurora instead of passing as the original.
+
+The parts that come from other projects keep their licenses: Plasma's parts are GPL-2.0-or-later, and every other project keeps its own license. Dawn Bird and the pictures on this page are CC BY-SA 4.0: share and adapt them, crediting xt0n1. [NOTICE.md](NOTICE.md) lists which license covers what, and `aurora license` shows the terms.
+
+---
+
+Source: docs/install.md (Install)
+
+[Aurora](../README.md) / [Documentation](index.md) / Install
+
+# Installing
+
+The package installs Aurora with its parts built (README.md, [Installation](../README.md#installation)). From the
+source:
+
+```bash
+git clone https://github.com/xt0n1-t3ch/Aurora-CachyOS-Theme.git
+cd Aurora-CachyOS-Theme
+./install.sh
+```
+
+Log out and back in once afterwards. `./install.sh --help` lists the options; the README explains them
+([Install](../README.md#installation)).
+
+## What each step runs
+
+| Step | Runs | Changes |
+| --- | --- | --- |
+| 1. Packages | `pacman -S --needed` with what `installer/dependencies.txt` lists and the system lacks, plus `installer/build-dependencies.txt` when the parts are built here | system packages (sudo) |
+| 2. Themes | checks that `themes/` holds every theme | nothing |
+| 3. Build | `installer/build.sh` ([build.md](build.md)); with the package, `installer/build.sh --current` checks its `prebuilt/` parts instead | `build/` (nothing with the package) |
+| 4. Install | `installer/install.py backup`, then `files` (`components` with `--rebuild`) | the home folder |
+| 5. System | links the window buttons and the pointing hand into `/usr/lib/qt6/plugins`; with `--performance`, the tuning files | sudo |
+| 6. Look and panels | `installer/install.py look`, then `panels` (skipped with `--rebuild`) | settings, panels |
+
+The steps of `installer/install.py` can run alone too:
+
+| Command | Does |
+| --- | --- |
+| `install.py backup` | Saves every setting in `SAVED` to `~/.local/state/aurora/backups/<date>/home/`, lists in `created.txt` what does not exist yet, writes `restore.sh` and `windows_key.py` there and points `latest-backup` at it. Kept from the first install: a second run leaves it alone. |
+| `install.py files` | Icon themes, cursors, color scheme, Plasma style, Kvantum, wallpapers, widgets, the built parts, desktop entries, Konsole files, the login script, the drop-ins, the D-Bus services, the portal, `rebuild.sh` and the `source` link |
+| `install.py components` | Only the built parts, each beside what it was built for |
+| `install.py look` | Fonts, units, colors, Plasma style, icons, cursor, Kvantum, notification corner, GTK, Konsole, decoration, Dock edge, the Windows key, Win+E, File Explorer as the default file manager |
+| `install.py panels [--force]` | The menu bar and the Dock from `themes/panels/layout.js`, unless the menu bar is already there; then the tray settings and hidden items, and a plasmashell restart |
+| `install.py check` | Lists what the steps need and cannot find; changes nothing |
+
+`--no-session` installs files without telling the running Plasma session (the tests use it with a temporary HOME).
+
+## Root steps by hand
+
+`install.sh` runs these through sudo (with `SUDO_ASKPASS` set it uses `sudo -A`, a graphical password prompt):
+
+```bash
+P=~/.local/lib/qt6/plugins
+sudo ln -sfn $P/org.kde.kdecoration3/org.aurora.decoration.so /usr/lib/qt6/plugins/org.kde.kdecoration3/
+sudo ln -sfn $P/kwin/plugins/aurora-pointer.so /usr/lib/qt6/plugins/kwin/plugins/
+qdbus6 org.kde.KWin /Plugins org.kde.KWin.Plugins.LoadPlugin aurora-pointer
+# --performance (performance/system/, reasons in performance.md):
+sudo install -Dm644 performance/system/scx_loader.toml /etc/scx_loader.toml && sudo systemctl enable --now scx_loader.service
+sudo install -Dm644 performance/system/thp.conf /etc/tmpfiles.d/thp.conf
+sudo install -Dm644 performance/system/99-aurora-memory.conf /etc/sysctl.d/99-aurora-memory.conf && sudo sysctl -q --system
+sudo install -Dm644 performance/system/90-aurora-zram.conf /etc/systemd/zram-generator.conf.d/90-aurora-zram.conf
+```
+
+## Checking an install
+
+- `systemctl --user show -p MainPID --value plasma-krunner.service` runs `~/.local/lib/aurora/quick-menu/krunner`.
+- `python3 -I components/windows-key/windows_key.py status` names `org.kde.krunner.desktop / _launch`.
+- `qdbus6 org.kde.KWin /KWin supportInformation | grep -A1 ^Decoration` shows `Plugin: org.aurora.decoration`.
+- `find ~/.local/lib/qt6/plugins -name '*.paused'` prints nothing (no part stepped aside).
+- With `--performance`: `cat /sys/kernel/sched_ext/root/ops` names lavd; `cat /proc/sys/vm/watermark_scale_factor` is 125.
+
+---
+
+Source: docs/update.md (Updates)
+
+[Aurora](../README.md) / [Documentation](index.md) / Updates
+
+# After a system update
+
+CachyOS updates with `sudo pacman -Syu` (or `paru`). The theme's compiled parts are built for the installed Plasma,
+KWin, KDecoration and Qt. When those change, each part steps aside by itself and the stock component takes over:
+
+| Changed package | What happens until the rebuild |
+| --- | --- |
+| plasma-workspace or qt6-base | at login the tray and the notifications applet are renamed `*.paused` and Plasma loads its own; Quick Menu's launcher starts `/usr/bin/krunner` |
+| kdecoration | the window buttons are paused at login; KWin uses Breeze |
+| kwin | KWin refuses the pointer plugin (no hand over window buttons) |
+
+Nothing breaks; the desktop only loses the theme's look of those parts. To bring them back:
+
+```bash
+~/.local/share/aurora/rebuild.sh      # runs ./install.sh --rebuild in the checkout; then log out and in
+```
+
+It checks the packages, builds every part for the new versions ([build.md](build.md)), installs the built parts
+beside what they were built for, refreshes the root links and loads the pointer plugin. Settings and panels stay as
+they are.
+
+## When a patch no longer applies
+
+`build.sh` builds a Plasma part for a new Plasma version from that version's own sources with the part's patch. If the
+new Plasma changed the same lines, the patch fails, the part is skipped and Plasma keeps its own. To port it:
+
+1. Fetch the new upstream files into `components/<part>/upstream/` (the same sparse clone as `build.sh`, folders in its
+   `sparse_paths`).
+2. Port `vendor/` onto them: keep the theme's changes (they are marked `Aurora:` in comments) and take every
+   upstream change. Update the version in the component's `project(... VERSION ...)`.
+3. Regenerate the patch as the difference from `upstream/` to `vendor/` (`diff -ruN` of two copies named `a` and `b`,
+   leaving out the binary `*.qsb`), then check that `patch -p1` on a fresh copy of `upstream/`, plus the `.qsb`,
+   reproduces `vendor/` exactly.
+4. Run the part's tests and sandbox scenario, then `installer/build.sh <part>` and `install.py components`.
+
+## The themes
+
+Aurora's themes live in `themes/` and change like any other file: edit, reinstall what the install copies
+(`install.py files`), test in the sandbox, commit. The base icons are a built archive
+(`themes/icons/base/Aurora-base.tar.xz`, made reproducibly with `tar --sort=name --mtime`).
+
+## A new Plasma for the package
+
+The aurora-theme package carries its parts built for one Plasma, KWin and Qt. When Arch or CachyOS ships a new one,
+raise `pkgrel` in `packaging/aur/PKGBUILD`, build the package again on an up-to-date machine and publish it to the
+pacman repository ([releasing.md](releasing.md)); until then, each user's login script sets aside the parts built for
+the older version and Plasma uses its own, and `aurora rebuild` builds them for a user who does not want to wait.
+
+---
+
+Source: docs/restore.md (Removal)
+
+[Aurora](../README.md) / [Documentation](index.md) / Restore
+
+# Going back
+
+## Everything: `./uninstall.sh`
+
+It runs `restore.sh` in the backup that `~/.local/state/aurora/latest-backup` names, the one the first install
+made. The restore stops plasmashell, deletes every path in `created.txt`, puts back every saved setting from `home/`,
+unsets the session environment, gives Win+E back to Dolphin and the Windows key back to Plasma's launcher (with the
+`windows_key.py` saved beside it), reloads D-Bus and the portal, restarts KRunner as Plasma ships it, removes the two
+plugin links and, when present, the performance tuning (one password prompt each), puts the notification corner and
+the GTK theme back, and starts plasmashell. Log out and back in afterwards. The backup stays where it is.
+
+## One part at a time
+
+| Part | Undo |
+| --- | --- |
+| Quick Menu | `rm ~/.config/systemd/user/plasma-krunner.service.d/aurora.conf && systemctl --user daemon-reload && systemctl --user restart plasma-krunner.service` |
+| Windows key | `python3 -I components/windows-key/windows_key.py stock` |
+| Notification banners | `mv ~/.local/lib/qt6/plugins/plasma/applets/org.kde.plasma.notifications.so{,.paused}`, then restart plasmashell |
+| Notification corner | `kwriteconfig6 --file plasmanotifyrc --group Notifications --key PopupPosition --delete` |
+| System tray | `mv ~/.local/lib/qt6/plugins/plasma/applets/org.kde.plasma.systemtray.so{,.paused}`, then restart plasmashell |
+| Window buttons | System Settings > Colors & Themes > Window Decorations > Breeze |
+| CPU scheduler | `sudo systemctl disable --now scx_loader.service` |
+| Memory tuning | `sudo rm /etc/sysctl.d/99-aurora-memory.conf /etc/systemd/zram-generator.conf.d/90-aurora-zram.conf && sudo sysctl -w vm.watermark_scale_factor=10` |
+
+A new part means a new entry in `ADDED` or `SAVED` and, when it needs more than deleting files, a line in the
+`RESTORE` template of `installer/install.py`.
+
+---
+
+Source: docs/architecture.md (Architecture)
+
+[Aurora](../README.md) / [Documentation](index.md) / Architecture
+
+# How the theme hooks into the desktop
+
+The theme never edits a file that a package owns. Each part either loads ahead of the stock component with the same
+id, is started instead of it through a user-level systemd drop-in, or is a setting that `installer/install.py`
+writes after saving the old value. Root is needed for two plugin links, and for the tuning only with `--performance`.
+
+## Session start
+
+`~/.config/plasma-workspace/env/aurora.sh` (from [`installer/session/aurora.sh`](../installer/session/aurora.sh))
+is sourced by Plasma before KWin and plasmashell start. It:
+
+- puts `~/.local/lib/qt6/plugins` first in `QT_PLUGIN_PATH` and `~/.local/lib/qt6/qml` first in `QML_IMPORT_PATH`;
+- sets `PLASMA_INTEGRATION_USE_PORTAL=1` and `GTK_USE_PORTAL=1`, so Open and Save panels come from File Explorer;
+- compares what each plugin was built for with the installed packages, and renames a plugin built for other versions
+  to `*.paused`, so Plasma and KWin load their stock part instead of one built for other libraries.
+
+| In `~/.local/share/aurora/` | Holds | Guards |
+| --- | --- | --- |
+| `system-tray-built-for` | plasma-workspace and qt6-base versions | the system tray |
+| `notifications-built-for` | plasma-workspace and qt6-base versions | the notifications applet |
+| `window-buttons-built-for` | kdecoration major.minor | the window decoration |
+| `quick-menu-built-for` | plasma-workspace and qt6-base versions | Quick Menu (checked by its launcher at every start) |
+
+`installer/build.sh` writes `build/<part>/built-for`; the install copies it beside the installed part, and
+`~/.local/share/aurora/rebuild.sh` builds and installs again ([update.md](update.md)).
+
+## Plugins that load ahead of the stock ones
+
+Same plugin id, found first through `QT_PLUGIN_PATH` (KPluginMetaData prefers the first match):
+
+| Installed file | Replaces or adds |
+| --- | --- |
+| `~/.local/lib/qt6/plugins/plasma/applets/org.kde.plasma.systemtray.so` | the system tray (drag and drop, hidden items, click fixes) |
+| `~/.local/lib/qt6/plugins/plasma/applets/org.kde.plasma.notifications.so` | the notifications applet (macOS banners) |
+| `~/.local/lib/qt6/plugins/plasma/kcms/kinfocenter/kcm_energyinfo.so` | Info Center > Energy |
+| `~/.local/lib/qt6/plugins/org.kde.kdecoration3/org.aurora.decoration.so` | adds the window decoration, chosen in kwinrc |
+| `~/.local/lib/qt6/plugins/kwin/plugins/aurora-pointer.so` | adds a KWin plugin: the pointing hand over window buttons |
+
+KWin starts before the login script sets the plugin path, so the decoration and the pointer plugin are also linked
+into `/usr/lib/qt6/plugins/` ([install.md](install.md)).
+
+The QML module `org.aurora.glass` (`BlurBehind`, `PointerHints`) lives in `~/.local/lib/qt6/qml/org/aurora/glass`.
+plasmashell finds it through `~/.config/systemd/user/plasma-plasmashell.service.d/aurora.conf`, Quick Menu through
+its own drop-in.
+
+## Processes started instead of the stock ones
+
+| Override | Effect |
+| --- | --- |
+| `~/.config/systemd/user/plasma-krunner.service.d/aurora.conf` | `plasma-krunner.service` runs `~/.local/lib/aurora/quick-menu/krunner-launch`, which starts Quick Menu when it was built for the installed Plasma and Qt, and `/usr/bin/krunner` otherwise |
+| `~/.config/systemd/user/plasma-{kwin_wayland,plasmashell}.service.d/90-aurora-noswap.conf` | `MemorySwapMax=0`: the compositor and the shell never go to swap |
+| `~/.local/share/dbus-1/services/org.freedesktop.FileManager1.service` | "Show in folder" opens File Explorer (`--service`) |
+| `~/.local/share/dbus-1/services/org.freedesktop.impl.portal.desktop.aurora.service`, `~/.local/share/xdg-desktop-portal/portals/aurora.portal`, `~/.config/xdg-desktop-portal/kde-portals.conf` (`FileChooser=aurora;kde`) | Open and Save panels are File Explorer windows (`--portal`) |
+| `~/.config/environment.d/90-aurora-portal.conf` | the portal environment for apps that systemd starts |
+
+## Shortcuts (kglobalaccel, over D-Bus)
+
+- Win+E: Dolphin's `_launch` gives up Meta+E and `file-explorer.desktop` `_launch` takes it (`set_explorer_shortcut`
+  in `installer/install.py`).
+- Win alone: moved from plasmashell's "Activate Application Launcher" to `org.kde.krunner.desktop` `_launch`
+  ([`components/windows-key/windows_key.py`](../components/windows-key/windows_key.py) `quick-menu`). Since Plasma 6.1
+  a lone modifier is an ordinary kglobalaccel shortcut; `kwinrc [ModifierOnlyShortcuts]` is no longer read.
+
+## Settings the install writes
+
+Saved first (the `SAVED` list of `installer/install.py`) and put back by the uninstall: `kdeglobals`, `kwinrc`,
+`plasmarc`, `kcminputrc`, `dolphinrc`, `konsolerc`, the Plasma panel file, `plasmashellrc`, `kglobalshortcutsrc`,
+`mimeapps.list`, `plasmanotifyrc`, `xdg-desktop-portal/kde-portals.conf`, Kvantum, GTK 2/3/4, xsettingsd,
+`konsolestaterc`. The notable keys: kwinrc decoration `org.aurora.decoration` with `ButtonsOnRight=IAX`,
+`[Windows] ElectricBorderPushbackPixels=0` (one touch of the bottom edge brings the Dock back),
+`plasmanotifyrc [Notifications] PopupPosition=BottomRight`, the icon theme `Aurora-dark`, the Konsole
+profile `Aurora`, and the panel layout from [`themes/panels/layout.js`](../themes/panels/layout.js).
+
+## Files the install adds to the home folder
+
+The `ADDED` list of `installer/install.py`, removed again by the uninstall through the backup's `created.txt`: the
+base icon themes (`Aurora-base`, `Aurora-base-dark`), the `Aurora-dark` icon theme, the `Aurora` cursors (and
+`~/.icons/Aurora`), the theme's own app icons, Aurora's color scheme, Plasma style, Kvantum theme and GTK theme, the
+Dawn Bird wallpaper, the six
+widgets, File Explorer and its desktop entry, the Quick Menu entry, the Konsole profile and toolbars, the plugins and the
+glass module above, the login script, the systemd drop-ins, the D-Bus services and the portal, and two state folders:
+`~/.local/share/aurora` (what each part was built for, `rebuild.sh`, and `source`, a link to the checkout) and
+`~/.local/lib/aurora` (Quick Menu and its launcher).
+
+The backups live in `~/.local/state/aurora/backups/`, with `latest-backup` naming the one the uninstall uses;
+they outlive an uninstall.
+
+## Outside the home folder (root)
+
+| File | Purpose | Undo |
+| --- | --- | --- |
+| `/usr/lib/qt6/plugins/org.kde.kdecoration3/org.aurora.decoration.so` (link) | KWin loads the decoration before the session environment | `./uninstall.sh` |
+| `/usr/lib/qt6/plugins/kwin/plugins/aurora-pointer.so` (link) | the KWin pointer plugin | `./uninstall.sh` |
+| `/etc/scx_loader.toml`, and `scx_loader.service` enabled | scx_lavd in Auto mode at boot (`--performance`) | `./uninstall.sh` |
+| `/etc/tmpfiles.d/thp.conf` | THP defrag `defer` (`--performance`) | `./uninstall.sh` |
+| `/etc/sysctl.d/99-aurora-memory.conf`, `/etc/systemd/zram-generator.conf.d/90-aurora-zram.conf` | `vm.watermark_scale_factor=125`, zram lz4 (`--performance`) | `./uninstall.sh` |
+
+Why each tuning value: [performance.md](performance.md).
+
+---
+
+Source: docs/components.md (Components)
+
+[Aurora](../README.md) / [Documentation](index.md) / Components
+
+# The components
+
+One section per folder of [`components/`](../components), then the themes. Each says what the part does, where its
+source is, what is installed and how it is tested. Build commands are in [build.md](build.md), test commands in
+[../tests/index.md](../tests/index.md).
+
+## File Explorer (`components/file-explorer`)
+
+A Finder-style file manager in C++ and Qt Widgets on top of Dolphin's KParts view. A sidebar with Favorites and drives
+(drives can be renamed inline, kept in `file-explorerrc [Drive Names]`; SF-style symbols; a capacity bar with a tooltip,
+amber above 90 % and red above 95 %), tabs, a toolbar, a status line, Finder menus with shortcuts written the Windows way
+(`fe::shortcutLabel`: "Ctrl+Alt+C", "Alt+Enter", "Win+E"), and the pointing hand on every clickable widget. It also
+serves `org.freedesktop.FileManager1` (`--service`: "Show in folder" selects the file) and the FileChooser portal
+backend (`--portal`: Open and Save panels with a chooser bar; it quits after three idle minutes). Installed as
+`~/.local/bin/file-explorer`; Win+E launches it. Tests: `fe_tests` (67). Sandbox: `explorer.sh`, `explorer-menus.sh`,
+`explorer-drives.sh`, `show-in-folder.sh`, `open-save.sh`.
+
+## Window buttons (`components/window-buttons`)
+
+The KDecoration3 plugin `org.aurora.decoration` ("Aurora" in System Settings): one glass capsule with
+minimize, maximize and close in Windows order, the same size as the GTK and File Explorer buttons. `deco-preview`
+renders it offscreen. Tests: `decoration_tests` (11). KWin loads it through a root link (it starts before the session's
+plugin path is set); the login script pauses it when KDecoration changes.
+
+## System tray (`components/system-tray`)
+
+Plasma 6.8.2's tray applet with `system-tray.patch`: Windows 11 drag and drop (reorder, drop on the arrow to hide),
+working clicks on app icons, SF-like status icons (from `themes/icons/status_glyphs.py`). The items behind the arrow
+are set by `themes/panels/tray_hide.py` while plasmashell is stopped. Tests: `tests/tst_draglayering.qml` (5).
+Sandbox: `tray-click.sh`, `tray-drag.sh`, `tray-show.sh`.
+
+## Notifications (`components/notifications`)
+
+Plasma 6.8.2's notifications applet with `notifications.patch`: macOS banners (356 px wide, a radius of about 22, the
+Control Center's glass shader, the app icon leading, a bold title, "now" in the trailing corner, four lines of body, a
+close button on hover over the top-left corner), in the bottom-right corner (`PopupPosition=BottomRight`), 8 px apart.
+The window asks for a theme frame that does not exist (`aurora/no-frame`), so Plasma draws no frame of its own, and
+an `inputRect` mask lets clicks through the shadow margin. The project needs `LANGUAGES C` for the generated Wayland
+protocol code; `plasma-shell.xml` is kept in `vendor/protocols`. Sandbox: `notifications.sh`.
+
+## Quick Menu (`components/quick-menu`)
+
+KRunner from plasma-workspace 6.8.2 (`upstream/`, `vendor/`, `quick-menu.patch`) drawn as macOS Tahoe's Spotlight: one
+frameless glass window floating a quarter of the way down the active screen. With nothing typed it shows the
+Applications view: Suggestions (the apps used most, from Plasma's activity statistics through Kicker's
+`RecentUsageModel`) and Plasma's menu in Tahoe's sections (`quickmenu.js`: categories keyed by their `.directory`
+icon, merged, de-duplicated, sorted), one row of five per section until "Show More". The arrow keys walk the grid, the
+pointer selects only when it really moves, Return launches. An app dragged onto another of its section takes that
+app's place, and the section keeps that order (`~/.config/aurora/quick-menu.conf`; Suggestions stay ordered by
+use). A right-click on an app, or the Menu key or Shift+F10 on the selected one, opens its menu (`QuickMenuPopup.qml`,
+built by `quickmenu.js` `menuItems()`): Open, the app's jump list, Pin to Top (a Pinned section above Suggestions,
+saved in `quick-menu.conf`), Pin to Dock (the Dock's launchers, changed through Plasma's `evaluateScript` with a script
+that accepts only a desktop file id), Remove from Suggestions (Kicker's `forget`), then Plasma's Edit Application and
+Uninstall. Plasma's own pin actions are left out: Kicker offers them only inside a panel widget. Typing searches
+everything KRunner's runners find, listed
+with their actions, drag-out and section headers; Up in the empty field recalls past searches. The ⋯ menu keeps Keep
+Open, Usage Help and KRunner's settings. It starts through `krunner-launch.sh` and the `plasma-krunner` drop-in
+([architecture.md](architecture.md)); the menu bar's search icon calls `org.kde.krunner /App toggleDisplay`. Tests:
+`tests/tst_quickmenu.qml` (34), `tests/test_launch.sh` (5). Sandbox: `quick-menu.sh`, `quick-menu-drag.sh`,
+`quick-menu-app-menu.sh`.
+
+## The Windows key (`components/windows-key`)
+
+`windows_key.py quick-menu|stock|status` moves `Qt::Key_Meta` (16777250) between plasmashell's "Activate Application
+Launcher" (which keeps Alt+F1) and KRunner's `_launch` over kglobalaccel's D-Bus API, leaving every other key alone. Win
+alone opens Quick Menu, the next press closes it, Win+key combinations are untouched. Sandbox: `windows-key.sh` (the
+first check reproduces the old bug, then four PASS).
+
+## Control Center (`components/control-center`)
+
+The widget `org.aurora.controlcenter`, Tahoe's floating glass modules: Wi-Fi or Ethernet, Bluetooth, Focus, sound with a device panel, the player,
+Night Light, screen mirroring, settings and screenshots. The blur comes from `org.aurora.glass`. Tests: `tests/tst_cc.qml` (18). Sandbox: `control-center*.sh`.
+
+## Glass and pointer hints (`components/glass`)
+
+The C++ QML module `org.aurora.glass`. `BlurBehind` asks KWin to blur behind rounded items marked
+`glassBlur: true`; `PointerHints` gives plasmashell the pointing hand over clickable items (an application event filter
+with a top-down item search like Qt's own delivery, loaded once by the Control Center). Quick Menu and the banners use
+the blur too. Tests: `tests/tst_blurbehind.qml` (9), `tests/tst_pointerhints.qml` (13). Sandbox: `pointing-hand.sh`,
+`pointing-hand-cost.sh`.
+
+## Pointing hand over window buttons (`components/pointing-hand`)
+
+The KWin plugin `aurora-pointer` shows the hand over buttons that KWin draws (an `InputEventSpy` and
+`Cursor::setSource`, no KWin patch). KWin loads it through a root link and refuses it after a KWin version change until
+`rebuild.sh` runs. Sandbox: `pointing-hand-kwin.sh`.
+
+## Logo menu (`components/kali-menu`)
+
+The widget `org.aurora.logomenu`: the menu behind the menu bar's logo (CachyOS, Arch Linux, Apple or the Kali dragon),
+with shortcut labels written the Windows way. The labels
+are the menu's own accelerators while it is open ("Ctrl+Alt+Q" locks, "Alt+Shift+Q" logs out). Tests:
+`tests/tst_menu.qml` (31 pass; `test_mouse_drag_reorders` is a known failure). Sandbox:
+`kali-menu.sh`.
+
+## Clock (`components/clock`) and Dock divider (`components/dock-divider`)
+
+`org.aurora.clock` writes the date and time the way macOS does ("Wed Nov 4  6:24 PM", in the system's language)
+with a calendar popup; tests: `tests/tst_clock.qml` (9). `org.aurora.dockdivider` is the thin line between the apps
+and the stacks in the Dock.
+
+## Info Center energy page (`components/energy-page`)
+
+A KCM with the stock id `kcm_energyinfo`: live CPU package watts (RAPL), GPU watts and temperature (NVML through dlopen),
+a two-minute chart and the power profile buttons (power-profiles-daemon over D-Bus); it samples only while visible.
+Tests: `test_power` (9). Sandbox: `energy-page.sh`.
+
+## Menu bar and Dock layout (`themes/panels`)
+
+`layout.js` is a Plasma desktop script: the menu bar (menu bar style, logo menu, app name, spacer, tray, Quick Menu,
+Control Center, clock) and the Dock (task manager with the pinned apps carried over, divider, Downloads, Trash).
+`render_layout.sh` fills its placeholders: the home folder and the three gaps that keep the right-hand icons 46 px
+apart, as the tray's own icons are. `patch_tray.py` copies the tray settings from the backup; `tray_hide.py` puts
+Brightness, Clipboard, Disks and Bluetooth behind the arrow. Sandbox: `setup-panels.sh`, `menu-bar.sh`,
+`dock-keeps-pins.sh`, `dock.sh`, `dock-edge.sh`.
+
+## Menu bar style and app name (`components/menu-bar-style`, `components/app-title`)
+
+`org.aurora.menubarstyle` gives the menu bar its light text, soft shadow and spacing; it stays hidden in the bar.
+`org.aurora.apptitle` names the active app in bold next to the logo, and takes no room when no window has the focus.
+Tests: `components/app-title/tests/tst_apptitle.qml`. Sandbox: `app-title.sh`.
+
+## Themes, icons, fonts (`themes/`)
+
+- Dawn Bird, Aurora's own wallpaper, a Plasma wallpaper package in `themes/wallpapers/Aurora` (5120x2880 and
+  3840x2160, CC BY-SA 4.0); the README's pictures and the sandbox's showcase captures are taken on it.
+- Aurora's Plasma style (`themes/plasma/Aurora`; its top panel stays see-through), color scheme
+  (`themes/colors/Aurora.colors`) and Kvantum theme (`themes/kvantum/Aurora`); the GTK theme in
+  `themes/gtk/Aurora.tar.xz`, adjusted by `gtk_theme.py` (the window-button capsule for GTK 3, GTK 4 and
+  libadwaita).
+- Icons: the base themes `Aurora-base` and `Aurora-base-dark`, kept built in `themes/icons/base/Aurora-base.tar.xz`
+  (hidden in the icon picker), and `Aurora-dark` built at install by `themes/icons/build_icon_theme.py` (each app's
+  own logo ahead of the base's redraws), `status_glyphs.py` (SF-like
+  status icons) and the theme's Settings, Downloads and Trash icons in `themes/icons/system` (drawn by
+  `draw_system_icons.py`).
+- Cursors: `themes/cursors/Aurora`, with four aliases Plasma asks for.
+- Fonts: none are shipped. The interface uses Inter (`inter-font`) and Konsole JetBrains Mono with Nerd Fonts' symbols
+  (`ttf-jetbrains-mono-nerd`); `install.py` picks SF Pro Text and SF Mono with Nerd symbols instead when the user
+  installed them (`ui_font()`, `mono_font()`), since Apple's license forbids redistributing them.
+- Konsole: `themes/konsole` (the "Aurora" profile and color scheme, toolbars hidden).
+
+## Measurement kit (`performance/measure`)
+
+`probe.py` (time from a shortcut to its window, plus scheduler wait), `under-load.sh`, `sched/` (scheduler rounds,
+`rtlat.c`, results) and `power/` (`ab.sh`, `burst.c`: Balanced against Performance). Results: [performance.md](performance.md).
+
+---
+
+Source: docs/build.md (Building)
+
+[Aurora](../README.md) / [Documentation](index.md) / Build
+
+# Building the parts
+
+`./install.sh` builds everything on its own. This page is for building by hand while changing a part.
+
+## Everything
+
+```bash
+installer/build.sh                 # every part into build/<part>, with logs in build/<part>.build.log
+installer/build.sh quick-menu       # only the parts named
+installer/build.sh --plan          # where each Plasma part's sources come from; builds nothing
+```
+
+Packages: [`installer/dependencies.txt`](../installer/dependencies.txt) (`./install.sh --check` lists the missing ones).
+Every build is CMake with Ninja in `RelWithDebInfo`, through ccache when it is installed, at `nice 10`. A finished
+part gets `build/<part>/built-for`, the versions it was built against; the install copies it beside the part.
+
+| Part | Output in `build/` | Built for |
+| --- | --- | --- |
+| file-explorer | `file-explorer/file-explorer`, `fe_tests` | Qt |
+| window-buttons | `window-buttons/org.aurora.decoration.so`, `decoration_tests`, `deco-preview` | KDecoration major.minor |
+| glass | `glass/qml/org/aurora/glass/` | Qt |
+| energy-page | `energy-page/bin/plasma/kcms/kinfocenter/kcm_energyinfo.so`, `test_power` | Qt |
+| pointing-hand | `pointing-hand/aurora-pointer.so` | KWin |
+| system-tray | `system-tray/bin/plasma/applets/org.kde.plasma.systemtray.so` | plasma-workspace and Qt |
+| notifications | `notifications/bin/plasma/applets/org.kde.plasma.notifications.so` | plasma-workspace and Qt |
+| quick-menu | `quick-menu/bin/krunner` | plasma-workspace and Qt |
+
+## The three Plasma parts
+
+The system tray, the notifications and Quick Menu are Plasma's own code. Each component keeps three things:
+
+- `upstream/`: Plasma's files of the version in `vendor/`, untouched;
+- `vendor/`: the same files with the theme's changes, the copy that builds;
+- `<part>.patch`: the difference between the two (it reproduces `vendor/` exactly from `upstream/`, plus the binary
+  `glass.frag.qsb` shader, which is copied).
+
+`build.sh` builds from `vendor/` when the installed plasma-workspace is that version. For any other version it clones
+that version's tag from KDE (`git clone --depth 1 --filter=blob:none --sparse`, only the folders the part needs), applies
+the patch and builds from there. If the patch no longer applies, the part is skipped and Plasma keeps its own;
+[update.md](update.md) shows how to port the patch.
+
+## One part by hand
+
+```bash
+cmake -S components/window-buttons -B build/window-buttons -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo
+cmake --build build/window-buttons
+python3 -I installer/install.py components     # installs every built part, beside what it was built for
+```
+
+## Test helpers
+
+```bash
+gcc -O2 tests/helpers/fakeinput/fakeinput.c tests/helpers/fakeinput/fake-input-protocol.c -lwayland-client -lm \
+    -o tests/helpers/fakeinput/fakeinput
+cmake -S tests/helpers/fake-tray -B tests/helpers/fake-tray/build -G Ninja && cmake --build tests/helpers/fake-tray/build
+gcc -O2 performance/measure/power/burst.c -o performance/measure/power/burst
+```
+
+---
+
+Source: docs/performance.md (Performance tuning)
+
+[Aurora](../README.md) / [Documentation](index.md) / Performance
+
+# Measured tuning
+
+Every value here was measured on my own machine before it was kept: a Ryzen 7 5800X with 32 GB of RAM and an RTX 4070
+Ti SUPER, on linux-cachyos 7.3.1 (2026-11-04). Your machine may differ, which is why the tuning is optional. `./install.sh --performance` applies them from [`performance/system/`](../performance/system); the measuring kit is in
+[`performance/measure/`](../performance/measure). Re-measure before changing any of them.
+
+## CPU scheduler: scx_lavd (autopilot)
+
+`/etc/scx_loader.toml` (`default_sched = "scx_lavd"`, `default_mode = "Auto"`), `scx_loader.service` enabled,
+scx-scheds 1.1.4. On EEVDF every app has its own systemd cgroup at equal weight, so ananicy-cpp's nice values on
+compilers never reach other apps; lavd prioritises latency-critical tasks.
+
+Alternating rounds under 32 busy background threads (`performance/measure/probe.py`, `under-load.sh`, `sched/`), with the CPU other
+sessions used logged per round:
+
+| | EEVDF | scx_lavd | bpfland | cosmos |
+| --- | --- | --- | --- | --- |
+| Emoji picker (Win+.) under load | 1099 ms | **666 ms** | 851 ms | 780 ms |
+| Konsole under load | 819 ms | **674 ms** | | |
+| 7-Zip, scaled to an idle machine | 96-97k MIPS | **101-108k MIPS** | | |
+| SCHED_RR 1 ms timer, max | 160 µs | 373 µs (far under a 4.2 ms frame) | | |
+
+lavd `--performance`, flash and p2dq did worse; no scheduler was ejected. BORE ships only as `linux-cachyos-bore`
+(a kernel switch, and its 7.3.1 build was broken on 2026-10-31).
+
+## Memory
+
+- **KWin and plasmashell never swap** (`MemorySwapMax=0`, `installer/session/noswap.conf`): with zram and
+  CachyOS's swappiness of 150, 795 MB of KWin and Xwayland had been swapped out on 2026-11-04, and switching apps
+  stuttered while those pages came back.
+- **zram stays** (CachyOS: size = RAM, `vm.swappiness=150` from `/usr/lib/udev/rules.d/30-zram.rules`,
+  `page-cluster=0`, zswap off, systemd-oomd active). It is compressed swap inside RAM: 10.3 GB of idle pages held in
+  3.3 GB (3.1:1), no OOM kill in 39 h. The kernel docs recommend swappiness above 100 for in-memory swap.
+- **`vm.watermark_scale_factor = 125`** (`/etc/sysctl.d/99-aurora-memory.conf`). Before: 244,128 direct-reclaim
+  stalls (`allocstall`) and 120,680 early kswapd sleeps (`kswapd_low_wmark_hit_quickly`) in 39 h, the two signs the
+  kernel docs give for raising it. In the first 15 minutes after, under the same swap traffic: 0 stalls (about 1,560
+  on average before) and 421 early sleeps (about 770). Cost: about 400 MB kept free.
+- **zram lz4** (`/etc/systemd/zram-generator.conf.d/90-aurora-zram.conf`, from the next boot). On this CPU with the
+  same 64 KiB blocks: decompression 3.7 GB/s (zstd 1.3), compression 717 MB/s (zstd 347); ratio 1.9 against 2.5.
+  Cost: about 1 GB more RAM held by zram at 10 GB swapped; under extreme pressure zram's extra room ends sooner.
+- KWin and plasmashell have `MemorySwapMax=0` (switching apps used to fault swapped KWin pages back and stutter).
+- THP defrag `defer` (`/etc/tmpfiles.d/thp.conf`) after 279k direct-compaction stalls.
+- MGLRU `min_ttl_ms` stays at 100: oomd is present.
+
+## Power
+
+- Power profile stays **Performance** (power-profiles-daemon 0.30, amd_pstate EPP; it changes only the CPU's
+  EPP/governor). `performance/measure/power/ab.sh` at the same light load: Balanced 44-47 W against 49-56 W package, but the first
+  burst after idle 6.1 ms against 5.5 ms (11 % slower). About 7 W, roughly $0.60 a month: not worth it.
+- The GPU idles at P5, about 14 W. The CPU package averaged 117 W only while another session's test run used 9 cores.
+- Edge tabs playing video hold a "Video Wake Lock" that keeps the screens on.
+- Panama's tariff (ASEP, Sept-Dec 2026): above 300 kWh a month the FET subsidy is lost and each extra kWh costs
+  $0.23-0.25; a $105 bill is about 500 kWh.
+
+## Display and Edge
+
+- Edge runs on native Wayland (`--ozone-platform=wayland --enable-blink-features=CanvasHDR` in
+  `~/.config/microsoft-edge-stable-flags.conf`) for HDR/WCG and exact 240 Hz; computer-use cannot see it there.
+- The Samsung DP-1 has VRR "Automatic", not "Always" ("Always" drops the cursor to the content's rate).
+
+---
+
+Source: tests/index.md (Tests)
+
+[Aurora](../README.md) / Tests
+
+# Tests
+
+`scripts/check.sh` builds every part and runs every suite below (about 25 seconds after a build;
+`--no-build` skips the build). Counts are those of 2026-11-04 (qmltestrunner counts include its two setup cases).
+While working, run the suites of what you changed, once, after the change is written; then the sandbox scenario of the
+changed flow.
+
+```bash
+export QT_QPA_PLATFORM=offscreen q=/usr/lib/qt6/bin/qmltestrunner B=$PWD/build
+```
+
+## Installer
+
+| What it proves | Command | Result |
+| --- | --- | --- |
+| The install keeps a menu bar that is already there; its backup lists every file it adds (install, then delete `created.txt`, gives back the same home); a second backup keeps the first; it installs the `aurora` command and offers Aurora's wallpaper; it copies no font, uses Inter and JetBrains Mono unless SF Pro or SF Mono is installed, and the repository carries no Apple font; an install from before the Quick Menu's name moves its files, its saved order and the menu bar button over; GTK apps get Plasma's cursor | `python3 -I tests/installer/test_install.py` | 13 pass |
+| `install.sh --help` and `--version`, refuses unknown options, `--check` writes nothing and names the build folder (the user's cache for a read-only copy, as the aurora-theme package's); `uninstall.sh` without an install fails clearly | `tests/installer/test_cli.sh` | 12 pass |
+| `get.sh`, README.md's one command: checks the downloaded key's fingerprint before pacman trusts it, adds `[aurora]` to pacman.conf once, upgrades with `pacman -Syu --needed aurora-theme`, then opens `aurora`; a second run only upgrades and opens it; another key changes nothing | `tests/installer/test_get.sh` | 15 pass |
+| The root part of the install (`installer/root-steps.sh`) takes paths as arguments: a path with a quote, `$(...)` or `;` is linked as written and runs nothing; unknown steps are refused; `install.sh` hands root no shell text | `tests/installer/test_root_steps.sh` | 6 pass |
+| The Plasma parts build from `vendor/` for its version and from that version's own sources for any other; the `aurora` command builds when Rust is installed and is skipped without it or in a copy without `cli/` (the aurora-theme package's) | `tests/installer/test_build.sh` | 6 pass |
+| The login script keeps a plugin only while it was built for the installed versions | `tests/installer/test_login_script.sh` | 7 pass |
+| `installer/dependencies.txt` installs every package the build and the installer use (CMake packages from `build/*/CMakeCache.txt`, commands, Python modules), and names itself every package whose QML modules the widgets and parts import | `tests/installer/test_dependencies.sh` | pass (66 CMake packages, 18 commands, 46 QML modules) |
+
+## Releases
+
+| What it proves | Command | Result |
+| --- | --- | --- |
+| CHANGELOG.md is in the Keep a Changelog 2.0.0 format with SemVer versions; a release dates [Unreleased] and relinks; VERSION names the latest release | `python3 -I tests/release/test_changelog.py` | 15 pass |
+| `scripts/release.sh` refuses a dirty tree, a non-SemVer version and an empty [Unreleased]; dates CITATION.cff; commits, tags, and builds an archive, the notes and verifying checksums; publishes nothing without `--publish` | `tests/release/test_release.sh` | 23 pass |
+| Each Plasma patch on a fresh `upstream/` gives `vendor/` | `tests/release/test_patches.sh` | 3 pass |
+| Every file of Aurora's own code carries the license header (author, GPL-3.0-only, NOTICE.md's additional terms) | `python3 -I scripts/license_headers.py --check` | pass (236 files) |
+| llms.txt follows llmstxt.org's format, every link in it names a file of the repository, and llms.txt and llms-full.txt match the docs they are written from (no HTML left in llms-full.txt) | `python3 -I scripts/llms.py --check` | pass (15 links) |
+| The repository's description and topics fit GitHub's limits (20 topics of lowercase letters, digits and hyphens, no repeats; 350 characters) | `python3 -I scripts/github_meta.py --check` | pass (20 topics) |
+| The social preview is 1280x640, under 1 MB, with its text at 7:1 or more (`make.py` refuses to write it otherwise) | `python3 -I assets/readme/make.py` | pass (73 KB, 12.4:1) |
+| Every shell script Aurora owns, and the `restore.sh` that `install.py` writes, has no ShellCheck finding at its strictest level (style), with `.shellcheckrc` | `scripts/lint-shell.sh` | pass (73 scripts) |
+| The AUR package depends on `installer/dependencies.txt` plus what the `aurora` command needs, its functions leave makepkg's variables alone, and `.SRCINFO` matches the PKGBUILD | `tests/release/test_pkgbuild.sh` | 3 pass |
+| `scripts/pacman-repo.sh` builds a signed package and a signed `aurora` database of real files with the key's public half, refuses a key whose secret half is missing, and pacman (under fakeroot, in a throwaway root) installs the package from it and refuses a tampered database | `tests/release/test_pacman_repo.sh` | 14 pass |
+
+## Components
+
+| Part | Command | Result |
+| --- | --- | --- |
+| File Explorer core | `build/file-explorer/fe_tests` | 73 pass |
+| Window buttons | `build/window-buttons/decoration_tests` | 11 pass |
+| Energy page | `build/energy-page/test_power` | 10 pass |
+| Glass blur | `(cd components/glass && $q -import $B/glass/qml -input tests/tst_blurbehind.qml)` | 9 pass |
+| Pointer hints | `(cd components/glass && $q -import $B/glass/qml -input tests/tst_pointerhints.qml)` | 13 pass |
+| Clock | `(cd components/clock && $q -input tests/tst_clock.qml)` | 9 pass |
+| Menu bar app name | `(cd components/app-title && $q -input tests/tst_apptitle.qml)` | 4 pass |
+| Control Center (grid, module texts, a pill's title clear of its rounded end) | `(cd components/control-center && $q -import $B/glass/qml -input tests/tst_cc.qml)` | 19 pass |
+| Tray drag layering | `(cd components/system-tray/tests && $q -input tst_draglayering.qml)` | 5 pass |
+| Kali menu | `(cd components/kali-menu && $q -input tests/tst_menu.qml)` | 31 pass, 1 known fail: `test_mouse_drag_reorders` (the settings editor's drag under offscreen; it fails on the untouched upstream package too) |
+| Quick Menu logic (sections, keys, dragged order, the app menu, pins, the Dock script, the account and power rail) | `(cd components/quick-menu && $q -input tests/tst_quickmenu.qml)` | 38 pass |
+| Quick Menu launcher | `components/quick-menu/tests/test_launch.sh` | 5 pass |
+| Menu bar logos (the logo table, colors, ids) | `(cd components/kali-menu && $q -input tests/tst_logos.qml)` | 8 pass |
+| The `aurora` command: logos, install steps, releases (SemVer tags, HTTPS links, checksums, archive members), sources, logs, the banner; contract tests against `tools.js`, `install.sh` and `release.sh` | `cargo test --locked --manifest-path cli/Cargo.toml` | 41 + 7 pass |
+| Plasma patches | each `<part>.patch` on a fresh copy of `upstream/` (plus the `.qsb`) reproduces `vendor/` ([../docs/update.md](../docs/update.md)) | 3 reproduce |
+
+## Sandbox scenarios
+
+`tests/sandbox/run.sh "$PWD/tests/sandbox/scenarios/NAME.sh" TIMEOUT > tests/sandbox/logs/run-NAME.log 2>&1`
+([../docs/sandbox.md](../docs/sandbox.md)). Checking scenarios write PASS or FAIL lines to `tests/sandbox/logs/`; the
+others capture `tests/sandbox/shots/` to compare by eye.
+
+| Scenario | Checks or captures |
+| --- | --- |
+| `windows-key.sh` | Win alone opens Quick Menu, again closes it, Win+E does not, Alt+Space does (4 PASS after the old bug's check) |
+| `dock-keeps-pins.sh` | the layout keeps the apps pinned in the task manager it replaces, File Explorer first (PASS) |
+| `quick-menu.sh` | Quick Menu: the Applications view, arrow keys, Show More, results, over a white window |
+| `quick-menu-drag.sh` | dragging ProtonPlus onto Faugus in Games puts it first, saved, and kept after KRunner restarts (PASS) |
+| `quick-menu-rail.sh` | the rail: the account's picture and name; Restart, Shut Down, Log Out and Lock each reach Plasma's session services, stood in for by `tests/helpers/fake_session.py` so no real call can restart or lock the machine (5 PASS) |
+| `cli.sh` | the `aurora` command in Konsole with Aurora's profile on Dawn Bird: its menu under the banner and the credit, then `aurora status` (captures) |
+| `quick-menu-app-menu.sh` | the app menu: right-click, Pin to Top and the Pinned section, the Menu key (not the field's text menu), Unpin from Dock, an opened app in Suggestions and Remove from Suggestions, no QML warnings (8 PASS); labels found with `tests/helpers/find_text.py` |
+| `readme.sh` | the README's pictures (run with `SANDBOX_SCALE=2`, then `assets/screenshots/make.py`) |
+| `kali-menu.sh` | the Kali menu with PC labels |
+| `explorer.sh`, `explorer-menus.sh`, `explorer-drives.sh`, `explorer-sidebar-order.sh`, `show-in-folder.sh`, `open-save.sh` | File Explorer, its menus (X11 client), its drives, dragging sidebar rows into a new order, "Show in folder", Open and Save |
+| `notifications.sh` | banners in the bottom-right corner, hover buttons |
+| `tray-click.sh`, `tray-drag.sh`, `tray-show.sh` | tray clicks, drag to reorder and hide, bring back |
+| `control-center.sh`, `control-center-panels.sh`, `control-center-bluetooth.sh`, `control-center-shortcut.sh` | the Control Center, its panels, reopening, its shortcut |
+| `dock.sh`, `dock-edge.sh` | the Dock steps aside for a maximized window; one touch of the edge brings it back |
+| `pointing-hand.sh`, `pointing-hand-kwin.sh`, `pointing-hand-cost.sh` | the pointing hand in the shell and on window buttons, and its cost |
+| `energy-page.sh` | Info Center > Energy after 12 s of samples |
+| `menu-bar.sh`, `setup-panels.sh` | the menu bar as installed; the panels from `layout.js` |
+| `window-buttons.sh`, `gtk-apps.sh` | the same capsule in KWin-drawn, GTK and libadwaita windows |
+
+## On the live desktop
+
+- `python3 -I components/windows-key/windows_key.py status`; `systemctl --user show -p MainPID --value plasma-krunner.service`.
+- `performance/measure/power/ab.sh 3 20` (Balanced against Performance); `performance/measure/probe.py` (launch times).
+
+---
+
+Source: docs/sandbox.md (Sandbox)
+
+[Aurora](../README.md) / [Documentation](index.md) / Sandbox
+
+# The sandbox
+
+`tests/sandbox/run.sh SCENARIO [TIMEOUT]` starts an isolated headless Plasma: `kwin_wayland --virtual` (2560x1440,
+socket `wayland-sbx`, Xwayland) under `dbus-run-session`, with `HOME=tests/sandbox/home`, its own `XDG_*` folders and
+runtime folder (`tests/sandbox/run`), and `QT_PLUGIN_PATH` and `QML_IMPORT_PATH` pointing at the sandbox's home first.
+KWin runs SCENARIO as its session and exits with it. Nothing touches the real session, its settings or its D-Bus.
+
+```bash
+tests/sandbox/run.sh "$PWD/tests/sandbox/scenarios/quick-menu.sh" 200 > tests/sandbox/logs/run-quick-menu.log 2>&1
+SANDBOX_SCALE=2 tests/sandbox/run.sh "$PWD/tests/sandbox/scenarios/readme.sh" 160   # the README's pictures, sharp
+python3 -I assets/screenshots/make.py                                                # crops them into assets/
+```
+
+Pass the scenario's full path: KWin looks a bare name up in `PATH`. A scenario sources `prelude.sh` (starts
+kactivitymanagerd and kded6, defines `shot NAME`, a Spectacle capture into `tests/sandbox/shots/NAME.png`, and
+`waitfor SECONDS`), starts plasmashell or the app under test, drives it, captures, and writes PASS or FAIL lines to
+`tests/sandbox/logs/<name>.txt` where it checks something. The home, captures and logs are not in git.
+
+## Its home folder
+
+The sandbox's home is a whole Plasma home (panels, caches, a browser profile), so it stays out of git. To give it the
+theme's current files: `HOME=$PWD/tests/sandbox/home python3 -I installer/install.py files --no-session`.
+`tests/sandbox/relayout.sh` rebuilds its panels from `layout.js` and copies the real tray's settings into it.
+
+## Driving it
+
+- `tests/helpers/fakeinput/fakeinput` speaks `org_kde_kwin_fake_input` to the nested KWin only: `move X Y`,
+  `glide X Y STEPS`, `down`, `up`, `keydown CODE`, `keyup CODE` (evdev codes: 125 Win, 28 Return, 1 Esc,
+  103/108/105/106 arrows), `wait MS`.
+- `tests/helpers/region_changed.py BEFORE AFTER X0 Y0 X1 Y1` exits 0 when a region changed (mean difference above 6):
+  the usual "did it open" check. Keep the region tight around what appears.
+- `tests/helpers/fake-tray` puts tray icons in the nested tray (`tray_apps.sh`); `fake_mpris.py` plays a track.
+- KWin scripts print into KWin's output, which is the run log.
+
+## Gotchas
+
+- Plasma's menu is `plasma-applications.menu`: export `XDG_MENU_PREFIX=plasma-` and run `kbuildsycoca6
+  --noincremental` in scenarios that need the app catalog (Quick Menu, launchers).
+- The sandbox's activity statistics stay empty even with a copied database, so Quick Menu's Suggestions show only live.
+- KWin keeps the sandbox screen's saved scale; `readme.sh` sets the scale it needs with `kscreen-doctor` and puts 1 back.
+- Wayland dismisses a popup that no real input opened: capture QWidget menus from an X11 client
+  (`QT_QPA_PLATFORM=xcb`, `explorer-menus.sh`).
+- An active fullscreen window covers the panel; QML `Item.left/top` are FINAL; a DropArea inside a ToolTipArea never
+  gets drags; libplasma prefers an applet's compiled QML over a package on disk.
+- A click outside a popup closes it: color searches for click targets must stay inside the panel.
+
+---
+
+Source: docs/releasing.md (Releasing)
+
+[Aurora](../README.md) / [Documentation](index.md) / Releasing
+
+# Versions and releases
+
+Aurora follows [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html) and keeps its history in
+[CHANGELOG.md](../CHANGELOG.md) in the [Keep a Changelog 2.0.0](https://keepachangelog.com/en/2.0.0/) format. Commits
+follow [Conventional Commits 1.0.0](https://www.conventionalcommits.org/en/v1.0.0/). Each version gets a git tag
+`vX.Y.Z` and a GitHub release with a source archive that installs without git.
+
+## What the version number promises
+
+The version covers what a user installs and uses: `./install.sh` and `./uninstall.sh` and their options, the ids and
+folders written to the home folder (`org.aurora.*`, `~/.local/share/aurora`, `~/.local/state/aurora`), and the
+settings the install changes and the backup restores.
+
+| Change | Version |
+| --- | --- |
+| A fix that changes nothing a user relies on | patch: 1.0.0 → 1.0.1 |
+| A new part, option or behavior, compatible with what is installed | minor: 1.0.1 → 1.1.0 |
+| Renamed ids or folders, a removed option, anything that needs a fresh install or that an older backup cannot undo | major: 1.1.0 → 2.0.0 |
+
+A supported Plasma version is not part of the promise: the parts build for whatever Plasma 6 is installed.
+
+## Day to day
+
+1. Commit with a Conventional Commits message: `feat(quick-menu): drag apps within a section`,
+   `fix(installer): keep the Dock's pinned apps`, `docs: …`, `test: …`, `chore: …`; `feat!:` or a
+   `BREAKING CHANGE:` footer for a major change.
+2. In the same change, add what a user would notice to `## [Unreleased]` in CHANGELOG.md, under one of the six types:
+   Added, Changed, Deprecated, Removed, Fixed, Security. Write it for the user, not as the commit message; mark a
+   breaking entry with **Breaking:**. Internal changes (tests, refactors, docs) need no entry.
+3. `git-cliff --unreleased --strip all` ([cliff.toml](../cliff.toml)) drafts entries from the commits since the last
+   tag when a lot has piled up; it is a draft to curate, not the entry.
+4. `python3 -I scripts/changelog.py check` checks the format; `scripts/check.sh` runs every test.
+
+## Cutting a release
+
+```bash
+scripts/release.sh 1.1.0             # checks, dates the changelog, commits, tags v1.1.0, builds the release files
+scripts/release.sh 1.1.0 --publish   # the same, then pushes and creates the GitHub release
+```
+
+`scripts/release.sh` refuses a dirty tree, a version that is not SemVer or not above the last one, a changelog out of
+format, an empty `[Unreleased]`, and a failing check. Then it:
+
+1. moves `[Unreleased]` into `## [1.1.0] - YYYY-MM-DD` and relinks the versions to their comparisons;
+2. writes `VERSION`, commits `chore(release): 1.1.0` and tags `v1.1.0` with the release notes;
+3. builds `build/release/1.1.0/`: `aurora-1.1.0.tar.gz` (the sources and the themes),
+   `release-notes.md` (the version's changelog section) and `SHA256SUMS`;
+4. writes the AUR package for that archive in `build/release/1.1.0/aur/`: `PKGBUILD` and `aurora-theme.install` from
+   [packaging/aur](../packaging/aur) with `pkgver=1.1.0`, `pkgrel=1` and the archive's SHA-256, and `.SRCINFO`;
+5. with `--publish`, pushes the branch and the tag, runs `gh release create v1.1.0` with those files and notes, then
+   builds the package into the pacman repository and publishes it (next section).
+
+Without `--publish` it prints the exact publish command, so a release can be reviewed before anything leaves the
+machine. Afterwards, copy `build/release/1.1.0/aur/` (`PKGBUILD` and `.SRCINFO`) into `packaging/aur` and commit it
+as `chore(packaging): AUR package for 1.1.0`, so the repository's package names the latest release. The release flow is tested in [tests/release/test_release.sh](../tests/release/test_release.sh).
+
+## The pacman repository
+
+Users install `aurora-theme` from Aurora's pacman repository: the files of the GitHub release tagged `repo`, which
+[get.sh](../get.sh), README.md's one-command [Installation](../README.md#installation), adds to pacman.conf as
+`[aurora]`. get.sh names the key's fingerprint, so a new key is changed there too. The release holds one version:
+the package, the `aurora` database, their signatures and `aurora.asc`.
+
+```bash
+scripts/pacman-repo.sh build/release/1.1.0/aur build/release/1.1.0/repo             # builds and signs, publishes nothing
+scripts/pacman-repo.sh build/release/1.1.0/aur build/release/1.1.0/repo --publish   # the same, then replaces the release's files
+```
+
+Everything is signed with Aurora's key. Its public half is [packaging/repo/aurora.asc](../packaging/repo/aurora.asc)
+(fingerprint `657D8110799A4E65BE4E1AB4F028284112794CC2`), which users trust with `pacman-key --lsign-key`; its secret
+half lives only in my GnuPG keyring and an offline copy, never in the repository. A new key means every user trusts
+it again, so it is replaced only if the secret half is lost or exposed. `release.sh --publish` runs the script itself;
+a change to the package alone (a new dependency) raises `pkgrel` and runs it by hand. The flow is tested in
+[tests/release/test_pacman_repo.sh](../tests/release/test_pacman_repo.sh).
+
+## Publishing to the AUR
+
+The AUR has closed new accounts for now, so `aurora-theme` is not on it yet. When it reopens:
+
+The package is [`aurora-theme`](../packaging/aur/PKGBUILD). It builds the `aurora` command, installs it to
+`/usr/bin/aurora` and the theme's files to `/usr/share/aurora`; each user then runs `aurora`, which builds the parts
+for their Plasma in `~/.cache/aurora/build` and installs into their home folder. After the GitHub release exists:
+
+```bash
+cd build/release/1.1.0/aur
+makepkg -f && namcap PKGBUILD *.pkg.tar.zst   # builds from the published archive and lints the package
+git clone ssh://aur@aur.archlinux.org/aurora-theme.git ../aur-repo   # once; the AUR account needs an SSH key
+cp PKGBUILD aurora-theme.install .SRCINFO ../aur-repo/ && cd ../aur-repo
+git commit -am "Update to 1.1.0" && git push
+```
+
+A change to the package alone (a new dependency) raises `pkgrel` in `packaging/aur/PKGBUILD`, then the same steps
+with `makepkg --printsrcinfo > .SRCINFO`. The first upload needs the repository to be public, since the package
+downloads its archive from the GitHub release.
+
+## The GitHub page
+
+- `python3 -I scripts/github_meta.py` shows the description and topics it would set; `--apply` sends them.
+- The social preview, what a shared link shows on Discord, X, Reddit and the rest, is
+  `assets/readme/social-preview.jpg` (`assets/readme/make.py` draws it). GitHub has no API for it: upload it under
+  Settings, Social preview.
+- The Apple logo among the menu bar logos is Apple's trademark; Simple Icons' drawing is CC0, the mark is not.
+
+## Installing a release
+
+```bash
+tar -xzf aurora-1.1.0.tar.gz && cd aurora-1.1.0 && sha256sum -c ../SHA256SUMS --ignore-missing && ./install.sh
+```
+
+`./install.sh --version` prints the version a checkout or archive holds.
+
+---
+
+Source: CHANGELOG.md (Changelog)
+
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/2.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+The version covers what you install and use: the commands `./install.sh` and `./uninstall.sh` and their options,
+the ids and folders the theme writes to your home folder (`org.aurora.*`, `~/.local/share/aurora`), and the settings
+it changes. A change that needs a fresh install, or that an earlier backup cannot undo, is a major version.
+
+## [Unreleased]
+
+The first release: a macOS Tahoe-inspired desktop for CachyOS and KDE Plasma 6, installed with one command and one
+question, and removed with one command.
+
+### Added
+
+- One command installs Aurora: `bash <(curl -fsSL .../get.sh)` adds Aurora's signed pacman repository, installs the
+  aurora-theme package and opens `aurora`, whose only question is the menu bar's logo. The package comes with its
+  parts built, so nothing is compiled on your machine, and every `sudo pacman -Syu` brings the new versions.
+- Everything Aurora installs is in this repository: its themes, widgets and parts. Nothing is downloaded from other
+  projects.
+- `./install.sh` installs from the source in one go: the packages it needs, the eight compiled parts built for your
+  Plasma, KWin and Qt, a backup of every setting it changes, and the look. Options: `--performance`, `--rebuild`,
+  `--reset-panels`, `--check`, `--yes`.
+- `./uninstall.sh` and `aurora uninstall` put back every saved setting and remove everything the theme added.
+- The `aurora` command: the install with its one question, each step with its progress and a log, and `update`,
+  `rebuild`, `logo`, `status` and `uninstall`. On the package, `aurora update` upgrades the whole system with it
+  (`-Syu` through paru, yay or pacman), so there is never a partial upgrade.
+- A license: Aurora's own code is free software under the GNU GPL version 3, with additional terms (NOTICE.md) that
+  keep the author's credit in every version. `aurora license` shows them.
+- File Explorer: a Finder-style file manager on Dolphin's engine, opened by Win+E, drawing every app's Open and Save
+  panels and answering "Show in folder". Drag a row of its sidebar onto another of the same section to put Favorites
+  and Locations in your own order; the order is kept.
+- Window buttons: one glass capsule with minimize, maximize and close in Windows order, the same in Qt, GTK and
+  libadwaita apps.
+- Menu bar: the system menu under CachyOS's black-and-white logo (Arch Linux, Apple and Kali Linux are in its
+  settings, each also in its own colors where it has them), the active app's name, the system tray with Windows 11
+  drag and drop, Quick Menu, the Control Center and a macOS clock, in light text over the wallpaper.
+- Quick Menu on the Windows key: macOS Tahoe's Applications view, and Plasma's search when you type. Drag an app onto
+  another of its section to reorder the section; the order is kept. Right-click an app, or press the Menu key, to
+  pin it to the top (a Pinned section above Suggestions) or to the Dock, remove it from Suggestions, edit it or
+  uninstall it. Under Suggestions it also lists the app's recent files. Its rail, as in Windows 11's Start: your
+  picture and name open Lock, Switch User and Log Out; the power button opens Sleep, Hibernate where the machine
+  can, Restart and Shut Down.
+- Control Center with Tahoe's floating glass modules, and notifications as macOS banners in the bottom-right corner.
+- Dock with your pinned apps, Downloads and Trash, which steps aside for windows and comes back with one touch of the
+  bottom edge.
+- The pointing hand over everything clickable, KWin's window buttons included, and Aurora's cursors.
+- Info Center > Energy: live CPU and GPU watts, a two-minute chart and the power profiles.
+- Dawn Bird, Aurora's own wallpaper: a bird of folded glass rising at first light, in 5K, offered in the wallpaper
+  picker.
+- Aurora's colors, Plasma style, Kvantum and GTK themes, and icons with every app's own logo; the free Inter and
+  JetBrains Mono fonts, or SF Pro and SF Mono when you installed them.
+- `--performance`: the measured scx_lavd scheduler, memory and zram tuning.
+- After a Plasma, KWin or Qt update, the parts built for the old version step aside on their own until the package
+  brings them built for the new one; `aurora rebuild` builds them right away.
+
+[Unreleased]: https://github.com/xt0n1-t3ch/Aurora-CachyOS-Theme/commits/HEAD
+
+---
+
+Source: docs/decisions.md (Decisions)
+
+[Aurora](../README.md) / [Documentation](index.md) / Decisions
+
+# Design decisions
+
+The rules I set while building Aurora, and why. They decide every design question.
+
+## Look and behaviour
+
+- As beautiful as macOS Tahoe, with the habits of Windows, and no regression against the stock desktop (Dolphin's
+  places, the tray's behaviour). Improvements are welcome, for example Windows 11 style drag and drop in the tray.
+- Every design change is shown in real screenshots before it is applied.
+- Window buttons: one minimalist glass capsule rather than traffic lights, in Windows order (minimize, maximize,
+  close), the same size in Qt, GTK, libadwaita and the window decoration.
+- Real app logos, and unique Settings, Downloads and Trash icons.
+- Apps with their own design keep it (Edge, for one). The File Explorer design is for system surfaces: the Control
+  Center, Open and Save panels, Win+E and the shell.
+- No global menu in the top bar.
+- The top bar and the Control Center reach macOS Tahoe's quality: smooth text, SF Symbols-like icons, macOS's order,
+  and the date and time spaced as on macOS.
+- Notifications are macOS banners, in the bottom-right corner where CachyOS puts them.
+- Shortcut hints in menus are written the Windows way ("Ctrl+C"), never with Mac symbols.
+- The Windows key alone opens Quick Menu, as Start does on Windows, drawn like Tahoe's Applications view. Its apps can
+  be dragged within their category and keep that order. A right-click opens Open, the app's own actions, Pin to Top (a
+  Pinned section above Suggestions, like Start's pinned apps), Pin to Dock, Remove from Suggestions, Edit Application
+  and Uninstall; the Menu key and Shift+F10 open it from the keyboard.
+- Quick Menu ends in a rail, as Windows 11's Start does: the account's picture and name open Lock, Switch User and Log
+  Out; the power button opens Sleep, Hibernate (where the machine can), Restart and Shut Down. Plasma's session
+  manager does the work, with its own confirmation.
+- Power and Battery stays visible in the tray, where the power profile is switched.
+- The pointing hand on everything clickable; the black minimalist macOS cursor elsewhere, GTK apps included.
+- The clock follows the region's 12- or 24-hour format.
+- The README's pictures show Orion first under Developer Tools and in the Dock.
+
+## Fonts
+
+- Aurora ships only free fonts: Inter for the interface and JetBrains Mono with Nerd Fonts' symbols for Konsole.
+  Apple's SF Pro and SF Mono are free to download but not to redistribute: their license allows them only for mock-ups
+  of interfaces for Apple's systems. When SF Pro or SF Mono is installed (the AUR's `apple-fonts`, for one), the
+  install uses it instead; Inter is the closest free match, a little wider, with the same shapes and weights.
+
+## Way of working
+
+- Research before deciding; measure before tuning, and say what is inferred.
+- No hardcoding of one case where a general rule exists.
+- Everything stays instant under load.
+- Validation is local; GitHub holds the repository and its releases.
+
+## Naming and the repository
+
+- The theme is called **Aurora**, written in plain words everywhere: no code names. Ids and paths say `aurora`
+  (`org.aurora.decoration`, `org.aurora.glass`, `aurora-pointer`, `~/.local/share/aurora`).
+- The repository is organized by category: `components/`, `cli/`, `themes/`, `installer/`, `packaging/`,
+  `performance/`, `tests/`, `docs/`, `assets/`. Everything Aurora installs lives in this repository: no submodules and
+  nothing downloaded from other projects. One command installs everything (`./install.sh`), one
+  undoes it (`./uninstall.sh`), and the README lists every library and package it uses.
+- Aurora is a macOS Tahoe-inspired theme, never presented as a copy.
+- Pages and code read like a person wrote them: no AI-looking icons, badges, slogans or phrasing.
+- Nothing personal goes into the repository: no saved desktop settings, no private screenshots, no keys.
+- Every showcase picture (the README, the social preview) is taken on Dawn Bird, Aurora's own wallpaper in
+  `themes/wallpapers/Aurora`, chosen among three original concepts. It was generated for Aurora with an image model,
+  scaled to 5120x2880 with Real-ESRGAN (realesrgan-x4plus) and given a fine grain against banding. The sandbox
+  scenarios set it through `tests/helpers/showcase_wallpaper.sh`. The install offers it in the wallpaper picker and
+  leaves the wallpaper alone.
+
+## Menu bar logo
+
+- The menu at the left of the menu bar shows CachyOS's black-and-white logo by default, so it matches the rest of the
+  bar. It is cscs's symbolic version of the official mark, which follows the bar's text color.
+- The menu's settings offer Arch Linux, Apple and Kali Linux too, and the CachyOS and Arch Linux logos in their own
+  colors; any other icon still works.
+
+## Installing and releasing
+
+- `./install.sh` stays the one implementation of the install. The `aurora` command (Rust, `cli/`) is a guided front
+  end over it: it asks for the logo and the tuning, shows each step with a spinner, logs the output, and also updates,
+  rebuilds, changes the logo, shows the status and uninstalls.
+- Distribution: the package `aurora-theme`, built from the GitHub release archive and served from Aurora's own signed
+  pacman repository in the GitHub release `repo` (`sudo pacman -Syu aurora-theme`, then `aurora`). The AUR closed new
+  accounts in 2026 after waves of malicious packages, so a repository I host is the route that works today; the same
+  PKGBUILD goes to the AUR when it reopens. `bunx` was considered and dropped: it needs an npm package and puts a JavaScript runtime in front of a KDE
+  theme.
+- Versions follow SemVer, the changelog Keep a Changelog 2.0.0, commits Conventional Commits; `scripts/release.sh`
+  cuts a release and publishes only with `--publish`.
+
+## License
+
+- Aurora must always credit its author. Aurora's own code is GPL-3.0-only with additional terms under its section 7
+  (NOTICE.md): (b) keep the author attribution in the source and in the Appropriate Legal Notices of every
+  interactive interface, (c) mark modified versions as such, (d) no use of the author's name to promote them.
+  Section 5(d) already makes every modified version keep showing those notices, and `aurora license` plus the banner
+  are where Aurora shows them.
+- GPL rather than Apache-2.0 or MIT: those let a modified version keep the credit only in a NOTICE or license file
+  and close its source; the GPL keeps every version open and, with 7(b), keeps the name in the interface. The
+  Attribution Assurance License forces a splash screen on every launch, which no GPL code may be combined with, and
+  Aurora is built on KDE's GPL code. "Only" rather than "or later" keeps the additional terms tied to the version
+  they were written for.
+- Every file of Aurora's own code carries a three-line header; `scripts/license_headers.py` adds and checks it.
+
+---
+
+Source: NOTICE.md (License and attribution)
+
+# Aurora: copyright, license and attribution
+
+**Aurora by xt0n1** ([github.com/xt0n1-t3ch](https://github.com/xt0n1-t3ch)).
+Copyright (C) 2026 xt0n1.
+
+Aurora's own code is free software: you can redistribute it and modify it under the terms of the GNU General Public
+License version 3 ([LICENSE](LICENSE)), together with the additional terms below. Every file of Aurora's own code says
+so in its header (`SPDX-License-Identifier: GPL-3.0-only` and a line pointing here). It comes with no warranty, to the
+extent permitted by law; see sections 15 and 16 of the license.
+
+## Additional terms (GNU GPL version 3, section 7)
+
+These terms supplement the GNU GPL version 3 for the files whose header points to this notice, and for every work
+based on them.
+
+1. **Author attribution, section 7(b).** Keep the author attribution
+   "Aurora by xt0n1 (https://github.com/xt0n1-t3ch)" in the source files that carry it, and in the Appropriate Legal
+   Notices of every interactive interface of the work: today the `aurora` command's banner ("Developed by xt0n1")
+   and its `license` command. As section 5(d) allows, a modified version may change where and how those notices appear, as long as
+   they still name the author.
+2. **Modified versions, section 7(c).** Do not present a modified version as the original. Mark it in a reasonable
+   way as different from it, for example "based on Aurora by xt0n1", so nobody credits the author with changes they
+   did not make, or blames them for those changes.
+3. **The author's name, section 7(d).** The name "xt0n1" may not be used to promote a modified version, or to
+   suggest the author endorses it, without the author's written permission.
+
+## What else is in this repository
+
+The parts that come from other projects keep their own license: each file's header, or the license file in its
+folder, is the final word.
+
+| Files | License |
+| --- | --- |
+| Aurora's own code: File Explorer, the window buttons, glass, the pointing hand, the energy page's C++, the clock, the Dock divider, the installer, the `aurora` command, the scripts and tests | GPL-3.0-only with the additional terms above |
+| Plasma's parts rebuilt with a patch (`components/system-tray`, `components/notifications`, `components/quick-menu`: `upstream/`, `vendor/`, the `.patch` files), and other files whose header says GPL-2.0-or-later | GPL-2.0-or-later, by KDE's authors; Aurora's changes to them are under the same license |
+| Dawn Bird, Aurora's wallpaper (`themes/wallpapers/Aurora`), and the README's pictures (`assets/readme`, `assets/screenshots`) | CC BY-SA 4.0, by xt0n1 |
+
+The names Apple, macOS, Tahoe, CachyOS, Arch Linux, Kali Linux and KDE are their owners' trademarks. Aurora is
+inspired by macOS Tahoe and is not affiliated with Apple.

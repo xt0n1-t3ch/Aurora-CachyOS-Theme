@@ -1,0 +1,14 @@
+{
+    "KPackageStructure": "Plasma/Applet",
+    "KPlugin": {
+        "Authors": [{ "Name": "Aurora" }],
+        "Category": "Windows and Tasks",
+        "Description": "The thin line macOS draws in the Dock between apps and folders.",
+        "Icon": "view-split-left-right",
+        "Id": "org.aurora.dockdivider",
+        "License": "GPL-3.0-only",
+        "Name": "Dock Divider",
+        "Version": "1.0"
+    },
+    "X-Plasma-API-Minimum-Version": "6.0"
+}

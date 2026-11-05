@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  SPDX-FileCopyrightText: 2026 xt0n1 (https://github.com/xt0n1-t3ch)
+  SPDX-License-Identifier: GPL-3.0-only
+  Additional terms (GPL-3.0 section 7, author attribution): see NOTICE.md.
+-->
+<!-- The settings of the menu bar clock: whether the date shows and which hour format it uses (see ui/main.qml). -->
+<kcfg xmlns="http://www.kde.org/standards/kcfg/1.0"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="http://www.kde.org/standards/kcfg/1.0 http://www.kde.org/standards/kcfg/1.0/kcfg.xsd">
+  <kcfgfile name=""/>
+  <group name="Appearance">
+    <entry name="showDate" type="Bool">
+      <default>true</default>
+    </entry>
+    <!-- As Plasma's digital clock: 0 = 12 h, 1 = the region's format, 2 = 24 h. -->
+    <entry name="use24hFormat" type="Int">
+      <default>1</default>
+    </entry>
+  </group>
+</kcfg>

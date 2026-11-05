@@ -1,0 +1,20 @@
+<!DOCTYPE RCC>
+<RCC version="1.0">
+  <qresource prefix="/icons">
+    <file alias="sidebar.svg">icons/sidebar.svg</file>
+    <file alias="tab-new.svg">icons/tab-new.svg</file>
+    <file alias="sort.svg">icons/sort.svg</file>
+    <file alias="bookmark.svg">icons/bookmark.svg</file>
+    <file alias="places/drive-system.svg">icons/places/drive-system.svg</file>
+    <file alias="places/drive-internal.svg">icons/places/drive-internal.svg</file>
+    <file alias="places/drive-external.svg">icons/places/drive-external.svg</file>
+    <file alias="places/drive-stick.svg">icons/places/drive-stick.svg</file>
+    <file alias="places/drive-optical.svg">icons/places/drive-optical.svg</file>
+    <file alias="places/drive-card.svg">icons/places/drive-card.svg</file>
+    <file alias="places/drive-network.svg">icons/places/drive-network.svg</file>
+    <file alias="places/home.svg">icons/places/home.svg</file>
+    <file alias="places/network.svg">icons/places/network.svg</file>
+    <file alias="places/trash.svg">icons/places/trash.svg</file>
+    <file alias="places/trash-full.svg">icons/places/trash-full.svg</file>
+  </qresource>
+</RCC>

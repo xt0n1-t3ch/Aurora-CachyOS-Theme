@@ -1,0 +1,4 @@
+# ShellCheck settings for Aurora's scripts (scripts/lint-shell.sh runs it on every one).
+# The scenarios and tests source their helpers through paths built at run time ($SBX, $SB), which ShellCheck cannot
+# follow; each sourced helper names its shell with a `# shellcheck shell=` directive instead.
+disable=SC1091

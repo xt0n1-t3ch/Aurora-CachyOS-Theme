@@ -1,0 +1,13 @@
+# SPDX-FileCopyrightText: 2026 xt0n1 (https://github.com/xt0n1-t3ch)
+# SPDX-License-Identifier: GPL-3.0-only
+# Additional terms (GPL-3.0 section 7, author attribution): see NOTICE.md.
+# The packages that only building the parts needs, one per line, on top of installer/dependencies.txt. The
+# aurora-theme package comes with its parts built, so a user needs these only for `aurora rebuild` (install.sh
+# --rebuild) or an install from the source.
+
+base-devel             # gcc, make, patch
+git                    # Plasma's own sources for another Plasma version
+cmake
+ninja
+extra-cmake-modules    # KDE's CMake modules
+qt6-shadertools        # compiles the glass shader of Quick Menu and the notification banners

@@ -1,0 +1,18 @@
+{
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "Aurora"
+            }
+        ],
+        "Category": "Windows and Tasks",
+        "Description": "The active app's name in the menu bar, as on macOS",
+        "Icon": "preferences-system-windows",
+        "Id": "org.aurora.apptitle",
+        "License": "GPL-3.0-only",
+        "Name": "Menu Bar App Name",
+        "Version": "1.0.0"
+    },
+    "X-Plasma-API-Minimum-Version": "6.0",
+    "KPackageStructure": "Plasma/Applet"
+}
