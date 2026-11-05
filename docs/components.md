@@ -62,7 +62,9 @@ KRunner from plasma-workspace 6.8.2 (`upstream/`, `vendor/`, `quick-menu.patch`)
 frameless glass window floating a quarter of the way down the active screen. With nothing typed it shows the
 Applications view: Suggestions (the apps used most, from Plasma's activity statistics through Kicker's
 `RecentUsageModel`) and Plasma's menu in Tahoe's sections (`quickmenu.js`: categories keyed by their `.directory`
-icon, merged, de-duplicated, sorted), one row of five per section until "Show More". The arrow keys walk the grid, the
+icon, merged, de-duplicated, sorted), one row of five per section until "Show More". "All Applications" at the top
+lists every app once under its first letter, accents filed under the plain letter and digits and signs under "#" first
+(`alphabeticalSections()`, like Windows' All apps), and "Back" returns. The arrow keys walk the grid, the
 pointer selects only when it really moves, Return launches. An app dragged onto another of its section takes that
 app's place, and the section keeps that order (`~/.config/aurora/quick-menu.conf`; Suggestions stay ordered by
 use). A right-click on an app, or the Menu key or Shift+F10 on the selected one, opens its menu (`QuickMenuPopup.qml`,
@@ -74,7 +76,7 @@ everything KRunner's runners find, listed
 with their actions, drag-out and section headers; Up in the empty field recalls past searches. The ⋯ menu keeps Keep
 Open, Usage Help and KRunner's settings. It starts through `krunner-launch.sh` and the `plasma-krunner` drop-in
 ([architecture.md](architecture.md)); the menu bar's search icon calls `org.kde.krunner /App toggleDisplay`. Tests:
-`tests/tst_quickmenu.qml` (34), `tests/test_launch.sh` (5). Sandbox: `quick-menu.sh`, `quick-menu-drag.sh`,
+`tests/tst_quickmenu.qml` (43), `tests/test_launch.sh` (5). Sandbox: `quick-menu.sh`, `quick-menu-all.sh`, `quick-menu-drag.sh`,
 `quick-menu-app-menu.sh`.
 
 ## The Windows key (`components/windows-key`)
@@ -87,7 +89,7 @@ first check reproduces the old bug, then four PASS).
 ## Control Center (`components/control-center`)
 
 The widget `org.aurora.controlcenter`, Tahoe's floating glass modules: Wi-Fi or Ethernet, Bluetooth, Focus, sound with a device panel, the player,
-Night Light, screen mirroring, settings and screenshots. The blur comes from `org.aurora.glass`. Tests: `tests/tst_cc.qml` (18). Sandbox: `control-center*.sh`.
+Night Light, screen mirroring, settings and screenshots. The blur comes from `org.aurora.glass`. Tests: `tests/tst_cc.qml` (20). Sandbox: `control-center*.sh`.
 
 ## Glass and pointer hints (`components/glass`)
 

@@ -7,7 +7,8 @@
 // models Kickoff uses (org.kde.plasma.private.kicker), so new apps and launches show up as they do there. An app
 // dragged onto another of its section takes that one's place, and the section keeps that order. A right-click (or the
 // Menu key) opens an app's menu: Open, its jump list, Pin to Top (the Pinned section above Suggestions), Pin to Dock,
-// Remove from Suggestions, and Plasma's Edit Application and Uninstall.
+// Remove from Suggestions, and Plasma's Edit Application and Uninstall. "All Applications" at the top lists every app
+// alphabetically under its first letter, like Windows' All apps, and "Back" returns to the sections.
 import QtCore
 import QtQuick
 import QtQuick.Controls as QQC2
@@ -26,6 +27,8 @@ Flickable {
     property int sidePadding: Kirigami.Units.gridUnit
 
     property var sections: []
+    // All Applications: every app under its first letter instead of the sections.
+    property bool allApps: false
     // Section title -> shown in full.
     property var expanded: ({})
     // {section, index} of the app the arrow keys stand on, or null while the search field has them.
@@ -147,6 +150,13 @@ Flickable {
             categories.push({icon: String(menu.data(index, Qt.DecorationRole) || ""), name: String(menu.data(index, Qt.DisplayRole) || ""),
                              apps: entriesOf(menu.modelForRow(row), Infinity)})
         }
+        if (allApps) {
+            sections = QuickMenu.alphabeticalSections(categories)
+            if (current && current.section >= sections.length) {
+                current = null
+            }
+            return
+        }
         const built = QuickMenu.buildSections(categories, savedOrders())
         // Three rows at most behind Show More: the apps used most, not a second full list.
         const suggested = entriesOf(popular, 3 * columns)
@@ -167,6 +177,7 @@ Flickable {
 
     // Back to a fresh view each time Quick Menu opens: all sections folded, nothing selected, at the top.
     function reset() {
+        allApps = false
         expanded = ({})
         current = null
         lastPointer = null
@@ -290,6 +301,14 @@ Flickable {
         }
     }
 
+    // Switches between the sections and All Applications, from the top of the list.
+    function showAllApps(all) {
+        allApps = all
+        current = null
+        contentY = 0
+        rebuild()
+    }
+
     function toggle(title) {
         const next = Object.assign({}, expanded)
         next[title] = !next[title]
@@ -319,6 +338,60 @@ Flickable {
         width: view.width
         topPadding: Kirigami.Units.mediumSpacing
         bottomPadding: Kirigami.Units.mediumSpacing
+
+        // The switch between the sections and All Applications, at the right end like Windows' "All" button.
+        Item {
+            width: content.width
+            height: Kirigami.Units.gridUnit * 1.8
+
+            QQC2.Label {
+                anchors.left: parent.left
+                anchors.leftMargin: view.sidePadding
+                anchors.verticalCenter: parent.verticalCenter
+                visible: view.allApps
+                text: i18nc("@title Quick Menu's list of every app", "All Applications")
+                font.weight: Font.Bold
+                font.pixelSize: Kirigami.Theme.defaultFont.pixelSize * 1.15
+                color: Qt.rgba(1, 1, 1, 0.95)
+                textFormat: Text.PlainText
+            }
+
+            Rectangle {
+                id: allButton
+                anchors.right: parent.right
+                anchors.rightMargin: view.sidePadding
+                anchors.verticalCenter: parent.verticalCenter
+                width: allLabel.implicitWidth + Kirigami.Units.gridUnit * 1.2
+                height: Kirigami.Units.gridUnit * 1.4
+                radius: height / 2
+                color: allHover.hovered ? Qt.rgba(1, 1, 1, 0.2) : Qt.rgba(1, 1, 1, 0.1)
+                border.color: Qt.rgba(1, 1, 1, 0.14)
+                Accessible.role: Accessible.Button
+                Accessible.name: allLabel.text
+                Accessible.onPressAction: view.showAllApps(!view.allApps)
+
+                Behavior on color {
+                    ColorAnimation { duration: Kirigami.Units.shortDuration }
+                }
+
+                QQC2.Label {
+                    id: allLabel
+                    anchors.centerIn: parent
+                    text: view.allApps ? i18nc("@action:button back from Quick Menu's list of every app", "‹  Back")
+                                       : i18nc("@action:button Quick Menu's list of every app", "All Applications  ›")
+                    font.weight: Font.DemiBold
+                    color: Qt.rgba(1, 1, 1, 0.92)
+                    textFormat: Text.PlainText
+                }
+                HoverHandler {
+                    id: allHover
+                    cursorShape: Qt.PointingHandCursor
+                }
+                TapHandler {
+                    onTapped: view.showAllApps(!view.allApps)
+                }
+            }
+        }
 
         Repeater {
             id: sectionRepeater

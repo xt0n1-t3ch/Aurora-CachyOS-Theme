@@ -30,7 +30,7 @@ printf '[Icon Theme]\nName=Test\nDirectories=apps/scalable\n' > "$theme/index.th
 python3 -I "$ROOT/themes/icons/tag_emblems.py" "$theme" > /dev/null
 python3 -I "$ROOT/themes/icons/tag_emblems.py" "$theme" > /dev/null
 
-check "it writes one emblem per set of one to three colors" test "$(ls "$theme/emblems/scalable" | wc -l)" -eq 63
+check "it writes one emblem per set of one to three colors" test "$(find "$theme/emblems/scalable" -name "*.svg" | wc -l)" -eq 63
 check "the emblem of a red and blue file is there" test -f "$theme/emblems/scalable/emblem-aurora-tags-red-blue.svg"
 check "a second run lists the emblems folder once" test "$(grep -c '^\[emblems/scalable\]' "$theme/index.theme")" -eq 1
 check "the folder is in the theme's Directories" grep -q '^Directories=emblems/scalable,apps/scalable$' "$theme/index.theme"

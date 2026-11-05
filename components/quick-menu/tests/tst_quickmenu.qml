@@ -64,6 +64,36 @@ TestCase {
         compare(titles(sections), ["Creativity"])
     }
 
+    function test_all_applications_lists_every_app_once_under_its_first_letter() {
+        const kate = app("Kate", "applications:org.kde.kate.desktop")
+        const sections = QuickMenu.alphabeticalSections([
+            {icon: "applications-system", name: "System", apps: [kate, app("konsole"), app("Ark")]},
+            {icon: "applications-utilities", name: "Utilities", apps: [kate, app("Ébano"), app("Discord")]},
+        ])
+        compare(titles(sections), ["A", "D", "E", "K"])
+        compare(names(sections[3]), ["Kate", "konsole"])
+        // An accent files a name under its plain letter, as Windows' All apps list does.
+        compare(names(sections[2]), ["Ébano"])
+    }
+
+    function test_names_that_start_with_a_digit_or_a_sign_come_first_under_a_hash() {
+        const sections = QuickMenu.alphabeticalSections([
+            {icon: "applications-other", name: "Other", apps: [app("Zoom"), app("7-Zip"), app("&Notes")]},
+        ])
+        compare(titles(sections), ["#", "Z"])
+        compare(names(sections[0]), ["&Notes", "7-Zip"])
+    }
+
+    function test_all_applications_shows_every_app_without_show_more() {
+        const many = []
+        for (let i = 0; i < 12; ++i) {
+            many.push(app("App " + i))
+        }
+        const section = QuickMenu.alphabeticalSections([{icon: "applications-other", name: "Other", apps: many}])[0]
+        compare(QuickMenu.visibleApps(section, false, 5).length, 12)
+        verify(!QuickMenu.canExpand(section, 5))
+    }
+
     function test_a_section_shows_one_row_until_show_more() {
         const apps = ["A", "B", "C", "D", "E", "F", "G"].map(name => app(name))
         const section = {title: "Utilities", apps: apps}
