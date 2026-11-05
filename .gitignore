@@ -1,0 +1,27 @@
+# Everything installer/build.sh makes: one build tree per part, the staged MacTahoe icons, the unpacked GTK release,
+# Plasma sources fetched for another Plasma version, and the build logs.
+/build/
+__pycache__/
+*.pyc
+/tests/helpers/fakeinput/fakeinput
+/tests/helpers/fake-tray/build/
+/tests/helpers/svgcheck/build/
+/performance/measure/power/burst
+/performance/measure/sched/rtlat
+
+# The test sandbox runs a whole Plasma session with its own home folder (caches, browser profiles, a KDE Connect
+# key): none of it, nor its logs and captures, belongs in the repository.
+/tests/sandbox/home/
+/tests/sandbox/run/
+/tests/sandbox/logs/
+/tests/sandbox/shots/
+
+# The upstream history of the two forked widgets (components/kali-menu, components/control-center), kept locally.
+.upstream-git/
+/cli/target/
+
+# Kept on the author's disk only, never in the repository: the desktop settings saved before the first install, the
+# design drafts and screenshots, and the working rules for coding agents.
+/backups/
+/design/
+AGENTS.md
