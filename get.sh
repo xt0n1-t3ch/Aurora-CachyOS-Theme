@@ -117,7 +117,7 @@ main() {
     command -v pacman > /dev/null || fail "Aurora is made for CachyOS and other Arch-based systems with pacman."
     plasma=$(plasma_version)
     [ "${plasma%%.*}" = 6 ] || fail "Aurora needs KDE Plasma 6, and this system has ${plasma:+Plasma $plasma}${plasma:-no Plasma}. Nothing was changed."
-    printf '   %sDetected%s  %s · KDE Plasma %s · %s\n\n' "$(sgr 2)" "$(sgr 0)" "$(system_name)" "$plasma" \
+    printf '   %sDetected%s  %s, KDE Plasma %s, %s\n\n' "$(sgr 2)" "$(sgr 0)" "$(system_name)" "$plasma" \
         "$(session_name)"
     printf '%s┌%s  %sInstalling Aurora%s\n' "$(sgr "$VIOLET")" "$(sgr 0)" "$(sgr 1)" "$(sgr 0)"
 
@@ -159,7 +159,7 @@ main() {
     local version
     version=$(pacman -Q aurora-theme 2> /dev/null | awk '{ sub(/-1$/, "", $2); print $2 }')
     bar
-    printf '%s◇%s  %sAurora%s is ready for KDE Plasma %s%s %s· %s%s\n' "$(sgr "$MINT")" "$(sgr 0)" "$(sgr 1)" \
+    printf '%s◇%s  %sAurora%s is ready for KDE Plasma %s%s%s, in %s%s\n' "$(sgr "$MINT")" "$(sgr 0)" "$(sgr 1)" \
         "${version:+ $version}" "$plasma" "$(sgr 0)" "$(sgr 2)" "$(span $(($(now_ms) - started)))" "$(sgr 0)"
     bar
     printf '%s└%s  Last step: choose the logo for your menu bar\n' "$(sgr "$VIOLET")" "$(sgr 0)"

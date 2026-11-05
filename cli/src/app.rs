@@ -117,7 +117,7 @@ fn system_line() -> Result<String> {
     let session = env::var("XDG_SESSION_TYPE").unwrap_or_default();
     let get = |name: &str| versions.get(name).cloned().unwrap_or_else(|| "?".into());
     Ok(format!(
-        "KDE Plasma {plasma} · KWin {} · Qt {} · {}",
+        "KDE Plasma {plasma}, KWin {}, Qt {}, {}",
         get("kwin"),
         get("qt6-base"),
         match session.as_str() {
