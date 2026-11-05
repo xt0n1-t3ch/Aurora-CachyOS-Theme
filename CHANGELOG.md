@@ -11,6 +11,8 @@ it changes. A change that needs a fresh install, or that an earlier backup canno
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-11-05
+
 ### Added
 
 - File Explorer takes typed paths: click the path in the toolbar, or press Ctrl+L or Alt+D, and type. Subfolders drop
@@ -108,5 +110,6 @@ question, and removed with one command.
 - After a Plasma, KWin or Qt update, the parts built for the old version step aside on their own until the package
   brings them built for the new one; `aurora rebuild` builds them right away.
 
-[Unreleased]: https://github.com/xt0n1-t3ch/Aurora-CachyOS-Theme/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/xt0n1-t3ch/Aurora-CachyOS-Theme/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/xt0n1-t3ch/Aurora-CachyOS-Theme/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/xt0n1-t3ch/Aurora-CachyOS-Theme/releases/tag/v1.0.0
