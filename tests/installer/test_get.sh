@@ -56,7 +56,8 @@ check "the password is asked once, before anything changes" "$(grep -m1 '^sudo' 
 check "aurora is told the banner is on screen already" "$(cat "$work/banner")" shown
 plain=$(sed 's/\x1b\[[0-9;]*m//g' "$work/first.log")
 check "it names the system it installs on, its session as people write it" \
-    "$(grep -c '^   Detected  .* · KDE Plasma 6.8.2 · Wayland$' <<< "$plain")" 1
+    "$(grep -c '^   Detected  .*, KDE Plasma 6.8.2, Wayland$' <<< "$plain")" 1
+check "the words are plain: no middle dots" "$(grep -c '·' <<< "$plain")" 0
 check "the four steps are numbered" "$(grep -oE '◆  [1-4]/4' <<< "$plain" | tr '\n' ' ')" "◆  1/4 ◆  2/4 ◆  3/4 ◆  4/4 "
 check "each step ends with a tick and its time" "$(grep -cE '^✓  .+ \([0-9]+\.[0-9] s\)$' <<< "$plain")" 4
 check "the end names the installed version" "$(grep -c 'Aurora 1.0.0 is ready for KDE Plasma 6.8.2' <<< "$plain")" 1
