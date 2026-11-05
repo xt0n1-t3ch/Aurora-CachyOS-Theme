@@ -151,10 +151,11 @@ pub struct Choice {
 #[must_use]
 pub fn choices() -> Vec<Choice> {
     let plain = Logo::ALL.map(|logo| Choice { logo, colors: Colors::Off, label: logo.name().to_string() });
-    let colored = Logo::ALL
-        .into_iter()
-        .filter(|logo| logo.has_colors())
-        .map(|logo| Choice { logo, colors: Colors::On, label: format!("{} in its colors", logo.name()) });
+    let colored = Logo::ALL.into_iter().filter(|logo| logo.has_colors()).map(|logo| Choice {
+        logo,
+        colors: Colors::On,
+        label: format!("{} in its colors", logo.name()),
+    });
     plain.into_iter().chain(colored).collect()
 }
 
@@ -176,7 +177,10 @@ mod tests {
         }
         let mut seen = std::collections::HashSet::new();
         assert!(choices.iter().all(|c| seen.insert(c.label.clone())), "every label is different");
-        assert_eq!(choices.iter().find(|c| c.colors == Colors::On).map(|c| c.label.as_str()), Some("CachyOS in its colors"));
+        assert_eq!(
+            choices.iter().find(|c| c.colors == Colors::On).map(|c| c.label.as_str()),
+            Some("CachyOS in its colors")
+        );
     }
 
     #[test]

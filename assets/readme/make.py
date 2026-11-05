@@ -53,12 +53,12 @@ HEADINGS = {
 }
 
 STEPS = [
-    ("Packages", "Installs what your system lacks with pacman, from installer/dependencies.txt."),
-    ("Themes", "Checks Aurora's own themes in themes/: nothing is downloaded."),
-    ("Build", "Uses the parts the package already built; builds them again only for a newer Plasma."),
-    ("Backup", "Saves every setting it is about to change, then copies everything into your home folder."),
-    ("System", "Links the window buttons and the pointing hand where KWin finds them."),
+    ("One command", "Adds Aurora's signed pacman repository and installs the aurora-theme package."),
+    ("Already built", "Every part comes built for your Plasma: nothing compiles and nothing else downloads."),
+    ("One question", "The aurora installer opens and asks which logo goes at the left of the menu bar."),
+    ("Backup", "Saves every setting it is about to change, so aurora uninstall puts it all back."),
     ("Look", "Applies the colors, fonts, icons, cursor and keys, then puts up the menu bar and the Dock."),
+    ("Log in again", "Log out and back in, and your desktop is Aurora."),
 ]
 
 

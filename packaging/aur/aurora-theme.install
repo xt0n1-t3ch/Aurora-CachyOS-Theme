@@ -6,8 +6,8 @@ post_install() {
 }
 
 post_upgrade() {
-    echo ':: Aurora was updated. Run `aurora install --yes` as your own user to apply the new version,'
-    echo '   then log out and back in.'
+    echo ':: Aurora was updated. `aurora update` applies it by itself; after a plain pacman -Syu, run'
+    echo '   `aurora install --yes` as your own user. Then log out and back in.'
 }
 
 pre_remove() {

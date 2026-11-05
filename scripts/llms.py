@@ -24,9 +24,9 @@ SUMMARY = ("Aurora is a macOS Tahoe-inspired desktop theme for KDE Plasma 6 on C
            "uninstalls with one command.")
 
 FACTS = [
-    "Install it with one command, `bash <(curl -fsSL "
-    "https://raw.githubusercontent.com/xt0n1-t3ch/Aurora-CachyOS-Theme/main/get.sh)`: it adds Aurora's signed pacman "
-    "repository, installs the aurora-theme package (its parts come built) and opens `aurora`, which asks one "
+    "Install it with one command, `curl -fsSL "
+    "https://raw.githubusercontent.com/xt0n1-t3ch/Aurora-CachyOS-Theme/main/get.sh | bash`: it adds Aurora's signed pacman "
+    "repository, installs the aurora-theme package (its parts come built) and opens `aurora install`, which asks one "
     "question, the menu bar's logo. From the source: `git clone https://github.com/xt0n1-t3ch/Aurora-CachyOS-Theme` "
     "and `./install.sh`.",
     "Remove it with `aurora uninstall` or `./uninstall.sh`: the install saves every setting before it changes it.",

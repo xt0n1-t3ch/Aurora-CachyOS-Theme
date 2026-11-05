@@ -17,11 +17,13 @@ use crate::release;
 use crate::run;
 use crate::source::{Kind, Source};
 use crate::system;
+use crate::updates;
 
 /// Where this account keeps things, from the XDG variables with their usual defaults.
 #[derive(Debug, Clone)]
 pub struct Places {
     pub home: PathBuf,
+    pub config: PathBuf,
     pub state: PathBuf,
     pub cache: PathBuf,
 }
@@ -32,7 +34,24 @@ impl Places {
     pub fn from_env() -> Result<Places> {
         let home = PathBuf::from(env::var_os("HOME").context("HOME is not set")?);
         let xdg = |name: &str, fallback: &str| env::var_os(name).map_or_else(|| home.join(fallback), PathBuf::from);
-        Ok(Places { state: xdg("XDG_STATE_HOME", ".local/state"), cache: xdg("XDG_CACHE_HOME", ".cache"), home })
+        Ok(Places {
+            config: xdg("XDG_CONFIG_HOME", ".config"),
+            state: xdg("XDG_STATE_HOME", ".local/state"),
+            cache: xdg("XDG_CACHE_HOME", ".cache"),
+            home,
+        })
+    }
+
+    /// The user's settings, which `aurora settings` changes.
+    #[must_use]
+    pub fn settings_file(&self) -> PathBuf {
+        self.config.join("aurora/aurora.conf")
+    }
+
+    /// What the last look for updates found.
+    #[must_use]
+    pub fn update_record(&self) -> PathBuf {
+        self.state.join("aurora/updates")
     }
 
     #[must_use]
@@ -68,11 +87,13 @@ fn interactive(yes: bool) -> bool {
 }
 
 /// The password dialog sudo uses when the scripts need root, so the prompt never fights the spinners: the one
-/// already set, else KDE's (ksshaskpass).
-fn askpass() -> Option<PathBuf> {
-    env::var_os("SUDO_ASKPASS").map(PathBuf::from).or_else(|| {
+/// already set, else KDE's (ksshaskpass); behind Aurora's wrapper in the state folder, which keeps the dialog's
+/// warnings out of the terminal (see [`askpass`](crate::askpass)).
+fn askpass(places: &Places) -> Option<PathBuf> {
+    let program = env::var_os("SUDO_ASKPASS").map(PathBuf::from).or_else(|| {
         ["/usr/bin/ksshaskpass", "/usr/lib/ssh/ksshaskpass"].into_iter().map(PathBuf::from).find(|path| path.is_file())
-    })
+    })?;
+    Some(crate::askpass::wrapped(program, &places.state.join("aurora")))
 }
 
 /// Asks for the sudo password once in the terminal when no dialog can, before any spinner starts.
@@ -144,8 +165,7 @@ pub fn install(places: &Places, choices: InstallChoices) -> Result<()> {
         bail!("run aurora as your own user, not with sudo: it installs into your home folder");
     }
     cliclack::log::step(format!("Your system: {}", system_line()?))?;
-    let (mut logo, mut colors, performance) =
-        (choices.logo.unwrap_or_default(), choices.colors, choices.performance);
+    let (mut logo, mut colors, performance) = (choices.logo.unwrap_or_default(), choices.colors, choices.performance);
     // One question: the logo. Choosing it starts the install; Esc leaves everything as it is.
     if interactive(choices.yes) {
         let parts = if source.root.join("prebuilt").is_dir() {
@@ -162,7 +182,7 @@ pub fn install(places: &Places, choices: InstallChoices) -> Result<()> {
         )?;
         (logo, colors) = pick_logo("Pick the menu bar's logo to install Aurora", logo, colors)?;
     }
-    let askpass = askpass();
+    let askpass = askpass(places);
     sudo_ready(askpass.as_deref())?;
     // install.sh chooses where the parts come from: the package's prebuilt ones, or a build.
     let env: Vec<(&str, &Path)> = askpass.iter().map(|dialog| ("SUDO_ASKPASS", dialog.as_path())).collect();
@@ -193,7 +213,7 @@ pub fn rebuild(places: &Places) -> Result<()> {
     let source = source(places)?;
     cliclack::intro(Style::new().bold().apply_to("Rebuild Aurora's parts"))?;
     cliclack::log::step(format!("Your system: {}", system_line()?))?;
-    let askpass = askpass();
+    let askpass = askpass(places);
     sudo_ready(askpass.as_deref())?;
     let env: Vec<(&str, &Path)> = askpass.iter().map(|dialog| ("SUDO_ASKPASS", dialog.as_path())).collect();
     run::script(&source.root.join("install.sh"), &["--rebuild", "--yes"], &env, &places.state, "Starting the rebuild")?;
@@ -239,7 +259,7 @@ pub fn uninstall(places: &Places, yes: bool) -> Result<()> {
         cliclack::outro_cancel("Nothing was changed")?;
         return Ok(());
     }
-    let askpass = askpass();
+    let askpass = askpass(places);
     sudo_ready(askpass.as_deref())?;
     let env: Vec<(&str, &Path)> = askpass.iter().map(|dialog| ("SUDO_ASKPASS", dialog.as_path())).collect();
     run::script(&source.root.join("uninstall.sh"), &[], &env, &places.state, "Putting your desktop back")?;
@@ -258,13 +278,25 @@ fn package_update(on_path: impl Fn(&str) -> bool) -> Vec<&'static str> {
     }
 }
 
+/// The version `aurora update` compares before and after: for the package its full release from pacman (a new
+/// package release, 1.0.0-1 to 1.0.0-3, keeps the VERSION file), otherwise the copy's VERSION.
+fn release_of(source: &Source) -> String {
+    if source.kind == Kind::Package
+        && let Some(release) =
+            run::capture("pacman", &["-Q", updates::PACKAGE]).ok().and_then(|out| updates::installed_release(&out))
+    {
+        return release;
+    }
+    source.version()
+}
+
 /// `aurora update`: gets the newest version the way this copy came, then installs it.
 ///
 /// # Errors
 /// When the update cannot be fetched or installed.
 pub fn update(places: &Places, yes: bool) -> Result<()> {
     let source = source(places)?;
-    let before = source.version();
+    let before = release_of(&source);
     cliclack::intro(Style::new().bold().apply_to("Update Aurora"))?;
     let newest = match source.kind {
         Kind::Checkout => {
@@ -287,18 +319,18 @@ pub fn update(places: &Places, yes: bool) -> Result<()> {
         }
         Kind::Archive => crate::download::newest(places, &before)?.unwrap_or_else(|| source.clone()),
     };
-    let after = newest.version();
+    let after = release_of(&newest);
     if after == before
         && !yes
         && interactive(false)
-        && !cliclack::confirm(format!("Aurora {after} is the newest. Install it again anyway?"))
+        && !cliclack::confirm(format!("Aurora {} is the newest. Install it again anyway?", updates::shown(&after)))
             .initial_value(false)
             .interact()?
     {
         cliclack::outro("Aurora is up to date.")?;
         return Ok(());
     }
-    cliclack::log::step(format!("Installing Aurora {after}"))?;
+    cliclack::log::step(format!("Installing Aurora {}", updates::shown(&after)))?;
     install(
         places,
         InstallChoices {
@@ -307,7 +339,8 @@ pub fn update(places: &Places, yes: bool) -> Result<()> {
             colors: current_logo().map(|(_, colors)| colors).unwrap_or_default(),
             performance: tuned(),
         },
-    )
+    )?;
+    crate::check::updated(places)
 }
 
 /// The logo the menu bar shows now, when it is one of Aurora's.
@@ -369,7 +402,7 @@ pub fn status(places: &Places) -> Result<()> {
             source.version(),
             match source.kind {
                 Kind::Checkout => "git checkout",
-                Kind::Package => "AUR package",
+                Kind::Package => "pacman package",
                 Kind::Archive => "release archive",
             },
             source.root.display()

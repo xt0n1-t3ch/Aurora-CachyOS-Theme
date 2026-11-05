@@ -4,7 +4,8 @@
 # Additional terms (GPL-3.0 section 7, author attribution): see NOTICE.md.
 # packaging/aur/PKGBUILD stays in step with the rest of the repository: it depends on exactly the packages in
 # installer/dependencies.txt plus what the aurora command needs itself (the two libraries it links, glibc and libgcc,
-# and the two programs it runs, curl and tar), builds with installer/build-dependencies.txt plus cargo, and .SRCINFO
+# the two programs it downloads with, curl and tar, and what its update notices use: checkupdates from pacman-contrib,
+# notify-send from libnotify and Konsole to run the update in), builds with installer/build-dependencies.txt plus cargo, and .SRCINFO
 # is what makepkg writes for it. Reads the PKGBUILD in a subshell; builds nothing.
 set -u
 here=$(dirname "$(readlink -f "$0")")
@@ -15,7 +16,7 @@ check() {
 }
 
 listed=$(sed -e 's/#.*//' -e '/^[[:space:]]*$/d' "$root/installer/dependencies.txt" | awk '{print $1}')
-want=$({ echo "$listed"; printf '%s\n' glibc libgcc curl tar; } | sort -u | tr '\n' ' ')
+want=$({ echo "$listed"; printf '%s\n' glibc libgcc curl tar pacman-contrib libnotify konsole; } | sort -u | tr '\n' ' ')
 # shellcheck disable=SC1091 # the PKGBUILD is read on purpose, in a subshell
 got=$(cd "$root/packaging/aur" && bash -c 'source ./PKGBUILD && printf "%s\n" "${depends[@]}"' | sort -u | tr '\n' ' ')
 check "the package depends on installer/dependencies.txt and what the aurora command needs" "$got" "$want"

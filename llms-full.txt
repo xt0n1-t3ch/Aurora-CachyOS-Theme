@@ -64,12 +64,14 @@ Notifications arrive as banners in the bottom-right corner.
 One command, as yourself (not with sudo):
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/xt0n1-t3ch/Aurora-CachyOS-Theme/main/get.sh)
+curl -fsSL https://raw.githubusercontent.com/xt0n1-t3ch/Aurora-CachyOS-Theme/main/get.sh | bash
 ```
 
-It adds Aurora's pacman repository, installs the `aurora-theme` package and opens `aurora`, the guided install. `aurora` checks your system, asks which logo goes in the menu bar and whether to add the performance tuning, then installs step by step and keeps a log in `~/.local/state/aurora/logs`. sudo asks for your password when it needs it. Log out and back in when it finishes.
+It adds Aurora's pacman repository, installs the `aurora-theme` package and opens `aurora install`, the guided install. `aurora` checks your system, asks which logo goes in the menu bar, then installs step by step and keeps a log in `~/.local/state/aurora/logs`. sudo asks for your password when it needs it. Log out and back in when it finishes.
 
-From then on, `sudo pacman -Syu` brings each new version with the rest of your system.
+(Picture: What happens after you press Enter, in six steps: one command, already built, one question, backup, look, log in again.)
+
+From then on, `sudo pacman -Syu` brings each new version with the rest of your system, and Aurora tells you when one is out: a notification with **Update now** and **Skip this version**, once a day or on the schedule you pick in `aurora settings`.
 
 <details>
 <summary>What the command does, and how to do it by hand</summary>
@@ -79,7 +81,7 @@ From then on, `sudo pacman -Syu` brings each new version with the rest of your s
 1. Trusts Aurora's signing key, [`aurora.asc`](packaging/repo/aurora.asc) (`657D 8110 799A 4E65 BE4E 1AB4 F028 2841 1279 4CC2`), after checking that the downloaded key has that fingerprint.
 2. Adds the `[aurora]` section to `/etc/pacman.conf`. The repository is this project's [`repo` release](https://github.com/xt0n1-t3ch/Aurora-CachyOS-Theme/releases/tag/repo), and every file in it is signed.
 3. Upgrades the system with the package, `sudo pacman -Syu aurora-theme`.
-4. Opens `aurora`.
+4. Opens `aurora install`.
 
 By hand, the same steps are:
 
@@ -88,7 +90,7 @@ curl -fsSL https://raw.githubusercontent.com/xt0n1-t3ch/Aurora-CachyOS-Theme/mai
 sudo pacman-key --lsign-key 657D8110799A4E65BE4E1AB4F028284112794CC2
 printf '\n[aurora]\nServer = https://github.com/xt0n1-t3ch/Aurora-CachyOS-Theme/releases/download/repo\n' | sudo tee -a /etc/pacman.conf
 sudo pacman -Syu aurora-theme
-aurora
+aurora install
 ```
 
 </details>
@@ -124,12 +126,10 @@ The `aurora` command comes with the package, and `./install.sh` installs it too 
 | `aurora update` | Gets the newest release, checks it against its checksums and installs it |
 | `aurora rebuild` | Builds the parts again after a Plasma, KWin or Qt update |
 | `aurora logo arch` | Changes the menu bar logo: `cachyos`, `arch`, `apple` or `kali`; `--colors` shows it in its own colors |
+| `aurora settings` | Update notices (every day, every week or never; `--updates weekly` sets it from a script) and the menu bar logo |
+| `aurora check-updates` | Looks for a newer Aurora right away |
 | `aurora status` | What is installed, from where, and whether a rebuild is due |
 | `aurora uninstall` | Puts your desktop back the way it was |
-
-Either way, the install runs the same six steps:
-
-(Picture: What the install does, in six steps: packages, sources, build, backup, system and look. The same steps are written out below.)
 
 <details>
 <summary>What install.sh does, step by step</summary>
@@ -380,6 +380,30 @@ sudo install -Dm644 performance/system/90-aurora-zram.conf /etc/systemd/zram-gen
 Source: docs/update.md (Updates)
 
 [Aurora](../README.md) / [Documentation](index.md) / Updates
+
+# Updates
+
+## New versions of Aurora
+
+Each release is built once, on the maintainer's machine, by `scripts/release.sh X.Y.Z --publish`: the package with
+every part built goes into the signed pacman repository (the GitHub release named `repo`), so no user compiles
+anything. pacman brings it with the rest of the system (`sudo pacman -Syu`, or `aurora update`).
+
+Aurora also says when one is out. `aurora-updates.timer`, a user timer the install enables in
+`~/.config/systemd/user`, runs `aurora check-updates --notify` once a day (and at the next login when the PC was off).
+That looks in pacman's repositories with `checkupdates` (its own copy of the databases, no root) and, when a newer
+aurora-theme is there, shows a notification:
+
+| Button | What happens |
+| --- | --- |
+| Update now | Konsole opens with `aurora update` |
+| Skip this version | no notice offers that version again; the next one is offered |
+| (closed) | it asks again at the next check |
+
+`aurora settings` chooses how often it looks: every day (the default), every week or never
+(`aurora settings --updates weekly` from a script). The choice is in `~/.config/aurora/aurora.conf`; what the last
+look found is in `~/.local/state/aurora/updates`, and `aurora` names a found version above its menu.
+`aurora check-updates` looks right away.
 
 # After a system update
 
@@ -870,9 +894,9 @@ export QT_QPA_PLATFORM=offscreen q=/usr/lib/qt6/bin/qmltestrunner B=$PWD/build
 
 | What it proves | Command | Result |
 | --- | --- | --- |
-| The install keeps a menu bar that is already there; its backup lists every file it adds (install, then delete `created.txt`, gives back the same home); a second backup keeps the first; it installs the `aurora` command and offers Aurora's wallpaper; it copies no font, uses Inter and JetBrains Mono unless SF Pro or SF Mono is installed, and the repository carries no Apple font; an install from before the Quick Menu's name moves its files, its saved order and the menu bar button over; GTK apps get Plasma's cursor | `python3 -I tests/installer/test_install.py` | 13 pass |
+| The install keeps a menu bar that is already there; its backup lists every file it adds (install, then delete `created.txt`, gives back the same home); a second backup keeps the first; it installs the `aurora` command and offers Aurora's wallpaper; it copies no font, uses Inter and JetBrains Mono unless SF Pro or SF Mono is installed, and the repository carries no Apple font; an install from before the Quick Menu's name moves its files, its saved order and the menu bar button over; old menu bar widgets give their place to Aurora's own; the package's prebuilt parts export without object files; installed from the package, an older `aurora` in `~/.local/bin` goes so the package's runs; the update notices' timer runs the installed aurora daily, catches up after the PC was off, is enabled once, and the backup lists it; a running Plasma stops before old widgets get Aurora's ids (it would write the old ones back) and nothing to move leaves it alone; GTK apps get Plasma's cursor | `python3 -I tests/installer/test_install.py` | 23 pass |
 | `install.sh --help` and `--version`, refuses unknown options, `--check` writes nothing and names the build folder (the user's cache for a read-only copy, as the aurora-theme package's); `uninstall.sh` without an install fails clearly | `tests/installer/test_cli.sh` | 12 pass |
-| `get.sh`, README.md's one command: checks the downloaded key's fingerprint before pacman trusts it, adds `[aurora]` to pacman.conf once, upgrades with `pacman -Syu --needed aurora-theme`, then opens `aurora`; a second run only upgrades and opens it; another key changes nothing | `tests/installer/test_get.sh` | 15 pass |
+| `get.sh`, README.md's one command: checks the downloaded key's fingerprint before pacman trusts it, adds `[aurora]` to pacman.conf once, upgrades with `pacman -Syu --needed aurora-theme`, then opens the package's `aurora install` (`/usr/bin`, ahead of an older copy on PATH); a second run only upgrades and opens it; another key changes nothing; README.md's command, `curl -fsSL .../get.sh | bash`, runs in fish, zsh and bash, which find only the stand-in sudo (a real one failing would count toward pam_faillock's lockout); Aurora's wordmark comes first, the password is asked once before anything changes, and aurora does not draw the wordmark again; it names the system (Wayland, Plasma 6.8.2), numbers the four steps with a tick and a time each, ends with the installed version, and refuses Plasma 5 before any sudo | `tests/installer/test_get.sh` | 31 pass |
 | The root part of the install (`installer/root-steps.sh`) takes paths as arguments: a path with a quote, `$(...)` or `;` is linked as written and runs nothing; unknown steps are refused; `install.sh` hands root no shell text | `tests/installer/test_root_steps.sh` | 6 pass |
 | The Plasma parts build from `vendor/` for its version and from that version's own sources for any other; the `aurora` command builds when Rust is installed and is skipped without it or in a copy without `cli/` (the aurora-theme package's) | `tests/installer/test_build.sh` | 6 pass |
 | The login script keeps a plugin only while it was built for the installed versions | `tests/installer/test_login_script.sh` | 7 pass |
@@ -890,7 +914,7 @@ export QT_QPA_PLATFORM=offscreen q=/usr/lib/qt6/bin/qmltestrunner B=$PWD/build
 | The repository's description and topics fit GitHub's limits (20 topics of lowercase letters, digits and hyphens, no repeats; 350 characters) | `python3 -I scripts/github_meta.py --check` | pass (20 topics) |
 | The social preview is 1280x640, under 1 MB, with its text at 7:1 or more (`make.py` refuses to write it otherwise) | `python3 -I assets/readme/make.py` | pass (73 KB, 12.4:1) |
 | Every shell script Aurora owns, and the `restore.sh` that `install.py` writes, has no ShellCheck finding at its strictest level (style), with `.shellcheckrc` | `scripts/lint-shell.sh` | pass (73 scripts) |
-| The AUR package depends on `installer/dependencies.txt` plus what the `aurora` command needs, its functions leave makepkg's variables alone, and `.SRCINFO` matches the PKGBUILD | `tests/release/test_pkgbuild.sh` | 3 pass |
+| The package depends on `installer/dependencies.txt` plus what the `aurora` command needs (its update notices too: checkupdates, notify-send, Konsole), builds with `installer/build-dependencies.txt`, its functions leave makepkg's variables alone, and `.SRCINFO` matches the PKGBUILD | `tests/release/test_pkgbuild.sh` | 4 pass |
 | `scripts/pacman-repo.sh` builds a signed package and a signed `aurora` database of real files with the key's public half, refuses a key whose secret half is missing, and pacman (under fakeroot, in a throwaway root) installs the package from it and refuses a tampered database | `tests/release/test_pacman_repo.sh` | 14 pass |
 
 ## Components
@@ -910,7 +934,7 @@ export QT_QPA_PLATFORM=offscreen q=/usr/lib/qt6/bin/qmltestrunner B=$PWD/build
 | Quick Menu logic (sections, keys, dragged order, the app menu, pins, the Dock script, the account and power rail) | `(cd components/quick-menu && $q -input tests/tst_quickmenu.qml)` | 38 pass |
 | Quick Menu launcher | `components/quick-menu/tests/test_launch.sh` | 5 pass |
 | Menu bar logos (the logo table, colors, ids) | `(cd components/kali-menu && $q -input tests/tst_logos.qml)` | 8 pass |
-| The `aurora` command: logos, install steps, releases (SemVer tags, HTTPS links, checksums, archive members), sources, logs, the banner; contract tests against `tools.js`, `install.sh` and `release.sh` | `cargo test --locked --manifest-path cli/Cargo.toml` | 41 + 7 pass |
+| The `aurora` command: logos, install steps, releases (SemVer tags, HTTPS links, checksums, archive members), sources, logs, the banner (not twice after get.sh); update notices (daily, weekly or never with a few hours of slack, settings and record round trips, checkupdates output recorded on CachyOS, a skipped version, the notice's title, text and buttons, and that it stays until answered; the package release `aurora update` compares); sudo's password dialog behind a wrapper that keeps its warnings out of the terminal; the package's program installs the package's copy over an older installed one; contract tests against `tools.js`, `install.sh` and `release.sh` | `cargo test --locked --manifest-path cli/Cargo.toml` | 57 + 3 + 7 pass |
 | Plasma patches | each `<part>.patch` on a fresh copy of `upstream/` (plus the `.qsb`) reproduces `vendor/` ([../docs/update.md](../docs/update.md)) | 3 reproduce |
 
 ## Sandbox scenarios
@@ -1136,9 +1160,15 @@ question, and removed with one command.
 
 ### Added
 
-- One command installs Aurora: `bash <(curl -fsSL .../get.sh)` adds Aurora's signed pacman repository, installs the
-  aurora-theme package and opens `aurora`, whose only question is the menu bar's logo. The package comes with its
-  parts built, so nothing is compiled on your machine, and every `sudo pacman -Syu` brings the new versions.
+- One command installs Aurora, in fish, bash or zsh: `curl -fsSL .../get.sh | bash` shows Aurora's wordmark, asks
+  for your password once, adds Aurora's signed pacman repository, installs the aurora-theme package and opens
+  `aurora`, whose only question is the menu bar's logo. The package comes with its parts built, so nothing is
+  compiled on your machine, and every `sudo pacman -Syu` brings the new versions.
+- Update notices: once a day (a user timer that catches up after the PC was off), Aurora looks for a newer version and
+  offers it in a notification with Update now and Skip this version; `aurora` also names it above its menu.
+  `aurora check-updates` looks right away.
+- `aurora settings`: how often to look for updates (every day, every week or never; `--updates` sets it from a
+  script) and the menu bar logo, so the install itself keeps its one question.
 - Everything Aurora installs is in this repository: its themes, widgets and parts. Nothing is downloaded from other
   projects.
 - `./install.sh` installs from the source in one go: the packages it needs, the eight compiled parts built for your
@@ -1146,8 +1176,8 @@ question, and removed with one command.
   `--reset-panels`, `--check`, `--yes`.
 - `./uninstall.sh` and `aurora uninstall` put back every saved setting and remove everything the theme added.
 - The `aurora` command: the install with its one question, each step with its progress and a log, and `update`,
-  `rebuild`, `logo`, `status` and `uninstall`. On the package, `aurora update` upgrades the whole system with it
-  (`-Syu` through paru, yay or pacman), so there is never a partial upgrade.
+  `rebuild`, `logo`, `settings`, `check-updates`, `status` and `uninstall`. On the package, `aurora update` upgrades the
+  whole system with it (`-Syu` through paru, yay or pacman), so there is never a partial upgrade.
 - A license: Aurora's own code is free software under the GNU GPL version 3, with additional terms (NOTICE.md) that
   keep the author's credit in every version. `aurora license` shows them.
 - File Explorer: a Finder-style file manager on Dolphin's engine, opened by Win+E, drawing every app's Open and Save
