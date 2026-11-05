@@ -89,6 +89,6 @@ pkgbase = aurora-theme
 	options = !debug
 	options = !strip
 	source = aurora-1.0.0.tar.gz::https://github.com/xt0n1-t3ch/Aurora-CachyOS-Theme/releases/download/v1.0.0/aurora-1.0.0.tar.gz
-	sha256sums = f4f47a08254814a95db56277cd5b20ad2d22f0eb0babbde90bfb01df4018d407
+	sha256sums = 505618588da7e82bb247136b48160e0a3f4d05b18f007993ca935bb5ccf86290
 
 pkgname = aurora-theme
