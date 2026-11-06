@@ -707,7 +707,8 @@ Tests: `test_power` (9). Sandbox: `energy-page.sh`.
 `layout.js` is a Plasma desktop script: the menu bar (menu bar style, logo menu, app name, spacer, tray, Quick Menu,
 Control Center, clock) and the Dock (task manager with the pinned apps carried over, divider, Downloads, Trash).
 `render_layout.sh` fills its placeholders: the home folder and the three gaps that keep the right-hand icons 46 px
-apart, as the tray's own icons are. `patch_tray.py` copies the tray settings from the backup; `tray_hide.py` puts
+apart, as the tray's own icons are. A placeholder is a name in capitals between two `@`; the installer stops when
+one is left, and any other `@` is the script's own text. `patch_tray.py` copies the tray settings from the backup; `tray_hide.py` puts
 Brightness, Clipboard, Disks and Bluetooth behind the arrow. Sandbox: `setup-panels.sh`, `menu-bar.sh`,
 `dock-keeps-pins.sh`, `dock.sh`, `dock-edge.sh`.
 
@@ -892,7 +893,7 @@ export QT_QPA_PLATFORM=offscreen q=/usr/lib/qt6/bin/qmltestrunner B=$PWD/build
 
 | What it proves | Command | Result |
 | --- | --- | --- |
-| The install keeps a menu bar that is already there; its backup lists every file it adds (install, then delete `created.txt`, gives back the same home); a second backup keeps the first; it installs the `aurora` command and offers Aurora's wallpaper; it copies no font, uses Inter and JetBrains Mono unless SF Pro or SF Mono is installed, and the repository carries no Apple font; an install from before the Quick Menu's name moves its files, its saved order and the menu bar button over; old menu bar widgets give their place to Aurora's own; the package's prebuilt parts export without object files; installed from the package, an older `aurora` in `~/.local/bin` goes so the package's runs; the update notices' timer runs the installed aurora daily, catches up after the PC was off, is enabled once, and the backup lists it; a running Plasma stops before old widgets get Aurora's ids (it would write the old ones back) and nothing to move leaves it alone; GTK apps get Plasma's cursor; animations are smooth (1) unless aurora.conf chooses fast or instant, and only its [look] group counts; every loaded KWin effect reloads so the new speed reaches the running desktop; Aurora Motion is installed and turned on while KWin's Scale, Squash and Magic Lamp step aside | `python3 -I tests/installer/test_install.py` | 31 pass |
+| The install keeps a menu bar that is already there, and the script that puts one up has the home folder and the gaps filled in (an @ in a comment or an address is the script's own text; a placeholder left or a renderer that prints nothing stops the install); its backup lists every file it adds (install, then delete `created.txt`, gives back the same home); a second backup keeps the first; it installs the `aurora` command and offers Aurora's wallpaper; it copies no font, uses Inter and JetBrains Mono unless SF Pro or SF Mono is installed, and the repository carries no Apple font; an install from before the Quick Menu's name moves its files, its saved order and the menu bar button over; old menu bar widgets give their place to Aurora's own; the package's prebuilt parts export without object files; installed from the package, an older `aurora` in `~/.local/bin` goes so the package's runs; the update notices' timer runs the installed aurora daily, catches up after the PC was off, is enabled once, and the backup lists it; a running Plasma stops before old widgets get Aurora's ids (it would write the old ones back) and nothing to move leaves it alone; GTK apps get Plasma's cursor; animations are smooth (1) unless aurora.conf chooses fast or instant, and only its [look] group counts; every loaded KWin effect reloads so the new speed reaches the running desktop; Aurora Motion is installed and turned on while KWin's Scale, Squash and Magic Lamp step aside | `python3 -I tests/installer/test_install.py` | 37 pass |
 | `install.sh --help` and `--version`, refuses unknown options, `--check` writes nothing and names the build folder (the user's cache for a read-only copy, as the aurora-theme package's); `uninstall.sh` without an install fails clearly | `tests/installer/test_cli.sh` | 12 pass |
 | `get.sh`, README.md's one command: checks the downloaded key's fingerprint before pacman trusts it, adds `[aurora]` to pacman.conf once, upgrades with `pacman -Syu --needed aurora-theme`, then opens the package's `aurora install` (`/usr/bin`, ahead of an older copy on PATH); a second run only upgrades and opens it; another key changes nothing; README.md's command, `curl -fsSL .../get.sh | bash`, runs in fish, zsh and bash, which find only the stand-in sudo (a real one failing would count toward pam_faillock's lockout); Aurora's wordmark comes first, the password is asked once before anything changes, and aurora does not draw the wordmark again; it names the system (Wayland, Plasma 6.8.2), numbers the four steps with a tick and a time each, ends with the installed version, refuses Plasma 5 before any sudo, uses no middle dots, and points a `[aurora]` section with another address back at Aurora's | `tests/installer/test_get.sh` | 38 pass |
 | The root part of the install (`installer/root-steps.sh`) takes paths as arguments: a path with a quote, `$(...)` or `;` is linked as written and runs nothing; unknown steps are refused; `install.sh` hands root no shell text | `tests/installer/test_root_steps.sh` | 6 pass |
@@ -1089,7 +1090,10 @@ as `chore(packaging): AUR package for 1.1.0`, so the repository's package names 
 Users install `aurora-theme` from Aurora's pacman repository: the files of the GitHub release tagged `repo`, which
 [get.sh](../get.sh), README.md's one-command [Installation](../README.md#installation), adds to pacman.conf as
 `[aurora]`. get.sh names the key's fingerprint, so a new key is changed there too. The release holds one version:
-the package, the `aurora` database, their signatures and `aurora.asc`.
+the package, the `aurora` database, their signatures and `aurora.asc`. Publishing uploads the package first, the
+database that lists it next and removes the older build's files last, so the database online never names a missing
+package. It refuses a package whose name the release already has: pacman caches packages by name, and makepkg never
+builds the same bytes twice, so a rebuild raises `pkgrel`.
 
 ```bash
 scripts/pacman-repo.sh build/release/1.1.0/aur build/release/1.1.0/repo             # builds and signs, publishes nothing
@@ -1155,6 +1159,13 @@ the ids and folders the theme writes to your home folder (`org.aurora.*`, `~/.lo
 it changes. A change that needs a fresh install, or that an earlier backup cannot undo, is a major version.
 
 ## [Unreleased]
+
+### Fixed
+
+- The install no longer stops at its last step, "Look and panels", with `unfilled placeholder in layout.js` on a
+  desktop that does not have Aurora's menu bar yet: a comment in the panel script was taken for a placeholder.
+
+## [1.1.0] - 2026-11-05
 
 ### Added
 
@@ -1253,7 +1264,8 @@ question, and removed with one command.
 - After a Plasma, KWin or Qt update, the parts built for the old version step aside on their own until the package
   brings them built for the new one; `aurora rebuild` builds them right away.
 
-[Unreleased]: https://github.com/xt0n1-t3ch/Aurora-CachyOS-Theme/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/xt0n1-t3ch/Aurora-CachyOS-Theme/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/xt0n1-t3ch/Aurora-CachyOS-Theme/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/xt0n1-t3ch/Aurora-CachyOS-Theme/releases/tag/v1.0.0
 
 ---

@@ -790,6 +790,26 @@ def plasmashell_running():
     return subprocess.run(["pgrep", "-x", "-u", str(os.getuid()), "plasmashell"], capture_output=True).returncode == 0
 
 
+# A placeholder of themes/panels/layout.js: a name in capitals between two @, as render_layout.sh replaces them. Any
+# other @ (a comment, an e-mail address) is the script's own text.
+PLACEHOLDER = re.compile(r"@[A-Z][A-Z0-9_]*@")
+
+
+def layout_script(home):
+    """The desktop script that puts up the menu bar and the Dock for `home`, with every placeholder filled in.
+
+    Exits when render_layout.sh fails or leaves a placeholder: Plasma would run the script anyway and put up panels
+    with a broken path or gap, or none at all.
+    """
+    rendered = subprocess.run([os.path.join(THEMES, "panels/render_layout.sh"), home], text=True, capture_output=True)
+    if rendered.returncode != 0 or not rendered.stdout.strip():
+        sys.exit(f"render_layout.sh did not write the panel script: {rendered.stderr.strip()}")
+    left = sorted(set(PLACEHOLDER.findall(rendered.stdout)))
+    if left:
+        sys.exit(f"render_layout.sh left {', '.join(left)} unfilled in layout.js")
+    return rendered.stdout
+
+
 def panels(force=False):
     """Puts up the menu bar and the Dock from themes/panels/layout.js and writes the tray settings.
 
@@ -801,8 +821,7 @@ def panels(force=False):
         print("panels kept: the menu bar and the Dock are already there (install.py panels --force rebuilds them)")
         return
     backup_dir = open(LATEST).read().strip()
-    script = output(os.path.join(THEMES, "panels/render_layout.sh"), HOME)
-    assert "@" not in script.replace("@kde.org", ""), "unfilled placeholder in layout.js"
+    script = layout_script(HOME)
     result = run("qdbus6", "org.kde.plasmashell", "/PlasmaShell", "org.kde.PlasmaShell.evaluateScript", script, quiet=True)
     print(result.stdout.strip())
     # Plasma writes the new panels to disk when it quits; the unit restarts plasmashell only after a failure

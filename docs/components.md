@@ -131,7 +131,8 @@ Tests: `test_power` (9). Sandbox: `energy-page.sh`.
 `layout.js` is a Plasma desktop script: the menu bar (menu bar style, logo menu, app name, spacer, tray, Quick Menu,
 Control Center, clock) and the Dock (task manager with the pinned apps carried over, divider, Downloads, Trash).
 `render_layout.sh` fills its placeholders: the home folder and the three gaps that keep the right-hand icons 46 px
-apart, as the tray's own icons are. `patch_tray.py` copies the tray settings from the backup; `tray_hide.py` puts
+apart, as the tray's own icons are. A placeholder is a name in capitals between two `@`; the installer stops when
+one is left, and any other `@` is the script's own text. `patch_tray.py` copies the tray settings from the backup; `tray_hide.py` puts
 Brightness, Clipboard, Disks and Bluetooth behind the arrow. Sandbox: `setup-panels.sh`, `menu-bar.sh`,
 `dock-keeps-pins.sh`, `dock.sh`, `dock-edge.sh`.
 

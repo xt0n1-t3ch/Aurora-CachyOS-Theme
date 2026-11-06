@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 xt0n1 (https://github.com/xt0n1-t3ch)
 // SPDX-License-Identifier: GPL-3.0-only
 // Additional terms (GPL-3.0 section 7, author attribution): see NOTICE.md.
-// The menu bar and the Dock, as a Plasma desktop script (render_layout.sh fills the @...@ placeholders).
+// The menu bar and the Dock, as a Plasma desktop script (render_layout.sh fills in the home folder and the gaps).
 // The apps pinned in the task managers being replaced stay pinned in the Dock, File Explorer first as Finder is on a
 // Mac; a desktop with none pinned starts with File Explorer, the terminal and System Settings.
 var pinned = [];

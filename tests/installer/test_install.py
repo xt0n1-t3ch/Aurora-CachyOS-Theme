@@ -8,6 +8,7 @@
 import importlib.util
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -53,6 +54,46 @@ class Panels(unittest.TestCase):
     def test_the_clock_named_in_another_key_is_not_a_menu_bar(self):
         applets = "[Containments][2][Applets][31][Configuration]\nnote=org.aurora.clock\n"
         self.assertFalse(install.has_theme_panels(applets))
+
+
+class LayoutScript(unittest.TestCase):
+    """install.layout_script fills every placeholder of the panel script, and stops the install when one is left."""
+
+    def panels_folder(self, layout):
+        """A themes folder whose panels/layout.js is `layout`, rendered by the real render_layout.sh."""
+        themes = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, themes)
+        os.mkdir(os.path.join(themes, "panels"))
+        shutil.copy(os.path.join(ROOT, "themes/panels/render_layout.sh"), os.path.join(themes, "panels"))
+        with open(os.path.join(themes, "panels/layout.js"), "w") as f:
+            f.write(layout)
+        return themes
+
+    def test_the_shipped_layout_renders_with_the_home_folder_and_the_gaps_filled(self):
+        script = install.layout_script("/home/steven")
+        self.assertIn('localPath: "/home/steven/.local/share/applications/quick-menu.desktop"', script)
+        self.assertIn('{url: "file:///home/steven/Downloads"', script)
+        self.assertEqual(re.findall(r"length: (\S+?)\}", script), ["2", "11", "1"])
+        self.assertEqual(re.findall(r"@[A-Z_]+@", script), [])
+
+    def test_at_signs_in_comments_and_addresses_are_not_placeholders(self):
+        layout = "// render_layout.sh fills the @...@ placeholders; ask kde@kde.org.\nvar home = \"@HOME@\";\n"
+        with unittest.mock.patch.object(install, "THEMES", self.panels_folder(layout)):
+            script = install.layout_script("/home/steven")
+        self.assertIn('var home = "/home/steven";', script)
+
+    def test_a_placeholder_the_renderer_does_not_know_stops_the_install(self):
+        with unittest.mock.patch.object(install, "THEMES", self.panels_folder("var gap = @GAP_NEW@;\n")):
+            with self.assertRaises(SystemExit) as stop:
+                install.layout_script("/home/steven")
+        self.assertIn("@GAP_NEW@", str(stop.exception.code))
+
+    def test_a_renderer_that_prints_nothing_stops_the_install(self):
+        themes = self.panels_folder("")
+        os.remove(os.path.join(themes, "panels/layout.js"))  # sed fails and prints nothing
+        with unittest.mock.patch.object(install, "THEMES", themes):
+            with self.assertRaises(SystemExit):
+                install.layout_script("/home/steven")
 
 
 class Fonts(unittest.TestCase):
