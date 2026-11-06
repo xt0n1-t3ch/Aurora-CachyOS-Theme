@@ -5,7 +5,9 @@
 # scripts/pacman-repo.sh builds Aurora's pacman repository: a signed package, a signed database named aurora whose
 # files are real files (GitHub release assets cannot be links) and the signing key's public half. The last checks
 # install the package with pacman from that folder, the way a user's pacman.conf section reads the release, under
-# fakeroot in a throwaway root. Uses a throwaway signing key and a small package, so it needs no network.
+# fakeroot in a throwaway root. Publishing goes through a stand-in gh that records its calls: the database goes up only
+# after the package it lists, and older files go last. Uses a throwaway signing key and a small package, so it needs
+# no network.
 set -u
 here=$(dirname "$(readlink -f "$0")")
 root=$(readlink -f "$here/../..")
@@ -59,6 +61,39 @@ AURORA_SIGNING_KEY=0000000000000000000000000000000000000000 \
     "$root/scripts/pacman-repo.sh" "$work/pkg" "$work/unsigned" > "$work/nokey.log" 2>&1; code=$?
 check "a key without its secret half is refused" "$([ "$code" -ne 0 ] && echo refused)" refused
 check "nothing is built without the key" "$(find "$work/unsigned" -name '*.pkg.tar.*' 2> /dev/null | wc -l)" 0
+
+# A stand-in gh: the release's files are the lines of $GH_ASSETS, and every call goes to $GH_LOG.
+mkdir "$work/bin"
+cat > "$work/bin/gh" <<'EOF'
+#!/bin/bash
+echo "$*" >> "$GH_LOG"
+[ "$1 $2 ${4:-}" = "release view --json" ] && cat "$GH_ASSETS"
+exit 0
+EOF
+chmod +x "$work/bin/gh"
+# publish ASSETS: publishes the test package to a release that holds ASSETS. Sets code to the exit status and calls to
+# the gh calls that change the release.
+publish() {
+    printf '%s' "$1" > "$work/assets"
+    : > "$work/gh.log"
+    PATH="$work/bin:$PATH" GH_LOG="$work/gh.log" GH_ASSETS="$work/assets" \
+        "$root/scripts/pacman-repo.sh" "$work/pkg" "$work/published" --publish > "$work/publish.log" 2>&1
+    code=$?
+    calls=$(grep -E '^release (upload|delete-asset)' "$work/gh.log" | sed "s|$work/published/||g")
+}
+publish "aurora-test-0.9.0-1-any.pkg.tar.zst
+aurora.db
+"
+check "a new version publishes" "$code" 0
+check "the package goes up before the database that lists it, older files last" "$calls" \
+"release upload repo aurora-test-1.0.0-1-any.pkg.tar.zst aurora-test-1.0.0-1-any.pkg.tar.zst.sig
+release upload repo aurora.asc aurora.db aurora.db.sig aurora.files aurora.files.sig --clobber
+release delete-asset repo aurora-test-0.9.0-1-any.pkg.tar.zst --yes"
+publish "aurora-test-1.0.0-1-any.pkg.tar.zst
+"
+check "a build under a published name is refused" "$([ "$code" -ne 0 ] && echo refused)" refused
+check "a refused publish changes nothing" "$calls" ""
+check "the refusal says to raise pkgrel" "$(grep -c 'raise pkgrel' "$work/publish.log")" 1
 
 # pacman installs the package from the repository, trusting only the key in aurora.asc. pacman-key and pacman need
 # root, which fakeroot gives them inside the throwaway root.

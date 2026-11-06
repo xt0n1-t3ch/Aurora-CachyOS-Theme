@@ -61,7 +61,10 @@ as `chore(packaging): AUR package for 1.1.0`, so the repository's package names 
 Users install `aurora-theme` from Aurora's pacman repository: the files of the GitHub release tagged `repo`, which
 [get.sh](../get.sh), README.md's one-command [Installation](../README.md#installation), adds to pacman.conf as
 `[aurora]`. get.sh names the key's fingerprint, so a new key is changed there too. The release holds one version:
-the package, the `aurora` database, their signatures and `aurora.asc`.
+the package, the `aurora` database, their signatures and `aurora.asc`. Publishing uploads the package first, the
+database that lists it next and removes the older build's files last, so the database online never names a missing
+package. It refuses a package whose name the release already has: pacman caches packages by name, and makepkg never
+builds the same bytes twice, so a rebuild raises `pkgrel`.
 
 ```bash
 scripts/pacman-repo.sh build/release/1.1.0/aur build/release/1.1.0/repo             # builds and signs, publishes nothing

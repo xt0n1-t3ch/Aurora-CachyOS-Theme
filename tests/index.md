@@ -36,7 +36,7 @@ export QT_QPA_PLATFORM=offscreen q=/usr/lib/qt6/bin/qmltestrunner B=$PWD/build
 | The social preview is 1280x640, under 1 MB, with its text at 7:1 or more (`make.py` refuses to write it otherwise) | `python3 -I assets/readme/make.py` | pass (73 KB, 12.4:1) |
 | Every shell script Aurora owns, and the `restore.sh` that `install.py` writes, has no ShellCheck finding at its strictest level (style), with `.shellcheckrc` | `scripts/lint-shell.sh` | pass (73 scripts) |
 | The package depends on `installer/dependencies.txt` plus what the `aurora` command needs (its update notices too: checkupdates, notify-send, Konsole), builds with `installer/build-dependencies.txt`, its functions leave makepkg's variables alone, and `.SRCINFO` matches the PKGBUILD | `tests/release/test_pkgbuild.sh` | 4 pass |
-| `scripts/pacman-repo.sh` builds a signed package and a signed `aurora` database of real files with the key's public half, refuses a key whose secret half is missing, and pacman (under fakeroot, in a throwaway root) installs the package from it and refuses a tampered database | `tests/release/test_pacman_repo.sh` | 14 pass |
+| `scripts/pacman-repo.sh` builds a signed package and a signed `aurora` database of real files with the key's public half, refuses a key whose secret half is missing, and pacman (under fakeroot, in a throwaway root) installs the package from it and refuses a tampered database; publishing (through a stand-in gh) uploads the package before the database that lists it and removes an older build's files last, and refuses a package name the release already has | `tests/release/test_pacman_repo.sh` | 19 pass |
 
 ## Components
 

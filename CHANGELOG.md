@@ -15,6 +15,8 @@ it changes. A change that needs a fresh install, or that an earlier backup canno
 
 - The install no longer stops at its last step, "Look and panels", with `unfilled placeholder in layout.js` on a
   desktop that does not have Aurora's menu bar yet: a comment in the panel script was taken for a placeholder.
+- Publishing a new version uploads the package before the database that lists it, so `pacman -Syu` never reads an
+  `[aurora]` database that names a package not online yet.
 
 ## [1.1.0] - 2026-11-05
 

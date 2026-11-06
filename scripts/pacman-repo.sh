@@ -8,7 +8,9 @@
 #  2. writes a fresh database named aurora in OUT_DIR, signed too, with its files as real files (GitHub release
 #     assets cannot be links), and the signing key's public half as aurora.asc;
 #  3. with --publish only: makes the files of OUT_DIR the files of the GitHub release tagged `repo`, the address the
-#     [aurora] section of a user's pacman.conf reads (README.md, "Installation").
+#     [aurora] section of a user's pacman.conf reads (README.md, "Installation"). The package goes up first, the
+#     database that lists it next, and the files of an older build last, so the database online never names a
+#     package that is not there. A package whose name is already published is refused.
 #
 # The files are signed with the key whose public half is packaging/repo/aurora.asc; AURORA_SIGNING_KEY names another
 # key (the tests use it). SRCDEST, when set, is where makepkg looks for the sources first (release.sh points it at the
@@ -63,9 +65,22 @@ if $publish; then
         gh release create repo --title "Aurora pacman repository" --prerelease --latest=false \
             --notes "The signed pacman repository of Aurora. README.md, \"Installation\", says how to add it."
     fi
-    # Files of an older build that this one no longer has go first, so the release holds one version.
-    gh release view repo --json assets --jq '.assets[].name' | while read -r asset; do
-        [ -e "$out/$asset" ] || gh release delete-asset repo "$asset" --yes
+    published=$(gh release view repo --json assets --jq '.assets[].name')
+    # pacman keeps a package by its file name and checks it against the database it read, and makepkg never builds
+    # the same bytes twice: a new build under a name already out fails for everyone who has the older database or
+    # the older file in their cache.
+    for package in "${packages[@]}"; do
+        name=$(basename "$package")
+        ! grep -qxF "$name" <<< "$published" ||
+            fail "$name is already published; raise pkgrel in $src/PKGBUILD and run this again"
+        gh release upload repo "$package" "$package.sig"
     done
-    gh release upload repo "$out"/* --clobber
+    # The database and its signature go up in one call, so the moment a sync could read one without the other is
+    # as short as it can be; pacman downloads a database whose signature does not match again on its next sync.
+    gh release upload repo "$out/aurora.asc" "$out/aurora.db" "$out/aurora.db.sig" "$out/aurora.files" \
+        "$out/aurora.files.sig" --clobber
+    # Files of an older build go last, once no database online names them, so the release holds one version.
+    while read -r asset; do
+        [ -e "$out/$asset" ] || gh release delete-asset repo "$asset" --yes
+    done <<< "$published"
 fi
