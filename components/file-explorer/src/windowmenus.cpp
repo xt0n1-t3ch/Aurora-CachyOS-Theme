@@ -48,25 +48,42 @@ QString commonMimeType(const KFileItemList &items)
 void MainWindow::showGroupMenu()
 {
     fe::BrowserTab *tab = currentTab();
-    QAction *groups = tab->partAction(QStringLiteral("show_in_groups"));
-    if (!groups) {
-        return;
-    }
-    // Dolphin groups by the column it sorts by, so a group is a sort choice with groups on.
+    // The Finder's choices, with the Dolphin part actions that carry each one out. Dolphin 26.08 groups by a role of
+    // its own, apart from the sort order: `group_by_none` and one `group_<role>` action per role
+    // (dolphinviewactionhandler.cpp). Older Dolphin has `show_in_groups` and groups by the column it sorts by.
     const struct {
         const char *label;
+        const char *groupAction;
         const char *sortAction;
     } choices[] = {
-        {"None", nullptr},
-        {"Name", "sort_by_text"},
-        {"Kind", "sort_by_type"},
-        {"Date Modified", "sort_by_modificationtime"},
-        {"Size", "sort_by_size"},
+        {"None", "group_by_none", nullptr},
+        {"Name", "group_text", "sort_by_text"},
+        {"Kind", "group_type", "sort_by_type"},
+        {"Date Modified", "group_modificationtime", "sort_by_modificationtime"},
+        {"Date Created", "group_creationtime", "sort_by_creationtime"},
+        {"Size", "group_size", "sort_by_size"},
+        {"Tags", "group_tags", "sort_by_tags"},
     };
+    QAction *groups = tab->partAction(QStringLiteral("show_in_groups"));
+    const bool byRole = tab->partAction(QStringLiteral("group_by_none")) != nullptr;
+    if (!byRole && !groups) {
+        return;
+    }
     QMenu menu(this);
     menu.setToolTipsVisible(true);
     menu.addSection(QStringLiteral("Group By"));
     for (const auto &choice : choices) {
+        if (byRole) {
+            QAction *group = tab->partAction(QString::fromLatin1(choice.groupAction));
+            if (!group) {
+                continue;
+            }
+            QAction *entry = menu.addAction(QString::fromLatin1(choice.label));
+            entry->setCheckable(true);
+            entry->setChecked(group->isChecked());
+            connect(entry, &QAction::triggered, group, &QAction::trigger);
+            continue;
+        }
         QAction *sort = choice.sortAction ? tab->partAction(QString::fromLatin1(choice.sortAction)) : nullptr;
         if (choice.sortAction && !sort) {
             continue;

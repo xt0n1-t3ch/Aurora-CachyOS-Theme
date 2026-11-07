@@ -78,6 +78,17 @@ it again, so it is replaced only if the secret half is lost or exposed. `release
 a change to the package alone (a new dependency) raises `pkgrel` and runs it by hand. The flow is tested in
 [tests/release/test_pacman_repo.sh](../tests/release/test_pacman_repo.sh).
 
+The package is built on my PC and installed on everyone's, so it targets the x86-64 baseline, not my processor.
+CachyOS's makepkg.conf asks for the building PC's own (`-march=native`, `-C target-cpu=native`), and a package built
+that way stops with "Illegal instruction" on an older processor (issue #11). `build()` adds `-march=x86-64
+-mtune=generic` and `-C target-cpu=x86-64` after makepkg's flags, and the last one wins in GCC and rustc; makepkg's
+hardening flags stay. `check()` then runs [scripts/cpu_baseline.py](../scripts/cpu_baseline.py) on the `aurora`
+command and every built part, before they are stripped: an instruction newer than SSE2 is refused unless its
+function is built for that instruction set on purpose and named for it (memchr's `find_avx2`, which runs only after
+asking the processor). A static library of the build machine counts too: CachyOS's x86-64-v3 libgcc links
+`__popcountdi2` with `popcnt`. Both are tested in [tests/release/test_pkgbuild.sh](../tests/release/test_pkgbuild.sh)
+and [tests/release/test_cpu_baseline.sh](../tests/release/test_cpu_baseline.sh).
+
 ## Publishing to the AUR
 
 The AUR has closed new accounts for now, so `aurora-theme` is not on it yet. When it reopens:

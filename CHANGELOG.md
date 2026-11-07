@@ -11,6 +11,39 @@ it changes. A change that needs a fresh install, or that an earlier backup canno
 
 ## [Unreleased]
 
+### Added
+
+- Mission Center is part of Aurora. `aurora mission-center on` puts Aurora's build in place of the distribution's:
+  each app's GPU, memory and network use counted exactly, a lean background service, fan readings that match the
+  hardware and a color per device. It comes from Aurora's repository or is built on your PC; `off` puts the
+  distribution's back. Every change saves a snapshot of the build and the settings first, and
+  `aurora mission-center rollback` puts one back.
+- `aurora mission-center settings` changes the refresh, the charts, the look, the graphs and the sidebar, and `--set`
+  reaches any Mission Center setting, checked before anything changes. `aurora status` and `aurora settings` show it.
+
+### Changed
+
+- `aurora update` installs a new Aurora only in a way its parts keep working. It first reads which KDE Plasma, KWin,
+  Qt and KDecoration the new package was built for, then updates it with the rest of the system when that is what a
+  system update brings, on its own when it is built for the system as it is, and not at all when it fits neither,
+  saying which versions differ. With no new Aurora out it changes nothing, where it used to update the whole system.
+- `aurora update` installs the package from Aurora's repository with pacman instead of the AUR helper, so AUR packages
+  are no longer rebuilt along with it.
+- An inactive File Explorer window is opaque, as a macOS window is when it is not in front, so nothing behind it shows
+  through, blurred or not. Its sidebar selection turns gray with it, like the selections in the file views.
+
+### Fixed
+
+- Aurora runs on every 64-bit x86 PC. The package was built for the processor of the PC that built it, so on
+  a PC with an older processor `aurora` stopped with "Illegal instruction" right after the install, and its parts
+  would have stopped KWin and the panel the same way
+  ([#11](https://github.com/xt0n1-t3ch/Aurora-CachyOS-Theme/issues/11)). It is now built for any x86-64 processor,
+  and the package refuses to build when anything in it needs a newer one.
+- File Explorer's Group menu works again with Dolphin 26.08, which replaced the action it used: None, Name, Kind, Date
+  Modified, Date Created, Size and Tags, with the current choice checked and kept per folder.
+- File Explorer's address and search fields show one focus ring. Breeze no longer adds its own square-cornered frame
+  around them when Ctrl+L, Alt+D or Tab focuses them.
+
 ## [1.1.1] - 2026-11-06
 
 ### Fixed

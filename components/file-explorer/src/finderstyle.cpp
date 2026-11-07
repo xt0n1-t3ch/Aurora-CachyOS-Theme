@@ -392,6 +392,11 @@ void FinderStyle::drawControl(ControlElement element, const QStyleOption *option
         break;
     case CE_MenuEmptyArea:
         return;
+    case CE_FocusFrame:
+        // Breeze 6.8 puts a QFocusFrame around a line edit that Tab or a shortcut focused (Style::event) and draws it
+        // here; the toolbar's fields draw their own capsule ring (style::paintFocusRing), so Breeze's rounded
+        // rectangle would be a second, misshapen ring around them.
+        return;
     case CE_HeaderSection:
     case CE_HeaderEmptyArea: {
         painter->save();

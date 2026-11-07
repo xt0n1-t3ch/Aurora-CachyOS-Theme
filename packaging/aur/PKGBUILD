@@ -43,6 +43,16 @@ options=('!debug' '!strip')
 source=("aurora-$pkgver.tar.gz::$url/releases/download/v$pkgver/aurora-$pkgver.tar.gz")
 sha256sums=('9dde7eeb76f56c51da35199fac63b7b0c030805fba4570ffdb336dfe6a2f239a')
 
+# The package runs on every x86_64 PC, so what it compiles targets the x86-64 baseline, whatever CPU the build
+# machine's makepkg.conf asks for: CachyOS's asks for its own (-march=native, -C target-cpu=native), and code built
+# that way stops with SIGILL on an older CPU. GCC and rustc take the last -march and target-cpu given, and makepkg's
+# hardening flags stay.
+_baseline() {
+    export CFLAGS="${CFLAGS:-} -march=x86-64 -mtune=generic"
+    export CXXFLAGS="${CXXFLAGS:-} -march=x86-64 -mtune=generic"
+    export RUSTFLAGS="${RUSTFLAGS:-} -C target-cpu=x86-64"
+}
+
 prepare() {
     cd "aurora-$pkgver/cli"
     export RUSTUP_TOOLCHAIN=${RUSTUP_TOOLCHAIN:-stable}
@@ -50,10 +60,12 @@ prepare() {
 }
 
 build() {
+    _baseline
     cd "aurora-$pkgver/cli"
     export RUSTUP_TOOLCHAIN=${RUSTUP_TOOLCHAIN:-stable}
     export CARGO_TARGET_DIR=target
-    cargo build --frozen --release
+    # Kept unstripped here so check() can read the function names; package() strips it.
+    CARGO_PROFILE_RELEASE_STRIP=false cargo build --frozen --release
     # The parts, built for this machine's Plasma, KWin and Qt; build.sh fails when one of them does not build. Then
     # only what the install copies goes into prebuilt/, with the icons and the GTK theme unpacked.
     cd "$srcdir/aurora-$pkgver"
@@ -69,6 +81,8 @@ check() {
     export RUSTUP_TOOLCHAIN=${RUSTUP_TOOLCHAIN:-stable}
     export CARGO_TARGET_DIR=target
     cargo test --frozen
+    # Nothing built here may need a newer CPU than the x86-64 baseline.
+    python3 -I ../scripts/cpu_baseline.py target/release/aurora "$srcdir/prebuilt"
 }
 
 package() {

@@ -2,15 +2,19 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Additional terms (GPL-3.0 section 7, author attribution): see NOTICE.md.
 //! The CLI and the rest of the repository must agree: the logos match the menu widget's table, the step lines match
-//! what `install.sh` prints, the release files match what `scripts/release.sh` builds, and the author attribution the
-//! CLI shows is the one NOTICE.md requires.
+//! what `install.sh` prints, the release files match what `scripts/release.sh` builds, the versions the update
+//! compares match the ones `installer/build.sh` stamps the parts with, and the author attribution the CLI shows is the
+//! one NOTICE.md requires.
 
+use std::collections::BTreeSet;
 use std::fs;
 use std::path::PathBuf;
 
 use aurora::legal;
 use aurora::logo::{Colors, Logo};
+use aurora::mission;
 use aurora::steps::{self, Step};
+use aurora::system::{self, Match};
 
 fn repo() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..")
@@ -164,6 +168,50 @@ fn performance_turns_on_and_off_exactly_the_files_root_steps_writes_and_removes(
     for file in &ours {
         assert!(install.contains(file.as_str()), "the restore script leaves {file} behind");
     }
+}
+
+/// Each package `stamp_of` in installer/build.sh reads with `version_of`, and whether the stamp keeps only its
+/// major.minor version (`| cut -d. -f1,2`).
+fn stamped_packages() -> BTreeSet<(String, Match)> {
+    let script = read("installer/build.sh");
+    let body =
+        script.split("stamp_of() {").nth(1).expect("build.sh has stamp_of").split("\n}").next().expect("its end");
+    body.split("version_of ")
+        .skip(1)
+        .map(|rest| {
+            let name: String = rest.chars().take_while(|c| c.is_ascii_alphanumeric() || *c == '-').collect();
+            let command = rest.split(";;").next().unwrap_or(rest);
+            let rule = if command.contains("| cut -d. -f1,2") { Match::Minor } else { Match::Exact };
+            (name, rule)
+        })
+        .collect()
+}
+
+// `aurora update` installs a release only when its parts fit (system::fits), so it must compare the same packages, as
+// closely as build.sh stamps them and the login script checks the stamps.
+#[test]
+fn the_update_compares_the_versions_build_sh_stamps_the_parts_with() {
+    let ours: BTreeSet<(String, Match)> =
+        system::LINKS.iter().map(|link| (link.package.to_string(), link.rule)).collect();
+    assert_eq!(ours, stamped_packages());
+}
+
+// `aurora mission-center` builds the recipe from a copy of these files and installs the package by its name, so the
+// recipe must be whole and name the same package, install script and sources.
+#[test]
+fn the_mission_center_recipe_is_the_one_the_cli_builds_and_installs() {
+    let pkgbuild = read("components/mission-center/PKGBUILD");
+    assert!(pkgbuild.contains(&format!("pkgname={}\n", mission::PACKAGE)), "the PKGBUILD builds another package");
+    assert!(pkgbuild.contains(&format!("provides=({})", mission::STOCK)), "it must stand in for the distribution's");
+    assert!(pkgbuild.contains(&format!("conflicts=({})", mission::STOCK)), "it must replace the distribution's");
+    assert!(mission::recipe_version(&pkgbuild).is_some(), "the PKGBUILD has no pkgver and pkgrel");
+    for file in mission::RECIPE {
+        assert!(repo().join("components/mission-center").join(file).is_file(), "{file} is missing from the recipe");
+        if file != "PKGBUILD" && !file.ends_with(".install") {
+            assert!(pkgbuild.contains(&format!("        {file}")), "the PKGBUILD's sources leave out {file}");
+        }
+    }
+    assert!(pkgbuild.contains("install=mission-center-improved.install\n"), "the install script is not the recipe's");
 }
 
 #[test]

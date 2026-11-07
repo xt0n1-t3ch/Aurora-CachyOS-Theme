@@ -1,0 +1,11 @@
+# SPDX-FileCopyrightText: 2026 xt0n1 (https://github.com/xt0n1-t3ch)
+# SPDX-License-Identifier: GPL-3.0-only
+# Additional terms (GPL-3.0 section 7, author attribution): see NOTICE.md.
+# pacman's install script for Aurora's Mission Center: aurora-mission-center-nethogs.hook gives nethogs its two
+# capabilities while this package is installed, and removing the package takes them away again.
+
+post_remove() {
+    if [ -x /usr/bin/nethogs ]; then
+        setcap -r /usr/bin/nethogs 2> /dev/null || true
+    fi
+}

@@ -45,11 +45,13 @@ inline constexpr int MENU_RADIUS = 11;
 inline constexpr int MENU_ITEM_HEIGHT = 24;
 inline constexpr int MENU_SEPARATOR_HEIGHT = 11;
 
-// The content area is the denser glass, for legibility; the sidebar floats as the clearer one.
+// The content area is the denser glass, for legibility; the sidebar floats as the clearer one. An inactive window is
+// opaque, as macOS materials are while their window is not key (NSVisualEffectView, followsWindowActiveState): what
+// lies behind never shows through it, blurred or not.
 inline const QColor WINDOW_TINT{24, 24, 27, 160};
-inline const QColor WINDOW_TINT_INACTIVE{34, 34, 37, 150};
+inline const QColor WINDOW_TINT_INACTIVE{30, 30, 33};
 inline const QColor SIDEBAR_GLASS{56, 56, 62, 118};
-inline const QColor SIDEBAR_GLASS_INACTIVE{62, 62, 66, 110};
+inline const QColor SIDEBAR_GLASS_INACTIVE{42, 42, 46};
 inline const QColor WINDOW_RIM{255, 255, 255, 34};
 inline const QColor MENU_FILL{36, 36, 40, 206};
 inline const QColor MENU_SEPARATOR{255, 255, 255, 26};
@@ -84,6 +86,10 @@ inline const QColor SEGMENT_CHECKED{255, 255, 255, 46};
 
 /// A Liquid Glass surface: a translucent fill and a rim that catches light at the top.
 void paintGlass(QPainter &painter, const QRectF &rect, qreal radius, const QColor &fill);
+
+/// The ring a focused field shows: one 2 px capsule of `color` centered on `line`, which the field keeps 1 px inside
+/// its edge so nothing clips the ring.
+void paintFocusRing(QPainter &painter, const QRectF &line, const QColor &color = ACCENT);
 
 /// The application palette: the macOS dark colors, for the windows that are not glass (dialogs).
 [[nodiscard]] QPalette darkPalette();

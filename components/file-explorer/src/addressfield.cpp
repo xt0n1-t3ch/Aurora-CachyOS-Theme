@@ -194,10 +194,7 @@ void AddressField::paintEvent(QPaintEvent *event)
         style::paintGlass(painter, bounds, radius, hasFocus() ? style::CAPSULE_HOVER : style::CAPSULE_FILL);
         const bool error = m_errorTimer->isActive();
         if (hasFocus() || error) {
-            QPainterPath ring;
-            ring.addRoundedRect(bounds, radius, radius);
-            painter.setPen(QPen(error ? style::CAPACITY_CRITICAL : style::ACCENT, 2.0));
-            painter.drawPath(ring);
+            style::paintFocusRing(painter, bounds, error ? style::CAPACITY_CRITICAL : style::ACCENT);
         }
         const QPixmap icon = style::tintedIcon(QStringLiteral(":/icons/actions/folder.svg"), ICON_SIZE,
                                                hasFocus() ? style::ACCENT : style::TEXT_SECONDARY, devicePixelRatioF());

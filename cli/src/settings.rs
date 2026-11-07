@@ -136,11 +136,13 @@ pub fn settings(places: &Places, updates: Option<&str>, animations: Option<&str>
         .item("logo", "Menu bar logo", "CachyOS, Arch Linux, Apple or Kali Linux, in black and white or in color")
         .item("icons", "Icons", "Aurora's, or any other installed icon theme")
         .item("performance", "Performance tuning", format!("now: {}", crate::tuning::current()))
+        .item("mission-center", "Mission Center", format!("now: {}", crate::mission::Installed::now()))
         .interact()?;
     match what {
         "logo" => return app::logo(None, Colors::Off),
         "icons" => return crate::icons::icons(places, None),
         "performance" => return crate::tuning::performance(places, None, false),
+        "mission-center" => return crate::mission::mission_center(places, None, false),
         _ => {}
     }
     if what == "animations" {

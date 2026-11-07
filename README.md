@@ -51,6 +51,7 @@ Nothing in KWin is patched and no file that belongs to a package is edited. Some
 | | |
 | --- | --- |
 | System | CachyOS, or another Arch-based distribution with pacman |
+| Processor | Any 64-bit x86 processor (x86-64), old or new |
 | Desktop | KDE Plasma 6 on Wayland. Tested on Plasma 6.8.2, KWin 6.8.2 and Qt 6.12.0. |
 | Disk | About 700 MB for the build: the `build/` folder of a checkout, or `~/.cache/aurora/build` with the package |
 | Time | Under a minute with the package, which comes with its parts built; about 3 minutes from the source, which builds them |
@@ -73,13 +74,14 @@ From then on, everything goes through the `aurora` command. Run it alone for a m
 | --- | --- |
 | `aurora` | A menu with everything below |
 | `aurora install` | The guided install; `--logo`, `--colors`, `--performance` and `--yes` answer its questions up front |
-| `aurora update` | Updates your system and Aurora with it, then installs the new version |
+| `aurora update` | Installs a new Aurora the safe way: with your system update when it is built for it, alone when it is built for your system as it is, not at all otherwise |
 | `aurora rebuild` | Builds Aurora's parts again after a Plasma, KWin or Qt update |
-| `aurora settings` | Update notices, animations, the menu bar logo, icons and performance tuning, in one menu |
+| `aurora settings` | Update notices, animations, the menu bar logo, icons, performance tuning and Mission Center, in one menu |
 | `aurora logo arch` | Changes the menu bar logo: `cachyos`, `arch`, `apple` or `kali`; `--colors` shows it in its own colors |
 | `aurora icons breeze` | Changes the icon theme: `aurora` or any installed one; without a name it lists them |
 | `aurora performance on` | Turns the measured tuning on or `off`; without a word it shows the four settings and asks |
 | `aurora backups` | Lists the backups of your desktop from before Aurora; `aurora backups restore` puts one back |
+| `aurora mission-center on` | Puts Aurora's Mission Center (exact per-app GPU, memory and network) in place of the distribution's, or `off`; `settings`, `snapshots` and `rollback` too |
 | `aurora check-updates` | Looks for a newer Aurora right away |
 | `aurora status` | What is installed, from where, the tuning, and whether a rebuild is due |
 | `aurora uninstall` | Puts your desktop back the way it was |

@@ -17,7 +17,6 @@ use crate::release;
 use crate::run;
 use crate::source::{Kind, Source};
 use crate::system;
-use crate::updates;
 
 /// Where this account keeps things, from the XDG variables with their usual defaults.
 #[derive(Debug, Clone)]
@@ -54,6 +53,12 @@ impl Places {
         self.state.join("aurora/updates")
     }
 
+    /// `checkupdates`' own copy of pacman's databases, kept in the cache so a look downloads only what changed.
+    #[must_use]
+    pub fn databases(&self) -> PathBuf {
+        self.cache.join("aurora/checkup-db")
+    }
+
     #[must_use]
     pub fn installed(&self) -> bool {
         self.home.join(".local/share/aurora/source").exists()
@@ -82,7 +87,7 @@ pub fn source(places: &Places) -> Result<Source> {
     )
 }
 
-fn interactive(yes: bool) -> bool {
+pub(crate) fn interactive(yes: bool) -> bool {
     !yes && Term::stdout().is_term()
 }
 
@@ -272,82 +277,6 @@ pub fn uninstall(places: &Places, yes: bool) -> Result<()> {
     Ok(())
 }
 
-/// The command that updates the aurora-theme package: the AUR helper when there is one (paru first), else pacman
-/// through sudo. Either upgrades the whole system with it, so the [aurora] repository's database is fresh and no
-/// partial upgrade happens. `on_path` tells whether a program is installed.
-fn package_update(on_path: impl Fn(&str) -> bool) -> Vec<&'static str> {
-    let upgrade = ["-Syu", "--needed", "aurora-theme"];
-    match ["paru", "yay"].into_iter().find(|helper| on_path(helper)) {
-        Some(helper) => [helper].into_iter().chain(upgrade).collect(),
-        None => ["sudo", "pacman"].into_iter().chain(upgrade).collect(),
-    }
-}
-
-/// The version `aurora update` compares before and after: for the package its full release from pacman (a new
-/// package release, 1.0.0-1 to 1.0.0-3, keeps the VERSION file), otherwise the copy's VERSION.
-fn release_of(source: &Source) -> String {
-    if source.kind == Kind::Package
-        && let Some(release) =
-            run::capture("pacman", &["-Q", updates::PACKAGE]).ok().and_then(|out| updates::installed_release(&out))
-    {
-        return release;
-    }
-    source.version()
-}
-
-/// `aurora update`: gets the newest version the way this copy came, then installs it.
-///
-/// # Errors
-/// When the update cannot be fetched or installed.
-pub fn update(places: &Places, yes: bool) -> Result<()> {
-    let source = source(places)?;
-    let before = release_of(&source);
-    cliclack::intro(Style::new().bold().apply_to("Update Aurora"))?;
-    let newest = match source.kind {
-        Kind::Checkout => {
-            let spinner = cliclack::spinner();
-            spinner.start("Pulling the newest commits");
-            let root = source.root.to_string_lossy().into_owned();
-            run::capture("git", &["-C", &root, "pull", "--ff-only"])?;
-            spinner.stop("Pulled the newest commits");
-            source.clone()
-        }
-        Kind::Package => {
-            let command = package_update(run::on_path);
-            let shown = command.join(" ");
-            cliclack::log::step(format!("Updating the system and the aurora-theme package: {shown}"))?;
-            let status = Command::new(command[0]).args(&command[1..]).status()?;
-            if !status.success() {
-                bail!("`{shown}` could not update aurora-theme");
-            }
-            source.clone()
-        }
-        Kind::Archive => crate::download::newest(places, &before)?.unwrap_or_else(|| source.clone()),
-    };
-    let after = release_of(&newest);
-    if after == before
-        && !yes
-        && interactive(false)
-        && !cliclack::confirm(format!("Aurora {} is the newest. Install it again anyway?", updates::shown(&after)))
-            .initial_value(false)
-            .interact()?
-    {
-        cliclack::outro("Aurora is up to date.")?;
-        return Ok(());
-    }
-    cliclack::log::step(format!("Installing Aurora {}", updates::shown(&after)))?;
-    install(
-        places,
-        InstallChoices {
-            yes: true,
-            logo: current_logo().map(|(logo, _)| logo),
-            colors: current_logo().map(|(_, colors)| colors).unwrap_or_default(),
-            performance: tuned(),
-        },
-    )?;
-    crate::check::updated(places)
-}
-
 /// The logo the menu bar shows now, when it is one of Aurora's.
 #[must_use]
 pub fn current_logo() -> Option<(Logo, Colors)> {
@@ -427,6 +356,7 @@ pub fn status(places: &Places) -> Result<()> {
         ("Parts", parts),
         ("Menu logo", logo),
         ("Tuning", crate::tuning::current().to_string()),
+        ("Mission Center", crate::mission::Installed::now().to_string()),
     ];
     let width = lines.iter().map(|(key, _)| key.len()).max().unwrap_or(0);
     let body: Vec<String> = lines.iter().map(|(key, value)| format!("{key:<width$}   {value}")).collect();
@@ -440,7 +370,7 @@ pub fn status(places: &Places) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::{package_update, parts_line};
+    use super::parts_line;
 
     #[test]
     fn before_an_install_no_parts_are_reported_as_built() {
@@ -452,18 +382,5 @@ mod tests {
         assert_eq!(parts_line(true, &[]), "built for this Plasma");
         let paused = ["system-tray".to_string(), "quick-menu".to_string()];
         assert_eq!(parts_line(true, &paused), "set aside until `aurora rebuild`: system-tray, quick-menu");
-    }
-
-    // The package comes from the [aurora] repository: the update refreshes the databases and upgrades the whole
-    // system with it, since Arch does not support partial upgrades (pacman -S without -y may also miss the update).
-    #[test]
-    fn the_package_updates_with_the_whole_system_through_an_aur_helper_when_there_is_one() {
-        assert_eq!(package_update(|program| program == "yay"), ["yay", "-Syu", "--needed", "aurora-theme"]);
-        assert_eq!(package_update(|_| true), ["paru", "-Syu", "--needed", "aurora-theme"]);
-    }
-
-    #[test]
-    fn without_an_aur_helper_pacman_updates_the_package_with_the_whole_system() {
-        assert_eq!(package_update(|_| false), ["sudo", "pacman", "-Syu", "--needed", "aurora-theme"]);
     }
 }

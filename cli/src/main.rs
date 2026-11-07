@@ -10,9 +10,11 @@ use aurora::backups;
 use aurora::check::{self, Mode};
 use aurora::icons;
 use aurora::logo::{Colors, Logo};
+use aurora::mission;
 use aurora::settings;
 use aurora::tuning::{self, Switch};
 use aurora::ui;
+use aurora::update;
 use clap::{Parser, Subcommand};
 use console::Style;
 
@@ -84,6 +86,11 @@ enum Action {
         #[command(subcommand)]
         action: Option<BackupsAction>,
     },
+    /// Use Aurora's Mission Center or the distribution's, change its settings, or roll a change back
+    MissionCenter {
+        #[command(subcommand)]
+        action: Option<MissionAction>,
+    },
     /// Change Aurora after the install: update notices, animations, the menu bar logo, icons and tuning
     Settings {
         /// How often Aurora looks for a newer version: daily, weekly or never
@@ -125,6 +132,49 @@ enum BackupsAction {
     },
 }
 
+#[derive(Subcommand)]
+enum MissionAction {
+    /// Install Aurora's build of Mission Center in place of the distribution's
+    On {
+        /// Ask nothing
+        #[arg(long, short)]
+        yes: bool,
+    },
+    /// Go back to the distribution's Mission Center; its settings stay
+    Off,
+    /// Put back a snapshot taken before a change, build and settings; without a name, the newest
+    Rollback {
+        /// The snapshot's name, as `aurora mission-center snapshots` lists it
+        name: Option<String>,
+        /// Ask nothing
+        #[arg(long, short)]
+        yes: bool,
+    },
+    /// List the snapshots taken before each change
+    Snapshots,
+    /// Change Mission Center's settings: a menu, or every key and value outside a terminal
+    Settings {
+        /// Set KEY to VALUE after checking what the key takes (any key of io.missioncenter.MissionCenter)
+        #[arg(long = "set", value_name = "KEY=VALUE")]
+        set: Vec<String>,
+        /// Put KEY back to its default
+        #[arg(long, value_name = "KEY")]
+        reset: Vec<String>,
+    },
+}
+
+/// The library's action and its `--yes` for a `mission-center` subcommand.
+fn mission_action(action: Option<MissionAction>) -> (Option<mission::Action>, bool) {
+    match action {
+        None => (None, false),
+        Some(MissionAction::On { yes }) => (Some(mission::Action::On), yes),
+        Some(MissionAction::Off) => (Some(mission::Action::Off), false),
+        Some(MissionAction::Rollback { name, yes }) => (Some(mission::Action::Rollback(name)), yes),
+        Some(MissionAction::Snapshots) => (Some(mission::Action::Snapshots), false),
+        Some(MissionAction::Settings { set, reset }) => (Some(mission::Action::Settings { set, reset }), false),
+    }
+}
+
 fn colors(on: bool) -> Colors {
     if on { Colors::On } else { Colors::Off }
 }
@@ -139,13 +189,18 @@ fn menu(places: &Places) -> anyhow::Result<()> {
     }
     let action: &str = cliclack::select("What would you like to do?")
         .item("update", "Update", "get the newest version and install it")
-        .item("settings", "Settings", "update notices, animations, the menu bar logo, icons and tuning")
+        .item("settings", "Settings", "update notices, animations, the menu bar logo, icons, tuning and Mission Center")
         .item("logo", "Change the menu bar logo", "CachyOS, Arch Linux, Apple or Kali Linux")
         .item("icons", "Change the icons", "Aurora's, or any other installed icon theme")
         .item(
             "performance",
             "Performance tuning",
             format!("the measured scheduler, memory and zram settings, now {}", tuning::current()),
+        )
+        .item(
+            "mission-center",
+            "Mission Center",
+            format!("Aurora's build or the distribution's, now {}", mission::Installed::now()),
         )
         .item("rebuild", "Rebuild after a system update", "when Plasma, KWin or Qt changed")
         .item("status", "Status", "what is installed and from where")
@@ -154,12 +209,13 @@ fn menu(places: &Places) -> anyhow::Result<()> {
         .item("license", "License and credits", "who made Aurora and the terms it comes with")
         .interact()?;
     match action {
-        "update" => app::update(places, false),
+        "update" => update::update(places, false),
         "settings" => settings::settings(places, None, None),
         "logo" => app::logo(None, Colors::Off),
         "icons" => icons::icons(places, None),
         "performance" => tuning::performance(places, None, false),
         "backups" => backups::backups(places, backups::Action::List, false),
+        "mission-center" => mission::mission_center(places, None, false),
         "rebuild" => app::rebuild(places),
         "status" => app::status(places),
         "license" => app::license(places, VERSION.trim()),
@@ -177,6 +233,7 @@ fn shows_banner(command: Option<&Action>, banner: Option<&str>) -> bool {
                 | Action::Icons { theme: Some(_) }
                 | Action::Performance { switch: Some(_), .. }
                 | Action::Backups { action: None | Some(BackupsAction::List) }
+                | Action::MissionCenter { action: Some(MissionAction::Snapshots) }
                 | Action::Settings { updates: Some(_), .. }
                 | Action::Settings { animations: Some(_), .. }
                 | Action::CheckUpdates { .. }
@@ -184,7 +241,12 @@ fn shows_banner(command: Option<&Action>, banner: Option<&str>) -> bool {
                 | Action::License
         )
     );
-    !one_line && banner != Some("shown")
+    let scripted = matches!(
+        command,
+        Some(Action::MissionCenter { action: Some(MissionAction::Settings { set, reset }) })
+            if !set.is_empty() || !reset.is_empty()
+    );
+    !one_line && !scripted && banner != Some("shown")
 }
 
 fn main() -> ExitCode {
@@ -199,7 +261,7 @@ fn main() -> ExitCode {
             Some(Action::Install { logo, colors: on, performance, yes }) => {
                 app::install(&places, InstallChoices { logo, colors: colors(on), performance, yes })
             }
-            Some(Action::Update { yes }) => app::update(&places, yes),
+            Some(Action::Update { yes }) => update::update(&places, yes),
             Some(Action::Rebuild) => app::rebuild(&places),
             Some(Action::Logo { logo, colors: on }) => app::logo(logo, colors(on)),
             Some(Action::Icons { theme }) => icons::icons(&places, theme.as_deref()),
@@ -215,6 +277,10 @@ fn main() -> ExitCode {
             }
             Some(Action::CheckUpdates { notify }) => {
                 check::check_updates(&places, if notify { Mode::Notify } else { Mode::Print })
+            }
+            Some(Action::MissionCenter { action }) => {
+                let (action, yes) = mission_action(action);
+                mission::mission_center(&places, action, yes)
             }
             Some(Action::Status) => app::status(&places),
             Some(Action::License) => app::license(&places, VERSION.trim()),
@@ -232,7 +298,7 @@ fn main() -> ExitCode {
 
 #[cfg(test)]
 mod tests {
-    use super::{Action, BackupsAction, shows_banner};
+    use super::{Action, BackupsAction, MissionAction, shows_banner};
     use aurora::tuning::Switch;
 
     #[test]
@@ -264,5 +330,18 @@ mod tests {
             Some(&Action::Backups { action: Some(BackupsAction::Restore { name: None, yes: false }) }),
             None
         ));
+    }
+
+    #[test]
+    fn mission_center_settings_from_a_script_skip_the_wordmark_and_the_menu_keeps_it() {
+        let settings = |set: &[&str], reset: &[&str]| Action::MissionCenter {
+            action: Some(MissionAction::Settings {
+                set: set.iter().map(ToString::to_string).collect(),
+                reset: reset.iter().map(ToString::to_string).collect(),
+            }),
+        };
+        assert!(!shows_banner(Some(&settings(&["app-update-interval=10"], &[])), None));
+        assert!(!shows_banner(Some(&settings(&[], &["app-update-interval"])), None));
+        assert!(shows_banner(Some(&settings(&[], &[])), None), "the settings menu is a menu");
     }
 }

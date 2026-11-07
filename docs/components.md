@@ -18,6 +18,14 @@ rules in `core/quicklook`), Split View (`fe::TabPage`, F3), a path bar that name
 count, Finder menus with shortcuts written the Windows way (`fe::shortcutLabel`: "Ctrl+Alt+C", "Alt+Enter", "Win+E"),
 and the pointing hand on every clickable widget.
 
+Group offers the Finder's choices (None, Name, Kind, Date Modified, Date Created, Size, Tags) through Dolphin's own
+actions: `group_by_none` and `group_<role>` since Dolphin 26.08, which groups apart from the sort order and remembers
+the choice per folder, and `show_in_groups` with the sort column before it. The toolbar's fields draw one capsule
+focus ring (`style::paintFocusRing`); `FinderStyle` drops the `QFocusFrame` Breeze adds around a field focused by Tab
+or a shortcut. The window is glass with KWin's blur while it is active and opaque while it is not, as macOS materials
+are when their window is not key, so nothing behind shows through it whether KWin blurs or not; selections turn gray
+with it.
+
 Color tags (`tagging.cpp`, rules in `core/tags`) live in the file's `user.xdg.tags` attribute through KFileMetaData, so
 Dolphin and Baloo read them too. Each tag's sidebar row opens its shelf, `~/.local/share/file-explorer/tags/<Tag>`, a
 folder of links to the tagged files that File Explorer keeps in step and tidies as it opens, so tags work without
@@ -30,8 +38,31 @@ portal backend (`--portal`: Open and Save panels with a chooser bar; it quits af
 `~/.local/bin/file-explorer`; Win+E launches it. Folders without a view of their own show Finder's columns (Name,
 Modified, Size, Type) from `~/.local/share/file-explorer/view_properties/global/.directory`. Tests: `fe_tests` (78),
 `fe_finder_tests` (33), `tests/installer/test_tag_emblems.sh` (5). Sandbox: `explorer.sh`, `explorer-finder.sh` (the
-mockup's scene: tags, the unfolded sidebar, the menu, a typed path, Quick Look, Split View, a tag's shelf),
+mockup's scene: tags, the unfolded sidebar, the menu, a typed path, Quick Look, Split View, a tag's shelf, the Group
+menu and the folder grouped by Kind from it, and the window inactive behind another),
 `explorer-menus.sh`, `explorer-drives.sh`, `show-in-folder.sh`, `open-save.sh`.
+
+## Mission Center (`components/mission-center`)
+
+Mission Center, the system monitor, built from upstream main with Aurora's patches: each app's GPU and memory counted
+exactly (memory as PSS; the sum came within 0.4 % of the real total on my own machine), magpie kept lean (3 % of one
+core with the window open and 0.6 % hidden, against 13 % for Mission Center 1.2.0), fans read the way the hardware
+reports them, each app's network use from nethogs, a color per device in the sidebar, and smoother graphs. The folder
+holds the package's recipe: the `PKGBUILD` (package `mission-center-improved`, in place of the distribution's
+`mission-center`), one patch per upstream repository, a pacman hook that gives nethogs the two capabilities it needs
+to count traffic without root, and an install script that takes them away with the package. `make_patches.sh` writes
+the patches from the four upstream clones the work is done in, which stay next to it and out of git.
+
+`aurora mission-center on` installs it from Aurora's repository when pacman finds it there, otherwise it builds it
+here with makepkg (about ten minutes; the build tools come and go with `--syncdeps --rmdeps`); `off` puts the
+distribution's back. Every change first saves a snapshot in `~/.local/state/aurora/mission-center/snapshots/<time>`
+(which build was installed, and `dconf dump` of the settings), and every build Aurora installs is kept in
+`~/.local/state/aurora/mission-center/packages`, so `rollback [NAME]` puts both back; `snapshots` lists them. pacman's
+own snapshots (snap-pac) cover the system side. `settings` offers the refresh, the points on each chart, the look,
+smooth and sliding graphs, one row per app, kernel time, fans and batteries, and resets the sidebar's order and the
+device colors; `--set KEY=VALUE` and `--reset KEY` reach every key of `io.missioncenter.MissionCenter`, each value
+checked against `gsettings range` before anything changes. Tests: the CLI's `mission` tests and the contract test on
+the recipe ([../tests/index.md](../tests/index.md)).
 
 ## Window buttons (`components/window-buttons`)
 

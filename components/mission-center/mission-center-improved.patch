@@ -1,0 +1,911 @@
+diff --git a/data/io.missioncenter.MissionCenter.gschema.xml b/data/io.missioncenter.MissionCenter.gschema.xml
+index 0c29a0d..ea7dbeb 100644
+--- a/data/io.missioncenter.MissionCenter.gschema.xml
++++ b/data/io.missioncenter.MissionCenter.gschema.xml
+@@ -302,6 +302,11 @@
+             <summary>Per-device visibility overrides (semicolon-separated name:show or name:hide entries)</summary>
+         </key>
+ 
++        <key name="performance-sidebar-device-colors" type="s">
++            <default>""</default>
++            <summary>Per-device graph colors (semicolon-separated name:#rrggbb entries)</summary>
++        </key>
++
+         <key name="first-time-running" type="b">
+             <default>true</default>
+             <summary>If it's your first time running Mission Center</summary>
+diff --git a/resources/ui/apps_page/page.blp b/resources/ui/apps_page/page.blp
+index c6ae8db..e687e95 100644
+--- a/resources/ui/apps_page/page.blp
++++ b/resources/ui/apps_page/page.blp
+@@ -24,11 +24,8 @@ using Adw 1;
+ template $AppsPage : Box {
+   orientation: vertical;
+ 
++  // The table runs edge to edge like a native list; only the page's heading keeps a margin.
+   Adw.Clamp {
+-    margin-start: 20;
+-    margin-end: 20;
+-    margin-top: 20;
+-    margin-bottom: 20;
+ 
+     maximum-size: 3000;
+ 
+@@ -48,7 +45,10 @@ template $AppsPage : Box {
+           orientation: vertical;
+ 
+           Box {
+-            margin-bottom: 20;
++            margin-start: 24;
++            margin-end: 24;
++            margin-top: 20;
++            margin-bottom: 16;
+ 
+             Box {
+               orientation: vertical;
+diff --git a/resources/ui/performance_page/summary_graph.blp b/resources/ui/performance_page/summary_graph.blp
+index c7d9f5f..3519447 100644
+--- a/resources/ui/performance_page/summary_graph.blp
++++ b/resources/ui/performance_page/summary_graph.blp
+@@ -78,6 +78,33 @@ template $SummaryGraph: Box {
+       }
+     }
+ 
++    Button reset_color_button {
++      styles [
++        "flat",
++        "circular",
++      ]
++
++      visible: false;
++      valign: center;
++      icon-name: "edit-undo-symbolic";
++      tooltip-text: _("Use the default color");
++    }
++
++    ColorDialogButton color_button {
++      styles [
++        "flat",
++      ]
++
++      visible: false;
++      valign: center;
++      tooltip-text: _("Graph color");
++
++      dialog: ColorDialog {
++        title: _("Graph Color");
++        with-alpha: false;
++      };
++    }
++
+     Switch enabled_switch {
+       visible: false;
+ 
+diff --git a/resources/ui/services_page/page.blp b/resources/ui/services_page/page.blp
+index 5f7775f..9a7980a 100644
+--- a/resources/ui/services_page/page.blp
++++ b/resources/ui/services_page/page.blp
+@@ -24,11 +24,8 @@ using Adw 1;
+ template $ServicesPage : Box {
+   orientation: vertical;
+ 
++  // The table runs edge to edge like a native list; only the page's heading keeps a margin.
+   Adw.Clamp {
+-    margin-start: 20;
+-    margin-end: 20;
+-    margin-top: 20;
+-    margin-bottom: 20;
+ 
+     maximum-size: 3000;
+ 
+@@ -50,6 +47,9 @@ template $ServicesPage : Box {
+ 
+           Box top_legend {
+             hexpand: true;
++            margin-start: 24;
++            margin-end: 24;
++            margin-top: 20;
+ 
+             Box {
+               orientation: vertical;
+@@ -233,7 +233,7 @@ template $ServicesPage : Box {
+           }
+ 
+           $TableView table_view {
+-            margin-top: 10;
++            margin-top: 6;
+           }
+         };
+       }
+diff --git a/resources/ui/style.css b/resources/ui/style.css
+index 7db3f2b..75f7360 100644
+--- a/resources/ui/style.css
++++ b/resources/ui/style.css
+@@ -93,3 +93,18 @@ grid.layout-grid picture {
+     background-size: 200% 100%;
+     animation: mc-loading-shimmer 5s linear infinite;
+ }
++
++/* Readings refresh every tick; tabular digits keep each number the same width, so values do not jump. */
++window label {
++    font-feature-settings: "tnum";
++}
++
++/* Apps and Services: the table fills the page like a native list, set apart from the heading by a hairline. */
++.mc-table {
++    border-top: 1px solid alpha(currentColor, 0.1);
++}
++
++.mc-table > columnview,
++.mc-table > viewport > columnview {
++    background: transparent;
++}
+diff --git a/resources/ui/table_view/table_view.blp b/resources/ui/table_view/table_view.blp
+index 5e28240..d3225bc 100644
+--- a/resources/ui/table_view/table_view.blp
++++ b/resources/ui/table_view/table_view.blp
+@@ -21,8 +21,11 @@
+ using Gtk 4.0;
+ 
+ template $TableView: Box {
+-  Frame {
+-    child: ScrolledWindow {
++  ScrolledWindow {
++      styles [
++        "mc-table",
++      ]
++
+       hexpand: true;
+       vexpand: true;
+ 
+@@ -105,7 +108,6 @@ template $TableView: Box {
+           }
+         }
+       }
+-    };
+   }
+ 
+   PopoverMenu context_menu {
+diff --git a/src/performance_page/mod.rs b/src/performance_page/mod.rs
+index 105622a..0ce30a8 100644
+--- a/src/performance_page/mod.rs
++++ b/src/performance_page/mod.rs
+@@ -54,6 +54,7 @@ use summary_graph::{
+ 
+ mod battery;
+ mod cpu;
++mod device_colors;
+ mod disk;
+ mod disk_details;
+ mod fan;
+@@ -83,6 +84,33 @@ const MK_TO_0_C: i32 = -273150;
+ 
+ const MAX_REMEMBERED_DEVICES: usize = 256;
+ 
++/// A run of digits or of other characters in a device name.
++#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
++enum NameChunk<'a> {
++    Number(u64),
++    Text(&'a str),
++}
++
++/// Splits a name so numbers compare by value: `fan-4-2` before `fan-4-10`, `nvme1n1` before
++/// `nvme10n1`, as a person counts them.
++fn natural_chunks(name: &str) -> Vec<NameChunk<'_>> {
++    let mut chunks = Vec::new();
++    let mut rest = name;
++    while let Some(first) = rest.chars().next() {
++        let is_digit = first.is_ascii_digit();
++        let end = rest
++            .find(|c: char| c.is_ascii_digit() != is_digit)
++            .unwrap_or(rest.len());
++        let (chunk, tail) = rest.split_at(end);
++        chunks.push(match chunk.parse::<u64>() {
++            Ok(number) if is_digit => NameChunk::Number(number),
++            _ => NameChunk::Text(chunk),
++        });
++        rest = tail;
++    }
++    chunks
++}
++
+ fn prune_sidebar_order(order: &mut Vec<String>, present: &HashSet<String>, max: usize) {
+     let mut excess = order.len().saturating_sub(max);
+     let mut index = order.len();
+@@ -201,7 +229,7 @@ mod imp {
+             self.sidebar.borrow().clone()
+         }
+ 
+-        fn canonical_key(name: &str) -> (u8, &str) {
++        fn canonical_key(name: &str) -> (u8, Vec<NameChunk<'_>>) {
+             const CATEGORIES: [&str; 7] = ["cpu", "memory", "disk", "net", "gpu", "fan", "battery"];
+ 
+             let category = CATEGORIES
+@@ -209,7 +237,7 @@ mod imp {
+                 .position(|prefix| name.starts_with(prefix))
+                 .unwrap_or(CATEGORIES.len()) as u8;
+ 
+-            (category, name)
++            (category, natural_chunks(name))
+         }
+ 
+         fn view_action_name(page_name: &str) -> Option<&'static str> {
+@@ -1071,12 +1099,11 @@ mod imp {
+             summary.graph_widget().connect_to_settings(&settings!());
+ 
+             let page = CpuPage::new(&settings);
+-            page.set_base_color(gdk::RGBA::new(
+-                CPU_BASE_COLOR[0] as f32 / 255.,
+-                CPU_BASE_COLOR[1] as f32 / 255.,
+-                CPU_BASE_COLOR[2] as f32 / 255.,
+-                1.,
+-            ));
++            // The page follows the summary, whose color the user can change per device.
++            summary
++                .bind_property("base-color", &page, "base-color")
++                .sync_create()
++                .build();
+             page.set_static_information(readings);
+ 
+             self.configure_page(&page);
+@@ -1131,12 +1158,11 @@ mod imp {
+             ));
+ 
+             let page = MemoryPage::new(&settings);
+-            page.set_base_color(gdk::RGBA::new(
+-                MEMORY_BASE_COLOR[0] as f32 / 255.,
+-                MEMORY_BASE_COLOR[1] as f32 / 255.,
+-                MEMORY_BASE_COLOR[2] as f32 / 255.,
+-                1.,
+-            ));
++            // The page follows the summary, whose color the user can change per device.
++            summary
++                .bind_property("base-color", &page, "base-color")
++                .sync_create()
++                .build();
+             page.set_memory_color(gdk::RGBA::new(
+                 DISK_BASE_COLOR[0] as f32 / 255.,
+                 DISK_BASE_COLOR[1] as f32 / 255.,
+@@ -1254,12 +1280,11 @@ mod imp {
+             summary.graph_widget().connect_to_settings(&settings);
+ 
+             let page = DiskPage::new(&page_name, &settings);
+-            page.set_base_color(gdk::RGBA::new(
+-                DISK_BASE_COLOR[0] as f32 / 255.,
+-                DISK_BASE_COLOR[1] as f32 / 255.,
+-                DISK_BASE_COLOR[2] as f32 / 255.,
+-                1.,
+-            ));
++            // The page follows the summary, whose color the user can change per device.
++            summary
++                .bind_property("base-color", &page, "base-color")
++                .sync_create()
++                .build();
+             page.set_static_information(disk_id, disk);
+ 
+             self.configure_page(&page);
+@@ -1323,12 +1348,6 @@ mod imp {
+                 graph_widget.connect_datasets(0, 1);
+                 graph_widget.connect_datasets(1, 0);
+ 
+-                graph_widget.set_base_color(gdk::RGBA::new(
+-                    NETWORK_BASE_COLOR[0] as f32 / 255.,
+-                    NETWORK_BASE_COLOR[1] as f32 / 255.,
+-                    NETWORK_BASE_COLOR[2] as f32 / 255.,
+-                    1.,
+-                ));
+ 
+                 graph_widget.connect_to_settings(&settings);
+             }
+@@ -1363,14 +1382,20 @@ mod imp {
+                 });
+             }
+ 
+-            let page = NetworkPage::new(if_name, conn_kind, &settings);
+-            page.set_base_color(gdk::RGBA::new(
++            summary.set_base_color(gdk::RGBA::new(
+                 NETWORK_BASE_COLOR[0] as f32 / 255.,
+                 NETWORK_BASE_COLOR[1] as f32 / 255.,
+                 NETWORK_BASE_COLOR[2] as f32 / 255.,
+                 1.,
+             ));
+ 
++            let page = NetworkPage::new(if_name, conn_kind, &settings);
++            // The page follows the summary, whose color the user can change per device.
++            summary
++                .bind_property("base-color", &page, "base-color")
++                .sync_create()
++                .build();
++
+             page.set_static_information(connection);
+             self.configure_page(&page);
+ 
+@@ -1432,12 +1457,11 @@ mod imp {
+                 1.,
+             ));
+ 
+-            page.set_base_color(gdk::RGBA::new(
+-                GPU_BASE_COLOR[0] as f32 / 255.,
+-                GPU_BASE_COLOR[1] as f32 / 255.,
+-                GPU_BASE_COLOR[2] as f32 / 255.,
+-                1.,
+-            ));
++            // The page follows the summary, whose color the user can change per device.
++            summary
++                .bind_property("base-color", &page, "base-color")
++                .sync_create()
++                .build();
+             page.set_static_information(index, gpu);
+ 
+             self.configure_page(&page);
+@@ -1498,8 +1522,12 @@ mod imp {
+             let summary = SummaryGraph::new(DeviceType::Fan);
+             summary.set_widget_name(&page_name);
+ 
+-            if let Some(index) = index {
+-                summary.set_heading(i18n_f("Fan {}", &[&format!("{}", index)]));
++            // hwmon numbers fans from 1, as the board manual and the BIOS do.
++            if index.is_some() {
++                summary.set_heading(i18n_f(
++                    "Fan {}",
++                    &[&fan_static_info.fan_index.to_string()],
++                ));
+             } else {
+                 summary.set_heading(i18n("Fan"));
+             }
+@@ -1520,12 +1548,11 @@ mod imp {
+             summary.graph_widget().add_dataset(speed_dataset);
+ 
+             let page = FanPage::new(&page_name, &settings);
+-            page.set_base_color(gdk::RGBA::new(
+-                FAN_BASE_COLOR[0] as f32 / 255.,
+-                FAN_BASE_COLOR[1] as f32 / 255.,
+-                FAN_BASE_COLOR[2] as f32 / 255.,
+-                1.,
+-            ));
++            // The page follows the summary, whose color the user can change per device.
++            summary
++                .bind_property("base-color", &page, "base-color")
++                .sync_create()
++                .build();
+             page.set_static_information(fan_static_info);
+ 
+             self.configure_page(&page);
+@@ -1593,12 +1620,11 @@ mod imp {
+             summary.graph_widget().add_dataset(speed_dataset);
+ 
+             let page = BatteryPage::new(&page_name, &settings);
+-            page.set_base_color(gdk::RGBA::new(
+-                BATTERY_BASE_COLOR[0] as f32 / 255.,
+-                BATTERY_BASE_COLOR[1] as f32 / 255.,
+-                BATTERY_BASE_COLOR[2] as f32 / 255.,
+-                1.,
+-            ));
++            // The page follows the summary, whose color the user can change per device.
++            summary
++                .bind_property("base-color", &page, "base-color")
++                .sync_create()
++                .build();
+             page.set_static_information(battery_static_info);
+ 
+             self.configure_page(&page);
+@@ -2085,14 +2111,12 @@ mod imp {
+                             if let Some((summary, page)) = pages.get(&Self::fan_page_name(&fan)) {
+                                 let graph_widget = summary.graph_widget();
+                                 graph_widget.add_data_point(vec![vec![fan.rpm as f32]]);
+-                                if let Some(fan_name) = &fan.fan_label {
+-                                    summary.set_info1(fan_name.as_str());
+-                                } else if let Some(temp_name) = &fan.temp_name {
+-                                    summary.set_info1(temp_name.as_str());
+-                                }
+ 
+-                                if let Some(index) = index {
+-                                    summary.set_heading(i18n_f("Fan {}", &[&index.to_string()]));
++                                if index.is_some() {
++                                    summary.set_heading(i18n_f(
++                                        "Fan {}",
++                                        &[&fan.fan_index.to_string()],
++                                    ));
+                                 } else {
+                                     summary.set_heading(i18n("Fan"));
+                                 }
+@@ -2106,12 +2130,25 @@ mod imp {
+                                     String::new()
+                                 };
+ 
+-                                summary.set_info2(if let Some(pwm_percent) = fan.pwm_percent {
+-                                    format!("{:.0}%{}", pwm_percent * 100., temp_str)
+-                                } else {
+-                                    format!("{} RPM{}", fan.rpm, temp_str)
+-                                });
+-                                result &= page.update_readings(fan, index);
++                                // The measured speed first, then the duty cycle the board asks for. A
++                                // label names the fan when the chip gives one; most boards give none.
++                                let speed = format!("{} RPM{}", fan.rpm, temp_str);
++                                let duty = fan
++                                    .pwm_percent
++                                    .map(|pwm| i18n_f("PWM {}%", &[&format!("{:.0}", pwm * 100.)]))
++                                    .unwrap_or_default();
++                                match fan.fan_label.as_ref().or(fan.temp_name.as_ref()) {
++                                    Some(label) => {
++                                        summary.set_info1(label.as_str());
++                                        summary.set_info2(speed);
++                                    }
++                                    None => {
++                                        summary.set_info1(speed);
++                                        summary.set_info2(duty);
++                                    }
++                                }
++                                result &= page
++                                    .update_readings(fan, index.map(|_| fan.fan_index as usize));
+                             } else {
+                                 new_devices.push(index);
+                             }
+@@ -2588,6 +2625,33 @@ mod imp {
+             }
+         }
+ 
++        #[test]
++        fn numbers_in_device_names_sort_by_value() {
++            let mut sorted = names(&[
++                "fan-4-10",
++                "fan-4-2",
++                "fan-4-1",
++                "disk-nvme10n1",
++                "disk-nvme1n1",
++                "disk-nvme0n1",
++            ]);
++            sorted.sort_by(|a, b| {
++                PerformancePage::canonical_key(a).cmp(&PerformancePage::canonical_key(b))
++            });
++
++            assert_eq!(
++                sorted,
++                names(&[
++                    "disk-nvme0n1",
++                    "disk-nvme1n1",
++                    "disk-nvme10n1",
++                    "fan-4-1",
++                    "fan-4-2",
++                    "fan-4-10",
++                ])
++            );
++        }
++
+         #[test]
+         fn canonical_key_puts_unknown_names_last() {
+             let unknown = PerformancePage::canonical_key("something-else");
+@@ -2770,6 +2834,7 @@ impl PerformancePage {
+                     "Failed to set performance-sidebar-device-overrides setting"
+                 );
+             });
++        settings.reset(device_colors::SETTINGS_KEY);
+ 
+         for key in [
+             "performance-show-disks",
+diff --git a/src/performance_page/summary_graph.rs b/src/performance_page/summary_graph.rs
+index 10a463f..5016c2a 100644
+--- a/src/performance_page/summary_graph.rs
++++ b/src/performance_page/summary_graph.rs
+@@ -18,13 +18,14 @@
+  * SPDX-License-Identifier: GPL-3.0-or-later
+  */
+ 
+-use std::cell::Cell;
++use std::cell::{Cell, RefCell};
+ use std::collections::HashMap;
+ 
+ use adw::subclass::prelude::*;
+ use glib::{ParamSpec, Properties, Value};
+ use gtk::{gdk, glib, prelude::*};
+ 
++use crate::performance_page::device_colors::{self, Rgb};
+ use crate::performance_page::widgets::{GraphWidget, SidebarDropHint};
+ use crate::settings;
+ 
+@@ -189,6 +190,10 @@ mod imp {
+         label_info2: TemplateChild<gtk::Label>,
+         #[template_child]
+         pub enabled_switch: TemplateChild<gtk::Switch>,
++        #[template_child]
++        pub(super) color_button: TemplateChild<gtk::ColorDialogButton>,
++        #[template_child]
++        reset_color_button: TemplateChild<gtk::Button>,
+ 
+         #[property(get = Self::base_color, set = Self::set_base_color)]
+         base_color: PhantomData<gdk::RGBA>,
+@@ -202,6 +207,11 @@ mod imp {
+         pub device_type: Cell<DeviceType>,
+ 
+         pub user_activated: Cell<bool>,
++
++        /// The color of the device type, used when the user picked none.
++        default_color: Cell<gdk::RGBA>,
++        pub(super) edit_mode: Cell<bool>,
++        colors_changed: RefCell<Option<glib::SignalHandlerId>>,
+     }
+ 
+     impl Default for SummaryGraph {
+@@ -214,6 +224,8 @@ mod imp {
+                 label_info1: Default::default(),
+                 label_info2: Default::default(),
+                 enabled_switch: Default::default(),
++                color_button: Default::default(),
++                reset_color_button: Default::default(),
+ 
+                 base_color: PhantomData,
+                 heading: PhantomData,
+@@ -223,6 +235,10 @@ mod imp {
+                 device_type: Cell::new(DeviceType::Unspecified),
+ 
+                 user_activated: Cell::new(true),
++
++                default_color: Cell::new(gdk::RGBA::new(0., 0., 0., 1.)),
++                edit_mode: Cell::new(false),
++                colors_changed: RefCell::new(None),
+             }
+         }
+     }
+@@ -232,8 +248,25 @@ mod imp {
+             self.graph_widget.base_color()
+         }
+ 
++        /// Sets the default color of the device; a color the user picked still wins.
+         fn set_base_color(&self, base_color: gdk::RGBA) {
+-            self.graph_widget.set_base_color(base_color);
++            self.default_color.set(base_color);
++            self.apply_color();
++        }
++
++        /// Shows the custom color of the device, or its default, and tells the bound page.
++        pub(super) fn apply_color(&self) {
++            let custom = device_colors::custom_color(&settings!(), &self.obj().widget_name());
++            let color = custom.map_or(self.default_color.get(), Rgb::to_rgba);
++
++            self.graph_widget.set_base_color(color);
++            self.user_activated.set(false);
++            self.color_button.set_rgba(&color);
++            self.user_activated.set(true);
++            self.reset_color_button
++                .set_visible(self.edit_mode.get() && custom.is_some());
++
++            self.obj().notify_base_color();
+         }
+ 
+         fn heading(&self) -> String {
+@@ -299,9 +332,50 @@ mod imp {
+             self.derived_property(id, pspec)
+         }
+ 
++        // A handler left on the shared settings object would outlive the graph (upstream #559).
++        fn dispose(&self) {
++            self.disconnect_settings();
++        }
++
+         fn constructed(&self) {
+             self.parent_constructed();
+ 
++            let handler = settings!().connect_changed(Some(device_colors::SETTINGS_KEY), {
++                let this = self.obj().downgrade();
++                move |_, _| {
++                    if let Some(this) = this.upgrade() {
++                        this.imp().apply_color();
++                    }
++                }
++            });
++            self.colors_changed.replace(Some(handler));
++
++            self.color_button.connect_rgba_notify({
++                let this = self.obj().downgrade();
++                move |button| {
++                    let Some(this) = this.upgrade() else {
++                        return;
++                    };
++                    if !this.imp().user_activated.get() {
++                        return;
++                    }
++                    device_colors::set_custom_color(
++                        &settings!(),
++                        &this.widget_name(),
++                        Some(Rgb::from_rgba(&button.rgba())),
++                    );
++                }
++            });
++
++            self.reset_color_button.connect_clicked({
++                let this = self.obj().downgrade();
++                move |_| {
++                    if let Some(this) = this.upgrade() {
++                        device_colors::set_custom_color(&settings!(), &this.widget_name(), None);
++                    }
++                }
++            });
++
+             self.enabled_switch.connect_active_notify({
+                 let this = self.obj().downgrade();
+                 move |switch| {
+@@ -341,6 +415,14 @@ mod imp {
+         }
+     }
+ 
++    impl SummaryGraph {
++        fn disconnect_settings(&self) {
++            if let Some(handler) = self.colors_changed.take() {
++                settings!().disconnect(handler);
++            }
++        }
++    }
++
+     impl WidgetImpl for SummaryGraph {}
+ 
+     impl BoxImpl for SummaryGraph {}
+@@ -363,6 +445,9 @@ impl SummaryGraph {
+         let imp = self.imp();
+         imp.drag_handle_icon.set_visible(edit_mode);
+         imp.enabled_switch.set_visible(edit_mode);
++        imp.color_button.set_visible(edit_mode);
++        imp.edit_mode.set(edit_mode);
++        imp.apply_color();
+ 
+         self.set_switch_active(switch_enabled);
+     }
+diff --git a/src/table_view/models.rs b/src/table_view/models.rs
+index c6408e1..b3875e8 100644
+--- a/src/table_view/models.rs
++++ b/src/table_view/models.rs
+@@ -277,6 +277,9 @@ pub fn update_services(
+     }
+ }
+ 
++/// The id magpie gives the row of the desktop's own processes (`platform-linux/src/apps.rs`).
++const DESKTOP_APP_ID: &str = "io.missioncenter.MissionCenter.Desktop";
++
+ fn update_app(
+     app: &App,
+     process_map: &HashMap<u32, Process>,
+@@ -285,7 +288,12 @@ fn update_app(
+ ) {
+     let primary_processes = primary_processes(app, process_map);
+ 
+-    row_model.set_app_pids(stoppable_pids(&primary_processes, process_map));
++    // The desktop row groups the compositor and the shell; stopping them would end the session.
++    if app.id == DESKTOP_APP_ID {
++        row_model.set_app_pids(Vec::new());
++    } else {
++        row_model.set_app_pids(stoppable_pids(&primary_processes, process_map));
++    }
+ 
+     let list = row_model.children();
+ 
+diff --git a/src/window.rs b/src/window.rs
+index 754a74c..fe9c0be 100644
+--- a/src/window.rs
++++ b/src/window.rs
+@@ -328,6 +328,8 @@ mod imp {
+         collapse_threshold: Cell<i32>,
+ 
+         pub last_refresh: Cell<u128>,
++        /// The graph animation timer; it runs only while the window can be seen.
++        pub animation_source: RefCell<Option<glib::SourceId>>,
+         pub cached_refresh_ticks: Cell<u64>,
+         pub global_scroll_ticks: Cell<u32>,
+ 
+@@ -372,6 +374,7 @@ mod imp {
+                 summary_mode: Cell::new(false),
+                 collapse_threshold: Cell::new(0),
+                 last_refresh: Cell::new(0),
++                animation_source: RefCell::new(None),
+                 cached_refresh_ticks: Cell::new(1),
+                 global_scroll_ticks: Cell::new(1),
+ 
+@@ -1114,7 +1117,9 @@ impl MissionCenterWindow {
+ 
+         this.connect_suspended_notify(|window| {
+             window.sync_reduced_activity();
++            window.sync_animations();
+         });
++        this.connect_performance_page_active_notify(|window| window.sync_animations());
+ 
+         this
+     }
+@@ -1130,12 +1135,30 @@ impl MissionCenterWindow {
+     }
+ 
+     pub fn setup_animations(&self) {
+-        glib::timeout_add_local(Duration::from_millis(50), {
++        self.sync_animations();
++    }
++
++    /// Starts the 20 Hz graph animation timer while the Performance page can be seen, and stops it while
++    /// the window is suspended (minimized or fully covered) or another page is shown, where every frame
++    /// would be wasted work. Graphs keep receiving data either way.
++    fn sync_animations(&self) {
++        let imp = self.imp();
++        if self.is_suspended() || !self.performance_page_active() {
++            if let Some(source) = imp.animation_source.take() {
++                source.remove();
++            }
++            return;
++        }
++        if imp.animation_source.borrow().is_some() {
++            return;
++        }
++
++        let source = glib::timeout_add_local(Duration::from_millis(50), {
+             let this = self.downgrade();
+ 
+             move || {
+                 let Some(this) = this.upgrade() else {
+-                    return ControlFlow::Continue;
++                    return ControlFlow::Break;
+                 };
+ 
+                 this.update_animations(AnimationFrame {
+@@ -1151,6 +1174,7 @@ impl MissionCenterWindow {
+                 ControlFlow::Continue
+             }
+         });
++        imp.animation_source.replace(Some(source));
+     }
+ 
+     pub fn set_initial_readings(&self, mut readings: Readings) {
+diff --git a/src/performance_page/device_colors.rs b/src/performance_page/device_colors.rs
+new file mode 100644
+index 0000000..165a707
+--- /dev/null
++++ b/src/performance_page/device_colors.rs
+@@ -0,0 +1,154 @@
++/* performance_page/device_colors.rs
++ *
++ * Copyright 2026 Mission Center Developers
++ *
++ * This program is free software: you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation, either version 3 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
++ *
++ * SPDX-License-Identifier: GPL-3.0-or-later
++ */
++
++//! Colors the user picked for single devices, stored in the `performance-sidebar-device-colors`
++//! setting as `<device>:#rrggbb` entries joined by `;`. Device names are encoded as in the
++//! visibility overrides, so a name holding `;` or `:` survives the round trip.
++
++use std::collections::HashMap;
++
++use gtk::{gdk, gio, glib, prelude::*};
++
++use super::summary_graph::{decode_device_name, encode_device_name};
++
++pub const SETTINGS_KEY: &str = "performance-sidebar-device-colors";
++
++/// A color without transparency; graphs derive their fill and grid from it.
++#[derive(Debug, Clone, Copy, PartialEq, Eq)]
++pub struct Rgb(pub [u8; 3]);
++
++impl Rgb {
++    pub fn from_hex(hex: &str) -> Option<Self> {
++        let digits = hex.strip_prefix('#')?;
++        if digits.len() != 6 || !digits.is_ascii() {
++            return None;
++        }
++        let channel = |at: usize| u8::from_str_radix(&digits[at..at + 2], 16).ok();
++        Some(Self([channel(0)?, channel(2)?, channel(4)?]))
++    }
++
++    pub fn to_hex(self) -> String {
++        let [r, g, b] = self.0;
++        format!("#{r:02x}{g:02x}{b:02x}")
++    }
++
++    pub fn from_rgba(rgba: &gdk::RGBA) -> Self {
++        let channel = |value: f32| (value.clamp(0., 1.) * 255.).round() as u8;
++        Self([
++            channel(rgba.red()),
++            channel(rgba.green()),
++            channel(rgba.blue()),
++        ])
++    }
++
++    pub fn to_rgba(self) -> gdk::RGBA {
++        let [r, g, b] = self.0;
++        gdk::RGBA::new(r as f32 / 255., g as f32 / 255., b as f32 / 255., 1.)
++    }
++}
++
++/// Reads the stored colors. Entries that do not parse are skipped.
++pub fn parse(raw: &str) -> HashMap<String, Rgb> {
++    raw.split(';')
++        .filter(|entry| !entry.is_empty())
++        .filter_map(|entry| {
++            let (name, hex) = entry.rsplit_once(':')?;
++            Some((decode_device_name(name), Rgb::from_hex(hex)?))
++        })
++        .collect()
++}
++
++/// Writes the colors in name order, so equal maps give equal settings.
++pub fn serialize(colors: &HashMap<String, Rgb>) -> String {
++    let mut entries: Vec<String> = colors
++        .iter()
++        .map(|(name, color)| format!("{}:{}", encode_device_name(name), color.to_hex()))
++        .collect();
++    entries.sort_unstable();
++    entries.join(";")
++}
++
++/// The color the user picked for `device`, if any.
++pub fn custom_color(settings: &gio::Settings, device: &str) -> Option<Rgb> {
++    parse(&settings.string(SETTINGS_KEY)).get(device).copied()
++}
++
++/// Stores the color of `device`; `None` goes back to the default color.
++pub fn set_custom_color(settings: &gio::Settings, device: &str, color: Option<Rgb>) {
++    let mut colors = parse(&settings.string(SETTINGS_KEY));
++    let changed = match color {
++        Some(color) => colors.insert(device.to_owned(), color) != Some(color),
++        None => colors.remove(device).is_some(),
++    };
++    if !changed {
++        return;
++    }
++    if settings.set_string(SETTINGS_KEY, &serialize(&colors)).is_err() {
++        glib::g_warning!(
++            "MissionCenter::PerformancePage",
++            "Failed to set {} setting",
++            SETTINGS_KEY
++        );
++    }
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++
++    #[test]
++    fn colors_round_trip_through_the_settings_string() {
++        let mut colors = HashMap::new();
++        colors.insert("cpu".to_owned(), Rgb([0x1c, 0x71, 0xd8]));
++        colors.insert("gpu-0000:2B:00.0".to_owned(), Rgb([0xff, 0x00, 0x7f]));
++        colors.insert("net-a;b".to_owned(), Rgb([0, 0, 0]));
++
++        let raw = serialize(&colors);
++        assert_eq!(parse(&raw), colors);
++    }
++
++    #[test]
++    fn the_settings_string_is_sorted_and_lowercase() {
++        let mut colors = HashMap::new();
++        colors.insert("memory".to_owned(), Rgb([0xAB, 0xCD, 0xEF]));
++        colors.insert("cpu".to_owned(), Rgb([1, 2, 3]));
++        assert_eq!(serialize(&colors), "cpu:#010203;memory:#abcdef");
++    }
++
++    #[test]
++    fn a_pci_address_in_a_device_name_keeps_its_colons() {
++        let parsed = parse("gpu-0000%3A2B%3A00.0:#f66151");
++        assert_eq!(parsed.get("gpu-0000:2B:00.0"), Some(&Rgb([0xf6, 0x61, 0x51])));
++    }
++
++    #[test]
++    fn broken_entries_are_skipped() {
++        let parsed = parse("cpu:#12345;memory:blue;disk-sda:#00ff00;:#zzzzzz;fan-4-1");
++        assert_eq!(parsed.len(), 1);
++        assert_eq!(parsed.get("disk-sda"), Some(&Rgb([0, 0xff, 0])));
++    }
++
++    #[test]
++    fn a_color_survives_the_trip_through_gdk() {
++        for color in [Rgb([0, 0, 0]), Rgb([0x81, 0x3d, 0x9c]), Rgb([255, 255, 255])] {
++            assert_eq!(Rgb::from_rgba(&color.to_rgba()), color);
++        }
++    }
++}

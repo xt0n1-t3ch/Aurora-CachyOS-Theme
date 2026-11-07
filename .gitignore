@@ -25,3 +25,12 @@ __pycache__/
 /backups/
 /design/
 AGENTS.md
+
+# Mission Center: the package recipe is tracked; the four upstream clones it is developed in, their meson tools, the
+# measuring kit and the author's notes stay on disk.
+/components/mission-center/*
+!/components/mission-center/PKGBUILD
+!/components/mission-center/*.patch
+!/components/mission-center/*.hook
+!/components/mission-center/*.install
+!/components/mission-center/make_patches.sh

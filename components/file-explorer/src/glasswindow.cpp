@@ -99,6 +99,7 @@ void GlassWindow::changeEvent(QEvent *event)
         updateShadow();
         update();
     } else if (event->type() == QEvent::ActivationChange) {
+        updateBlurRegion();
         update();
     }
 }
@@ -164,6 +165,11 @@ bool GlassWindow::eventFilter(QObject *watched, QEvent *event)
 void GlassWindow::updateBlurRegion()
 {
     if (!windowHandle()) {
+        return;
+    }
+    // An inactive window paints opaque (style::WINDOW_TINT_INACTIVE), so KWin has nothing to blur until it is active.
+    if (!isActiveWindow()) {
+        KWindowEffects::enableBlurBehind(windowHandle(), false);
         return;
     }
     QPainterPath body;

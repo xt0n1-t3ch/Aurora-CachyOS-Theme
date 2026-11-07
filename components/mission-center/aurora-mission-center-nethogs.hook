@@ -1,0 +1,16 @@
+# Lets nethogs, which Aurora's Mission Center reads for each app's network use, see traffic without root: again after
+# every nethogs update, and when Mission Center arrives after nethogs. mission-center-improved.install takes the
+# capabilities away when the package is removed.
+
+[Trigger]
+Operation = Install
+Operation = Upgrade
+Type = Package
+Target = nethogs
+Target = mission-center-improved
+
+[Action]
+Description = Letting nethogs count each app's network use without root (Mission Center)
+When = PostTransaction
+Depends = libcap
+Exec = /usr/bin/setcap cap_net_admin,cap_net_raw=ep /usr/bin/nethogs

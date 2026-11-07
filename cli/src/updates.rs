@@ -10,7 +10,7 @@ use std::path::Path;
 use std::process::Command;
 use std::time::Duration;
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, bail};
 
 /// The pacman package Aurora comes in.
 pub const PACKAGE: &str = "aurora-theme";
@@ -266,18 +266,31 @@ pub fn installed_release(pacman_q: &str) -> Option<String> {
     (words.next() == Some(PACKAGE)).then(|| words.next().map(str::to_string)).flatten()
 }
 
-/// The newer aurora-theme in the repositories pacman uses, through `checkupdates` (its own copy of the databases,
-/// so no root is needed), or `None` when the installed one is the newest.
+/// What `checkupdates` lists: one `name installed -> newest` line per package that has a newer version in the
+/// repositories pacman uses, or nothing. It refreshes its own copy of pacman's databases in `databases`, so it needs
+/// no root and pacman's own databases stay as they are.
 ///
 /// # Errors
 /// When `checkupdates` fails (exit status 1: no network or a broken database); 2 means nothing to update.
-pub fn package_newest() -> Result<Option<String>> {
-    let output = Command::new("checkupdates").output().context("running checkupdates (pacman-contrib)")?;
+pub fn checkupdates(databases: &Path) -> Result<String> {
+    let output = Command::new("checkupdates")
+        .env("CHECKUPDATES_DB", databases)
+        .output()
+        .context("running checkupdates (pacman-contrib)")?;
     match output.status.code() {
-        Some(0) => Ok(parse_checkupdates(&String::from_utf8_lossy(&output.stdout), PACKAGE)),
-        Some(2) => Ok(None),
-        _ => anyhow::bail!("checkupdates failed: {}", String::from_utf8_lossy(&output.stderr).trim()),
+        Some(0) => Ok(String::from_utf8_lossy(&output.stdout).into_owned()),
+        Some(2) => Ok(String::new()),
+        _ => bail!("checkupdates failed: {}", String::from_utf8_lossy(&output.stderr).trim()),
     }
+}
+
+/// The newer aurora-theme in the repositories pacman uses (see [`checkupdates`]), or `None` when the installed one
+/// is the newest.
+///
+/// # Errors
+/// When `checkupdates` fails.
+pub fn package_newest(databases: &Path) -> Result<Option<String>> {
+    Ok(parse_checkupdates(&checkupdates(databases)?, PACKAGE))
 }
 
 /// What the user did with the notice.

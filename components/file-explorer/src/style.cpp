@@ -69,6 +69,17 @@ void paintGlass(QPainter &painter, const QRectF &rect, qreal radius, const QColo
     painter.restore();
 }
 
+void paintFocusRing(QPainter &painter, const QRectF &line, const QColor &color)
+{
+    painter.save();
+    painter.setRenderHint(QPainter::Antialiasing);
+    painter.setPen(QPen(color, 2.0));
+    painter.setBrush(Qt::NoBrush);
+    const qreal radius = line.height() / 2.0;
+    painter.drawRoundedRect(line, radius, radius);
+    painter.restore();
+}
+
 QPalette darkPalette()
 {
     // macOS dark system colors (windowBackgroundColor, controlBackgroundColor, labelColor, ...).

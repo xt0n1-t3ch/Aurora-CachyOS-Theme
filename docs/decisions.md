@@ -81,6 +81,10 @@ The rules I set while building Aurora, and why. They decide every design questio
   theme.
 - Versions follow SemVer, the changelog Keep a Changelog 2.0.0, commits Conventional Commits; `scripts/release.sh`
   cuts a release and publishes only with `--publish`.
+- Everything a package ships prebuilt targets the x86-64 baseline, never the processor of the PC that builds it: the
+  package is built once and installed on PCs older than mine. The speed a newer instruction set would add to a theme
+  is not worth a desktop that stops with "Illegal instruction" (issue #11). Libraries that pick a faster path after
+  asking the processor (memchr's AVX2 search) keep doing so.
 
 ## License
 

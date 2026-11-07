@@ -1,0 +1,222 @@
+diff --git a/src/lib.rs b/src/lib.rs
+index df9b170..c0b832f 100644
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -17,6 +17,7 @@ mod desktop;
+ mod env;
+ mod exec;
+ mod matching;
++mod path_lookup;
+ 
+ fn app_id_replacement() -> &'static HashMap<&'static str, &'static str> {
+     static APP_ID_REPLACEMENT: OnceLock<HashMap<&'static str, &'static str>> = OnceLock::new();
+diff --git a/src/matching.rs b/src/matching.rs
+index cbd26c9..98f8293 100644
+--- a/src/matching.rs
++++ b/src/matching.rs
+@@ -4,6 +4,7 @@ use std::path::Path;
+ use std::rc::Rc;
+ use std::sync::OnceLock;
+ 
++use crate::path_lookup::find_in_path;
+ use crate::{env, ApplicationEntry, Process};
+ 
+ // Adapted from Resources (src/utils/app.rs)
+@@ -47,22 +48,7 @@ pub(crate) fn running_apps_by_process<'a, P: Process + 'a>(
+         let proc_exec = if let Some(exe) = process.executable_path() {
+             exe
+         } else {
+-            env::path()
+-                .iter()
+-                .find_map(|dir| {
+-                    let mut path = Path::new(dir).join(process.name());
+-                    if !path.exists() {
+-                        if let Some(alternate) = executable_exceptions().get(process.name()) {
+-                            path = Path::new(dir).join(alternate);
+-                        }
+-                    }
+-                    if path.exists() {
+-                        path.canonicalize().ok()
+-                    } else {
+-                        None
+-                    }
+-                })
+-                .unwrap_or_default()
++            find_in_path(env::path(), process.name(), executable_exceptions()).unwrap_or_default()
+         };
+ 
+         if proc_exec.as_os_str().is_empty() {
+diff --git a/src/path_lookup.rs b/src/path_lookup.rs
+new file mode 100644
+index 0000000..5b17ba9
+--- /dev/null
++++ b/src/path_lookup.rs
+@@ -0,0 +1,168 @@
++use std::cell::RefCell;
++use std::collections::HashMap;
++use std::path::{Path, PathBuf};
++use std::time::SystemTime;
++
++/// Finds the executable behind a process name in `PATH`, for processes whose `/proc/<pid>/exe` cannot
++/// be read (kernel threads, other users' processes).
++///
++/// A desktop has hundreds of such processes and `PATH` often a dozen or more directories, so probing
++/// every directory for every process on every refresh cost thousands of `stat` calls. Answers are
++/// kept until one of the directories changes (its modification time moves when a file is added,
++/// removed or renamed in it).
++pub(crate) fn find_in_path(
++    dirs: &[String],
++    name: &str,
++    exceptions: &HashMap<&'static str, &'static str>,
++) -> Option<PathBuf> {
++    thread_local! {
++        static CACHE: RefCell<PathLookup> = RefCell::new(PathLookup::default());
++    }
++
++    CACHE.with(|cache| cache.borrow_mut().find(dirs, name, exceptions))
++}
++
++#[derive(Default)]
++struct PathLookup {
++    stamps: Vec<Option<SystemTime>>,
++    found: HashMap<String, Option<PathBuf>>,
++}
++
++impl PathLookup {
++    fn find(
++        &mut self,
++        dirs: &[String],
++        name: &str,
++        exceptions: &HashMap<&'static str, &'static str>,
++    ) -> Option<PathBuf> {
++        // A name with a slash (`kworker/0:1`) can never be a file directly inside a PATH directory.
++        if name.is_empty() || name.contains('/') {
++            return None;
++        }
++
++        let stamps: Vec<Option<SystemTime>> = dirs
++            .iter()
++            .map(|dir| std::fs::metadata(dir).and_then(|m| m.modified()).ok())
++            .collect();
++        if stamps != self.stamps {
++            self.stamps = stamps;
++            self.found.clear();
++        }
++
++        if let Some(found) = self.found.get(name) {
++            return found.clone();
++        }
++
++        let found = probe(dirs, name, exceptions);
++        self.found.insert(name.to_owned(), found.clone());
++        found
++    }
++}
++
++fn probe(
++    dirs: &[String],
++    name: &str,
++    exceptions: &HashMap<&'static str, &'static str>,
++) -> Option<PathBuf> {
++    dirs.iter().find_map(|dir| {
++        let mut path = Path::new(dir).join(name);
++        if !path.exists() {
++            if let Some(alternate) = exceptions.get(name) {
++                path = Path::new(dir).join(alternate);
++            }
++        }
++        if path.exists() {
++            path.canonicalize().ok()
++        } else {
++            None
++        }
++    })
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++
++    struct TempDir(PathBuf);
++
++    impl TempDir {
++        fn new(tag: &str) -> Self {
++            let dir = std::env::temp_dir().join(format!(
++                "app-rummage-{tag}-{}-{:?}",
++                std::process::id(),
++                std::thread::current().id()
++            ));
++            let _ = std::fs::remove_dir_all(&dir);
++            std::fs::create_dir_all(&dir).expect("create temp dir");
++            Self(dir)
++        }
++
++        fn as_path_list(&self) -> Vec<String> {
++            vec![self.0.to_string_lossy().into_owned()]
++        }
++    }
++
++    impl Drop for TempDir {
++        fn drop(&mut self) {
++            let _ = std::fs::remove_dir_all(&self.0);
++        }
++    }
++
++    fn no_exceptions() -> HashMap<&'static str, &'static str> {
++        HashMap::new()
++    }
++
++    #[test]
++    fn finds_an_executable_in_a_path_directory() {
++        let dir = TempDir::new("finds");
++        std::fs::write(dir.0.join("sddm"), b"").unwrap();
++        let mut lookup = PathLookup::default();
++
++        let found = lookup.find(&dir.as_path_list(), "sddm", &no_exceptions());
++        assert_eq!(found, Some(dir.0.join("sddm").canonicalize().unwrap()));
++    }
++
++    #[test]
++    fn an_executable_installed_later_is_found_on_the_next_lookup() {
++        let dir = TempDir::new("later");
++        let dirs = dir.as_path_list();
++        let mut lookup = PathLookup::default();
++        assert_eq!(lookup.find(&dirs, "late-tool", &no_exceptions()), None);
++
++        // Make sure the directory's modification time moves even on a coarse clock.
++        std::thread::sleep(std::time::Duration::from_millis(20));
++        std::fs::write(dir.0.join("late-tool"), b"").unwrap();
++
++        assert_eq!(
++            lookup.find(&dirs, "late-tool", &no_exceptions()),
++            Some(dir.0.join("late-tool").canonicalize().unwrap())
++        );
++    }
++
++    #[test]
++    fn an_executable_exception_maps_to_its_launcher() {
++        let dir = TempDir::new("exception");
++        std::fs::write(dir.0.join("gnome-terminal"), b"").unwrap();
++        let exceptions = HashMap::from([("gnome-terminal-server", "gnome-terminal")]);
++        let mut lookup = PathLookup::default();
++
++        let found = lookup.find(&dir.as_path_list(), "gnome-terminal-server", &exceptions);
++        assert_eq!(
++            found,
++            Some(dir.0.join("gnome-terminal").canonicalize().unwrap())
++        );
++    }
++
++    #[test]
++    fn kernel_thread_names_are_never_looked_up() {
++        let dir = TempDir::new("kthread");
++        std::fs::create_dir_all(dir.0.join("kworker")).unwrap();
++        std::fs::write(dir.0.join("kworker").join("0:1"), b"").unwrap();
++        let mut lookup = PathLookup::default();
++
++        assert_eq!(
++            lookup.find(&dir.as_path_list(), "kworker/0:1", &no_exceptions()),
++            None
++        );
++    }
++}
