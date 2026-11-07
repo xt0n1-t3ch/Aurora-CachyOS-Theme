@@ -33,6 +33,7 @@ folder, is the final word.
 | --- | --- |
 | Aurora's own code: File Explorer, the window buttons, glass, the pointing hand, the energy page's C++, the clock, the Dock divider, the installer, the `aurora` command, the scripts and tests | GPL-3.0-only with the additional terms above |
 | Plasma's parts rebuilt with a patch (`components/system-tray`, `components/notifications`, `components/quick-menu`: `upstream/`, `vendor/`, the `.patch` files), and other files whose header says GPL-2.0-or-later | GPL-2.0-or-later, by KDE's authors; Aurora's changes to them are under the same license |
+| Mission Center's patches (`components/mission-center/*.patch`): changes to Mission Center, magpie and graph-widget, and to app-rummage | GPL-3.0-or-later like Mission Center, magpie and graph-widget, by their authors; MIT like app-rummage for its patch |
 | Dawn Bird, Aurora's wallpaper (`themes/wallpapers/Aurora`), and the README's pictures (`assets/readme`, `assets/screenshots`) | CC BY-SA 4.0, by xt0n1 |
 
 The names Apple, macOS, Tahoe, CachyOS, Arch Linux, Kali Linux and KDE are their owners' trademarks. Aurora is

@@ -1,0 +1,117 @@
+# Maintainer: xt0n1 <xt0n1@black-watch.net>
+# Follows Arch Linux's mission-center 1.2.0-1 PKGBUILD
+# (https://gitlab.archlinux.org/archlinux/packaging/packages/mission-center).
+#
+# Mission Center from upstream main with Aurora's patches: exact per-app GPU and memory, a lean magpie, fan readings
+# that match the hardware, each app's network use through nethogs, per-device colors and smoother graphs. The patches
+# come from components/mission-center/make_patches.sh; `aurora mission-center` builds or installs this package and
+# saves what it replaces first.
+
+pkgname=mission-center-improved
+_mc_commit=039b19761dafccb74a205249ee1129d871f6196f
+_gng_commit=19568ad9a2ec998b05f98b3b8f4766a6f22255db
+_rummage_commit=26b93b8c6f0de6912f0a17022f7ece76bad87612
+_graph_commit=8aadf1cd9df0dbaa75a909ca9e3af43d4aac47dc
+pkgver=1.2.0.r52.g039b197
+pkgrel=3
+pkgdesc="Monitor your CPU, Memory, Disk, Network and GPU usage (Aurora's accuracy and efficiency patches)"
+arch=(x86_64)
+url="https://github.com/xt0n1-t3ch/Aurora-CachyOS-Theme"
+license=(GPL-3.0-or-later MIT)
+depends=(
+  dconf
+  dmidecode
+  libcap
+  libgcc
+  gdk-pixbuf2
+  glib2
+  glibc
+  graphene
+  gtk4
+  libadwaita
+  mesa
+  nethogs
+  nvtop
+  systemd
+  systemd-libs
+)
+makedepends=(
+  blueprint-compiler
+  cargo
+  cmake
+  git
+  meson
+)
+provides=(mission-center)
+conflicts=(mission-center)
+install=mission-center-improved.install
+source=("mission-center::git+https://gitlab.com/mission-center-devs/mission-center.git#commit=${_mc_commit}"
+        "gng::git+https://gitlab.com/mission-center-devs/gng.git#commit=${_gng_commit}"
+        "app-detection::git+https://gitlab.com/mission-center-devs/app-detection.git#commit=${_rummage_commit}"
+        "graph-widget::git+https://gitlab.com/mission-center-devs/graph-widget.git#commit=${_graph_commit}"
+        mission-center-improved.patch
+        magpie-improved.patch
+        app-rummage-improved.patch
+        graph-widget-improved.patch
+        aurora-mission-center-nethogs.hook)
+sha256sums=('SKIP'
+            'SKIP'
+            'SKIP'
+            'SKIP'
+            '74ea490485e11d46767316e9da999eb40a04597b745fd8c7d00bec63d08becef'
+            '7ccee0fb1599362a29fc4506b43ed02912a8fb31485110038d1b70bbe81e9b43'
+            '38c4be8d960d0bfe1ede86f8c4ff59907e279e33be4712cb2c190f199fd034f2'
+            'bb6cbd8af2a67a6b5d11ebbc5e79af50e4ce0b180631b870574ce648315cf905'
+            '0d7d51c2963a113b2be0b115ee9eba7abc00fb83f880c7fafeef68021ac72cc8')
+
+prepare() {
+  cd mission-center
+
+  git submodule init
+  git config submodule.subprojects/magpie.url "${srcdir}/gng"
+  git config submodule.subprojects/graph-widget.url "${srcdir}/graph-widget"
+  git -c protocol.file.allow=always submodule update
+
+  patch -Np1 -i "${srcdir}/mission-center-improved.patch"
+  patch -d subprojects/graph-widget -Np1 -i "${srcdir}/graph-widget-improved.patch"
+
+  CARGO_HOME="${srcdir}/build/cargo-home" \
+    cargo fetch --locked --target "$(rustc --print host-tuple)"
+
+  cd subprojects/magpie
+
+  git submodule init
+  git config submodule.platform-linux/crates/app-rummage.url "${srcdir}/app-detection"
+  git -c protocol.file.allow=always submodule update
+
+  patch -Np1 -i "${srcdir}/magpie-improved.patch"
+  patch -d platform-linux/crates/app-rummage -Np1 -i "${srcdir}/app-rummage-improved.patch"
+
+  CARGO_HOME="${srcdir}/build/subprojects/magpie/cargo-home" \
+    cargo fetch --locked --target "$(rustc --print host-tuple)"
+}
+
+build() {
+  CFLAGS+=" -ffat-lto-objects"
+  # The options of arch-meson, written out so the build also works with a meson that lacks the wrapper.
+  meson setup mission-center build \
+    --prefix /usr --libexecdir lib --sbindir bin --auto-features enabled \
+    --wrap-mode nodownload -D b_pie=true -D python.bytecompile=1 --buildtype=release
+
+  CARGO_PROFILE_RELEASE_LTO=true \
+    CARGO_PROFILE_RELEASE_CODEGEN_UNITS=1 \
+    CARGO_PROFILE_RELEASE_DEBUG=2 \
+    CARGO_PROFILE_RELEASE_STRIP=false \
+    meson compile -C build
+}
+
+check() {
+  meson test -C build --no-rebuild --print-errorlogs
+}
+
+package() {
+  meson install -C build --no-rebuild --destdir "$pkgdir"
+  # nethogs needs two capabilities to count each app's traffic without root; the hook sets them again after every
+  # nethogs update, and the install script takes them away when this package goes.
+  install -Dm644 aurora-mission-center-nethogs.hook -t "$pkgdir/usr/share/libalpm/hooks/"
+}

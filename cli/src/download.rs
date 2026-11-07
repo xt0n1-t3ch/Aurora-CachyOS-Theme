@@ -47,6 +47,17 @@ fn fetch(url: &str, to: &Path) -> Result<()> {
     Ok(())
 }
 
+/// Downloads the first `bytes` bytes of `url` to `to`, for a file whose start says what is needed.
+///
+/// # Errors
+/// When the download fails.
+pub fn head(url: &str, to: &Path, bytes: u64) -> Result<()> {
+    let range = format!("0-{}", bytes.saturating_sub(1));
+    curl(&["--range", &range, "-o", &to.to_string_lossy(), url])
+        .with_context(|| format!("downloading the start of {url}"))?;
+    Ok(())
+}
+
 /// The newest release unpacked and checked, or `None` when `installed` is already the newest.
 ///
 /// The archive is checked against the release's `SHA256SUMS`, and its listing is checked before anything is

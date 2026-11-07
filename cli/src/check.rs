@@ -40,7 +40,7 @@ pub fn check_updates(places: &Places, mode: Mode) -> Result<()> {
     let source = app::source(places)?;
     let installed = source.version();
     let newest = match source.kind {
-        Kind::Package => updates::package_newest()?,
+        Kind::Package => updates::package_newest(&places.databases())?,
         Kind::Archive | Kind::Checkout => {
             Some(download::latest()?.version).filter(|version| release::is_newer(version, &installed))
         }

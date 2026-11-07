@@ -78,13 +78,14 @@ From then on, everything goes through the `aurora` command. Run it alone for a m
 | --- | --- |
 | `aurora` | A menu with everything below |
 | `aurora install` | The guided install; `--logo`, `--colors`, `--performance` and `--yes` answer its questions up front |
-| `aurora update` | Updates your system and Aurora with it, then installs the new version |
+| `aurora update` | Installs a new Aurora the safe way: with your system update when it is built for it, alone when it is built for your system as it is, not at all otherwise |
 | `aurora rebuild` | Builds Aurora's parts again after a Plasma, KWin or Qt update |
-| `aurora settings` | Update notices, animations, the menu bar logo, icons and performance tuning, in one menu |
+| `aurora settings` | Update notices, animations, the menu bar logo, icons, performance tuning and Mission Center, in one menu |
 | `aurora logo arch` | Changes the menu bar logo: `cachyos`, `arch`, `apple` or `kali`; `--colors` shows it in its own colors |
 | `aurora icons breeze` | Changes the icon theme: `aurora` or any installed one; without a name it lists them |
 | `aurora performance on` | Turns the measured tuning on or `off`; without a word it shows the four settings and asks |
 | `aurora backups` | Lists the backups of your desktop from before Aurora; `aurora backups restore` puts one back |
+| `aurora mission-center on` | Puts Aurora's Mission Center (exact per-app GPU, memory and network) in place of the distribution's, or `off`; `settings`, `snapshots` and `rollback` too |
 | `aurora check-updates` | Looks for a newer Aurora right away |
 | `aurora status` | What is installed, from where, the tuning, and whether a rebuild is due |
 | `aurora uninstall` | Puts your desktop back the way it was |
@@ -364,12 +365,14 @@ Source: docs/update.md (Updates)
 
 Each release is built once, on the maintainer's machine, by `scripts/release.sh X.Y.Z --publish`: the package with
 every part built goes into the signed pacman repository (the GitHub release named `repo`), so no user compiles
-anything. pacman brings it with the rest of the system (`sudo pacman -Syu`, or `aurora update`).
+anything. pacman brings it with the rest of the system (`sudo pacman -Syu`), or `aurora update` brings it the safe
+way described below.
 
 Aurora also says when one is out. `aurora-updates.timer`, a user timer the install enables in
 `~/.config/systemd/user`, runs `aurora check-updates --notify` once a day (and at the next login when the PC was off).
-That looks in pacman's repositories with `checkupdates` (its own copy of the databases, no root) and, when a newer
-aurora-theme is there, shows a notification:
+That looks in pacman's repositories with `checkupdates` (its own copy of the databases in `~/.cache/aurora/checkup-db`,
+no root) and, when a newer aurora-theme is there, shows a notification. Only a new aurora-theme does: updates of
+any other package never show it. Its buttons:
 
 | Button | What happens |
 | --- | --- |
@@ -381,6 +384,24 @@ aurora-theme is there, shows a notification:
 (`aurora settings --updates weekly` from a script). The choice is in `~/.config/aurora/aurora.conf`; what the last
 look found is in `~/.local/state/aurora/updates`, and `aurora` names a found version above its menu.
 `aurora check-updates` looks right away.
+
+## How `aurora update` installs it
+
+`aurora update` changes nothing when no newer aurora-theme is out. When one is, it reads what that package was built
+for before installing anything: pacman packages begin with a `.BUILDINFO` file that lists the packages of the machine
+that built them, so it downloads only the first mebibyte of the package (the first 128 KiB held all of 1.1.1's). It
+compares those versions with this PC the way the login script compares the parts' stamps: KDE Plasma, KWin and Qt
+whole, KDecoration by its minor version.
+
+| The new package is built for | `aurora update` runs | What changes |
+| --- | --- | --- |
+| what a system update brings | `sudo pacman -Syu --needed aurora-theme` | Aurora and the rest of the system together, as Arch expects |
+| this PC as it is, while a system update would bring another Plasma, KWin, Qt or KDecoration | `sudo pacman -U` with the package's address | only Aurora; the system update waits for Aurora's next build |
+| neither | nothing | it names the versions that differ and how to update the system anyway |
+
+pacman checks the package's signature in every case: `pacman -U` with an address takes pacman.conf's `SigLevel`
+unless `RemoteFileSigLevel` says otherwise. An aurora-theme built from the AUR is in no repository, so its AUR helper
+updates it with the whole system, as before.
 
 # After a system update
 
@@ -617,6 +638,28 @@ Modified, Size, Type) from `~/.local/share/file-explorer/view_properties/global/
 mockup's scene: tags, the unfolded sidebar, the menu, a typed path, Quick Look, Split View, a tag's shelf, the Group
 menu and the folder grouped by Kind from it, and the window inactive behind another),
 `explorer-menus.sh`, `explorer-drives.sh`, `show-in-folder.sh`, `open-save.sh`.
+
+## Mission Center (`components/mission-center`)
+
+Mission Center, the system monitor, built from upstream main with Aurora's patches: each app's GPU and memory counted
+exactly (memory as PSS; the sum came within 0.4 % of the real total on my own machine), magpie kept lean (3 % of one
+core with the window open and 0.6 % hidden, against 13 % for Mission Center 1.2.0), fans read the way the hardware
+reports them, each app's network use from nethogs, a color per device in the sidebar, and smoother graphs. The folder
+holds the package's recipe: the `PKGBUILD` (package `mission-center-improved`, in place of the distribution's
+`mission-center`), one patch per upstream repository, a pacman hook that gives nethogs the two capabilities it needs
+to count traffic without root, and an install script that takes them away with the package. `make_patches.sh` writes
+the patches from the four upstream clones the work is done in, which stay next to it and out of git.
+
+`aurora mission-center on` installs it from Aurora's repository when pacman finds it there, otherwise it builds it
+here with makepkg (about ten minutes; the build tools come and go with `--syncdeps --rmdeps`); `off` puts the
+distribution's back. Every change first saves a snapshot in `~/.local/state/aurora/mission-center/snapshots/<time>`
+(which build was installed, and `dconf dump` of the settings), and every build Aurora installs is kept in
+`~/.local/state/aurora/mission-center/packages`, so `rollback [NAME]` puts both back; `snapshots` lists them. pacman's
+own snapshots (snap-pac) cover the system side. `settings` offers the refresh, the points on each chart, the look,
+smooth and sliding graphs, one row per app, kernel time, fans and batteries, and resets the sidebar's order and the
+device colors; `--set KEY=VALUE` and `--reset KEY` reach every key of `io.missioncenter.MissionCenter`, each value
+checked against `gsettings range` before anything changes. Tests: the CLI's `mission` tests and the contract test on
+the recipe ([../tests/index.md](../tests/index.md)).
 
 ## Window buttons (`components/window-buttons`)
 
@@ -945,7 +988,7 @@ export QT_QPA_PLATFORM=offscreen q=/usr/lib/qt6/bin/qmltestrunner B=$PWD/build
 | Quick Menu logic (sections, keys, dragged order, the app menu, pins, the Dock script, the account and power rail, its entrance, All Applications by letter) | `(cd components/quick-menu && $q -input tests/tst_quickmenu.qml)` | 43 pass |
 | Quick Menu launcher | `components/quick-menu/tests/test_launch.sh` | 5 pass |
 | Menu bar logos (the logo table, colors, ids) | `(cd components/kali-menu && $q -input tests/tst_logos.qml)` | 8 pass |
-| The `aurora` command: logos, install steps, releases (SemVer tags, HTTPS links, checksums, archive members), sources, logs, the banner (not twice after get.sh); update notices (daily, weekly or never with a few hours of slack, settings and record round trips, checkupdates output recorded on CachyOS, a skipped version, the notice's title, text and buttons, and that it stays until answered; the package release `aurora update` compares; animation speeds read back, default to smooth and are steps of Plasma's slider, the same table as install.py's); sudo's password dialog behind a wrapper that keeps its warnings out of the terminal; the package's program installs the package's copy over an older installed one; the performance tuning's state and root steps, the backups' list and dates, the icon themes a person can pick; contract tests against `tools.js`, `install.sh`, `release.sh`, `root-steps.sh` (the tuning's files) and `install.py` (the icon theme) | `cargo test --locked --manifest-path cli/Cargo.toml` | 74 + 3 + 10 pass |
+| The `aurora` command: logos, install steps, releases (SemVer tags, HTTPS links, checksums, archive members), sources, logs, the banner (not twice after get.sh, and not before a scripted `mission-center settings --set` or `--reset`); update notices (daily, weekly or never with a few hours of slack, settings and record round trips, checkupdates output recorded on CachyOS, a skipped version, the notice's title, text and buttons, and that it stays until answered; the package release `aurora update` compares; animation speeds read back, default to smooth and are steps of Plasma's slider, the same table as install.py's); sudo's password dialog behind a wrapper that keeps its warnings out of the terminal; the package's program installs the package's copy over an older installed one; the performance tuning's state and root steps, the backups' list and dates, the icon themes a person can pick; the safe update (what a package was built for, read from a recorded `.BUILDINFO` with lookalike names; what a system upgrade brings; KDE Plasma, KWin and Qt matched whole and KDecoration by its minor version; updating with the system, alone or not at all, and the pacman commands for each); Mission Center (Aurora's build told from the distribution's, snapshots newest first and read back, the recipe's version and package name, the command a rollback runs, settings checked against recorded `gsettings range` output, every value the menu offers allowed by the schema); contract tests against `tools.js`, `install.sh`, `release.sh`, `root-steps.sh` (the tuning's files), `install.py` (the icon theme), `build.sh` (the versions each part is stamped with) and the Mission Center recipe | `cargo test --locked --manifest-path cli/Cargo.toml` | 97 + 4 + 12 pass |
 | Plasma patches | each `<part>.patch` on a fresh copy of `upstream/` (plus the `.qsb`) reproduces `vendor/` ([../docs/update.md](../docs/update.md)) | 3 reproduce |
 
 ## Sandbox scenarios
@@ -1169,8 +1212,24 @@ it changes. A change that needs a fresh install, or that an earlier backup canno
 
 ## [Unreleased]
 
+### Added
+
+- Mission Center is part of Aurora. `aurora mission-center on` puts Aurora's build in place of the distribution's:
+  each app's GPU, memory and network use counted exactly, a lean background service, fan readings that match the
+  hardware and a color per device. It comes from Aurora's repository or is built on your PC; `off` puts the
+  distribution's back. Every change saves a snapshot of the build and the settings first, and
+  `aurora mission-center rollback` puts one back.
+- `aurora mission-center settings` changes the refresh, the charts, the look, the graphs and the sidebar, and `--set`
+  reaches any Mission Center setting, checked before anything changes. `aurora status` and `aurora settings` show it.
+
 ### Changed
 
+- `aurora update` installs a new Aurora only in a way its parts keep working. It first reads which KDE Plasma, KWin,
+  Qt and KDecoration the new package was built for, then updates it with the rest of the system when that is what a
+  system update brings, on its own when it is built for the system as it is, and not at all when it fits neither,
+  saying which versions differ. With no new Aurora out it changes nothing, where it used to update the whole system.
+- `aurora update` installs the package from Aurora's repository with pacman instead of the AUR helper, so AUR packages
+  are no longer rebuilt along with it.
 - An inactive File Explorer window is opaque, as a macOS window is when it is not in front, so nothing behind it shows
   through, blurred or not. Its sidebar selection turns gray with it, like the selections in the file views.
 
@@ -1435,6 +1494,7 @@ folder, is the final word.
 | --- | --- |
 | Aurora's own code: File Explorer, the window buttons, glass, the pointing hand, the energy page's C++, the clock, the Dock divider, the installer, the `aurora` command, the scripts and tests | GPL-3.0-only with the additional terms above |
 | Plasma's parts rebuilt with a patch (`components/system-tray`, `components/notifications`, `components/quick-menu`: `upstream/`, `vendor/`, the `.patch` files), and other files whose header says GPL-2.0-or-later | GPL-2.0-or-later, by KDE's authors; Aurora's changes to them are under the same license |
+| Mission Center's patches (`components/mission-center/*.patch`): changes to Mission Center, magpie and graph-widget, and to app-rummage | GPL-3.0-or-later like Mission Center, magpie and graph-widget, by their authors; MIT like app-rummage for its patch |
 | Dawn Bird, Aurora's wallpaper (`themes/wallpapers/Aurora`), and the README's pictures (`assets/readme`, `assets/screenshots`) | CC BY-SA 4.0, by xt0n1 |
 
 The names Apple, macOS, Tahoe, CachyOS, Arch Linux, Kali Linux and KDE are their owners' trademarks. Aurora is

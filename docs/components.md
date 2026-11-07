@@ -42,6 +42,28 @@ mockup's scene: tags, the unfolded sidebar, the menu, a typed path, Quick Look, 
 menu and the folder grouped by Kind from it, and the window inactive behind another),
 `explorer-menus.sh`, `explorer-drives.sh`, `show-in-folder.sh`, `open-save.sh`.
 
+## Mission Center (`components/mission-center`)
+
+Mission Center, the system monitor, built from upstream main with Aurora's patches: each app's GPU and memory counted
+exactly (memory as PSS; the sum came within 0.4 % of the real total on my own machine), magpie kept lean (3 % of one
+core with the window open and 0.6 % hidden, against 13 % for Mission Center 1.2.0), fans read the way the hardware
+reports them, each app's network use from nethogs, a color per device in the sidebar, and smoother graphs. The folder
+holds the package's recipe: the `PKGBUILD` (package `mission-center-improved`, in place of the distribution's
+`mission-center`), one patch per upstream repository, a pacman hook that gives nethogs the two capabilities it needs
+to count traffic without root, and an install script that takes them away with the package. `make_patches.sh` writes
+the patches from the four upstream clones the work is done in, which stay next to it and out of git.
+
+`aurora mission-center on` installs it from Aurora's repository when pacman finds it there, otherwise it builds it
+here with makepkg (about ten minutes; the build tools come and go with `--syncdeps --rmdeps`); `off` puts the
+distribution's back. Every change first saves a snapshot in `~/.local/state/aurora/mission-center/snapshots/<time>`
+(which build was installed, and `dconf dump` of the settings), and every build Aurora installs is kept in
+`~/.local/state/aurora/mission-center/packages`, so `rollback [NAME]` puts both back; `snapshots` lists them. pacman's
+own snapshots (snap-pac) cover the system side. `settings` offers the refresh, the points on each chart, the look,
+smooth and sliding graphs, one row per app, kernel time, fans and batteries, and resets the sidebar's order and the
+device colors; `--set KEY=VALUE` and `--reset KEY` reach every key of `io.missioncenter.MissionCenter`, each value
+checked against `gsettings range` before anything changes. Tests: the CLI's `mission` tests and the contract test on
+the recipe ([../tests/index.md](../tests/index.md)).
+
 ## Window buttons (`components/window-buttons`)
 
 The KDecoration3 plugin `org.aurora.decoration` ("Aurora" in System Settings): one glass capsule with

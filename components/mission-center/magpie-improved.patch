@@ -1,0 +1,3381 @@
+diff --git a/platform-linux/3rdparty/nvtop/nvtop.json b/platform-linux/3rdparty/nvtop/nvtop.json
+index 9d1cc89..f4d19c8 100644
+--- a/platform-linux/3rdparty/nvtop/nvtop.json
++++ b/platform-linux/3rdparty/nvtop/nvtop.json
+@@ -15,6 +15,7 @@
+     "patches/nvtop-no-drmGetDevices2.patch",
+     "patches/nvtop-xf86drm-h.patch",
+     "patches/nvtop-msm-utils-array-size.patch",
+-    "patches/nvtop-intel-unref-bridge-device.patch"
++    "patches/nvtop-intel-unref-bridge-device.patch",
++    "patches/nvtop-lean-refresh.patch"
+   ]
+-}
+\ No newline at end of file
++}
+diff --git a/platform-linux/src/apps.rs b/platform-linux/src/apps.rs
+index 7b18979..ed2ddc5 100644
+--- a/platform-linux/src/apps.rs
++++ b/platform-linux/src/apps.rs
+@@ -34,6 +34,47 @@ const APP_IGNORELIST: &[&str] = &[
+     "org.codeberg.dnkl.footclient",
+ ];
+ 
++/// The processes that draw the desktop itself: the compositor, its X11 bridge and the shell. They are
++/// no app's, so without a row of their own the GPU and CPU they use (the compositor draws every blurred
++/// panel and window shadow) shows in the totals but in no app, like Desktop Window Manager on Windows.
++const DESKTOP_PROCESSES: &[&str] = &[
++    "kwin_wayland",
++    "kwin_x11",
++    "Xwayland",
++    "plasmashell",
++    "gnome-shell",
++];
++
++/// The id of the desktop row; not a desktop entry, so it cannot clash with an installed app.
++const DESKTOP_APP_ID: &str = "io.missioncenter.MissionCenter.Desktop";
++
++/// The icon of the desktop row, from the icon theme.
++const DESKTOP_APP_ICON: &str = "plasma";
++
++/// A row for the desktop's own processes that no app claimed, or `None` when there are none.
++fn desktop_app(processes: &HashMap<u32, Process>, claimed: &[App]) -> Option<App> {
++    let claimed: std::collections::HashSet<u32> = claimed
++        .iter()
++        .flat_map(|app| app.pids.iter().copied())
++        .collect();
++    let mut pids: Vec<u32> = processes
++        .values()
++        .filter(|process| DESKTOP_PROCESSES.contains(&process.name.as_str()))
++        .map(|process| process.pid)
++        .filter(|pid| !claimed.contains(pid))
++        .collect();
++    if pids.is_empty() {
++        return None;
++    }
++    pids.sort_unstable();
++    Some(App {
++        id: DESKTOP_APP_ID.to_owned(),
++        name: "Desktop".to_owned(),
++        command: String::new(),
++        pids,
++    })
++}
++
+ struct ProcessNewType(Process);
+ 
+ impl app_rummage::Process for ProcessNewType {
+@@ -84,8 +125,8 @@ impl magpie_platform::apps::AppCache for AppCache {
+             installed_apps.remove(*app);
+         }
+ 
+-        let processes = processes
+-            .lock()
++        let process_map = processes.lock();
++        let processes = process_map
+             .values()
+             .map(|p| ProcessNewType(p.clone()))
+             .collect::<Vec<_>>();
+@@ -120,6 +161,14 @@ impl magpie_platform::apps::AppCache for AppCache {
+                 pids: pids.drain(..).map(NonZero::<u32>::get).collect(),
+             })
+             .collect();
++        if let Some(desktop) = desktop_app(&process_map, &self.apps) {
++            if !self.cached_icons.contains_key(DESKTOP_APP_ID) {
++                self.unresolved_icons
++                    .insert(DESKTOP_APP_ID.to_owned(), DESKTOP_APP_ICON.to_owned());
++            }
++            self.apps.push(desktop);
++        }
++        drop(process_map);
+ 
+         log::debug!(
+             "PERF: Refreshed process information in {:?}",
+@@ -191,3 +240,54 @@ impl magpie_platform::apps::AppCache for AppCache {
+         self.cached_icons.clone()
+     }
+ }
++
++#[cfg(test)]
++mod desktop_tests {
++    use super::*;
++
++    fn process(pid: u32, name: &str) -> Process {
++        Process {
++            pid,
++            name: name.to_owned(),
++            ..Default::default()
++        }
++    }
++
++    fn map(processes: &[(u32, &str)]) -> HashMap<u32, Process> {
++        processes
++            .iter()
++            .map(|(pid, name)| (*pid, process(*pid, name)))
++            .collect()
++    }
++
++    #[test]
++    fn the_compositor_and_the_shell_get_a_desktop_row() {
++        let processes = map(&[
++            (1300, "kwin_wayland"),
++            (1425, "Xwayland"),
++            (2787, "plasmashell"),
++            (4310, "Discord"),
++        ]);
++        let desktop = desktop_app(&processes, &[]).expect("a desktop row");
++        assert_eq!(desktop.pids, vec![1300, 1425, 2787]);
++        assert_eq!(desktop.name, "Desktop");
++    }
++
++    #[test]
++    fn a_process_an_app_already_shows_stays_in_that_app() {
++        let processes = map(&[(1300, "kwin_wayland"), (2787, "plasmashell")]);
++        let shell = App {
++            id: "org.kde.plasmashell".to_owned(),
++            name: "Plasma".to_owned(),
++            command: String::new(),
++            pids: vec![2787],
++        };
++        let desktop = desktop_app(&processes, &[shell]).expect("a desktop row");
++        assert_eq!(desktop.pids, vec![1300]);
++    }
++
++    #[test]
++    fn a_session_without_desktop_processes_has_no_desktop_row() {
++        assert!(desktop_app(&map(&[(4310, "Discord")]), &[]).is_none());
++    }
++}
+diff --git a/platform-linux/src/cpu/system.rs b/platform-linux/src/cpu/system.rs
+index 2563fd2..b6e2f3a 100644
+--- a/platform-linux/src/cpu/system.rs
++++ b/platform-linux/src/cpu/system.rs
+@@ -19,11 +19,8 @@
+  */
+ 
+ use std::ffi::CStr;
+-use std::fmt::Write;
+ use std::time::Duration;
+ 
+-use arrayvec::ArrayString;
+-
+ use crate::{for_process_in_proc, read_u64};
+ 
+ pub fn process_count() -> u64 {
+@@ -33,39 +30,28 @@ pub fn process_count() -> u64 {
+     count
+ }
+ 
++/// Number of threads on the system, kernel threads included.
++///
++/// The kernel keeps this total itself and prints it as the denominator of the fourth field of
++/// `/proc/loadavg` (`nr_threads`, fs/proc/loadavg.c), so one small read replaces listing the `task`
++/// directory of every process.
+ pub fn thread_count() -> u64 {
+-    fn task_path(pid: u32) -> ArrayString<21> {
+-        const MAX_U32_LEN: usize = 10;
+-        const MAX_PATH_LEN: usize = "/proc/".len() + "/task".len() + MAX_U32_LEN;
+-
+-        let mut path: ArrayString<MAX_PATH_LEN> = ArrayString::new();
+-        let _ = write!(path, "/proc/{}/task", pid);
+-
+-        path
++    match std::fs::read_to_string("/proc/loadavg") {
++        Ok(loadavg) => parse_loadavg_thread_count(&loadavg).unwrap_or_else(|| {
++            log::debug!("Unexpected /proc/loadavg format: {loadavg:?}");
++            0
++        }),
++        Err(e) => {
++            log::debug!("Failed to read /proc/loadavg: {e}");
++            0
++        }
+     }
++}
+ 
+-    let mut result = 0;
+-    for_process_in_proc(|_, pid| {
+-        result += match std::fs::read_dir(task_path(pid).as_str()) {
+-            Ok(tasks) => {
+-                let mut task_count = 0u64;
+-                for task in tasks.filter_map(|t| t.ok()) {
+-                    // TODO: Would using a Regex be faster here?
+-                    if task.file_name().to_string_lossy().parse::<u32>().is_err() {
+-                        continue;
+-                    }
+-                    task_count += 1;
+-                }
+-                task_count
+-            }
+-            Err(e) => {
+-                log::debug!("Failed to read task directory for process {pid}: {e}");
+-                1
+-            }
+-        };
+-    });
+-
+-    result
++fn parse_loadavg_thread_count(loadavg: &str) -> Option<u64> {
++    let entities = loadavg.split_ascii_whitespace().nth(3)?;
++    let (_, total) = entities.split_once('/')?;
++    total.parse().ok()
+ }
+ 
+ pub fn handle_count() -> u64 {
+@@ -86,3 +72,37 @@ pub fn uptime() -> Duration {
+ 
+     Duration::from_secs(ts.tv_sec as u64) + Duration::from_nanos(ts.tv_nsec as u64)
+ }
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++
++    // Recorded 2026-11-05 on CachyOS, kernel 7.3: 8 runnable of 3155 threads.
++    #[test]
++    fn the_thread_total_is_the_denominator_of_the_fourth_loadavg_field() {
++        assert_eq!(
++            parse_loadavg_thread_count("18.60 19.21 22.98 8/3155 29930\n"),
++            Some(3155)
++        );
++    }
++
++    #[test]
++    fn a_malformed_loadavg_gives_no_count() {
++        assert_eq!(parse_loadavg_thread_count("18.60 19.21 22.98\n"), None);
++        assert_eq!(parse_loadavg_thread_count("1 2 3 8-3155 1"), None);
++    }
++
++    #[test]
++    fn the_live_count_matches_the_task_directories() {
++        let mut tasks = 0u64;
++        crate::for_process_in_proc(|_, pid| {
++            tasks += std::fs::read_dir(format!("/proc/{pid}/task")).map_or(0, |d| d.count() as u64);
++        });
++        let total = thread_count();
++        // Threads start and exit between the two reads; a busy desktop moves by a few dozen.
++        assert!(
++            total.abs_diff(tasks) < tasks / 20,
++            "loadavg {total} vs task dirs {tasks}"
++        );
++    }
++}
+diff --git a/platform-linux/src/fan/mod.rs b/platform-linux/src/fan/mod.rs
+index 09c68cd..c2f8c49 100644
+--- a/platform-linux/src/fan/mod.rs
++++ b/platform-linux/src/fan/mod.rs
+@@ -18,36 +18,69 @@
+  * SPDX-License-Identifier: GPL-3.0-or-later
+  */
+ 
+-use std::{fs::read_to_string, iter::zip, path::Path};
++use std::fs::read_to_string;
++use std::iter::zip;
++use std::path::{Path, PathBuf};
+ 
+ use glob::glob;
+ use magpie_platform::fan::Fan;
+ 
+ use crate::config_dir;
+ 
++/// The files of one fan, resolved once: an override from the configuration directory wins over the
++/// hwmon file of the same name.
+ pub struct FanPath {
++    input: PathBuf,
++    pwm: Option<PathBuf>,
++    temp: Option<PathBuf>,
++}
++
++struct HwmonDir {
+     base_path: Box<Path>,
+     config_path: Option<Box<Path>>,
+ }
+ 
+-impl FanPath {
+-    fn read_to_string(&self, appendix: &str) -> Result<String, Box<dyn std::error::Error>> {
+-        Ok(match &self.config_path {
+-            Some(config_path) => {
+-                let path = config_path.join(appendix);
+-                if path.exists() {
+-                    log::info!(
+-                        "Found override for {}: {}",
+-                        self.base_path.display(),
+-                        path.display()
+-                    );
+-                    read_to_string(path)
+-                } else {
+-                    read_to_string(self.base_path.join(appendix))
+-                }
++impl HwmonDir {
++    fn path(&self, name: &str) -> PathBuf {
++        if let Some(config_path) = &self.config_path {
++            let path = config_path.join(name);
++            if path.exists() {
++                log::info!(
++                    "Found override for {}: {}",
++                    self.base_path.display(),
++                    path.display()
++                );
++                return path;
+             }
+-            None => read_to_string(self.base_path.join(appendix)),
+-        }?)
++        }
++        self.base_path.join(name)
++    }
++
++    fn existing(&self, name: &str) -> Option<PathBuf> {
++        Some(self.path(name)).filter(|path| path.exists())
++    }
++
++    fn read(&self, name: &str) -> Option<String> {
++        read_to_string(self.path(name))
++            .ok()
++            .map(|it| it.trim().to_owned())
++    }
++
++    /// The temperature channel the driver says drives fan `index`, if it says so.
++    ///
++    /// hwmon numbers fans and temperatures independently: `temp1` of a board is often the CPU, not a
++    /// sensor of `fan1`. Only two attributes tie them (Documentation/hwmon/sysfs-interface.rst):
++    /// `pwmN_temp_sel`, the temperature index of chips such as nct6775, and
++    /// `pwmN_auto_channels_temp`, a bitmask of temperature channels (bit 0 is `temp1`).
++    fn temperature_channel(&self, index: u32) -> Option<u32> {
++        if let Some(selected) = self.read(&format!("pwm{index}_temp_sel")) {
++            return selected.parse::<u32>().ok().filter(|channel| *channel > 0);
++        }
++        let mask = self
++            .read(&format!("pwm{index}_auto_channels_temp"))?
++            .parse::<u32>()
++            .ok()?;
++        (mask != 0).then(|| mask.trailing_zeros() + 1)
+     }
+ }
+ 
+@@ -57,81 +90,111 @@ pub struct FanCache {
+ }
+ 
+ fn new_fan(path: &Path) -> Result<(Fan, FanPath), Box<dyn std::error::Error>> {
+-    // read the first glob result for hwmon location
+-    let parent_dir: Box<Path> = path.parent().unwrap().into();
++    let parent_dir: Box<Path> = path.parent().ok_or("fan input has no directory")?.into();
+ 
+     let hwmon_name = read_to_string(parent_dir.join("name"))?.trim().to_string();
+-    let config_path = config_dir::build_path(&format!("fans/{hwmon_name}"));
+-
+-    let fanpath = FanPath {
++    let dir = HwmonDir {
++        config_path: config_dir::build_path(&format!("fans/{hwmon_name}")),
+         base_path: parent_dir,
+-        config_path,
+     };
+ 
+-    let hwmon_idx = fanpath.base_path.file_name().unwrap().to_str().unwrap()[5..].parse::<u32>()?;
+-
+-    // read the second glob result for fan index
+-    let findex = path.file_name().unwrap().to_str().unwrap();
+-    let findex = findex[3..(findex.len() - "_input".len())].parse::<u32>()?;
++    let dir_name = dir
++        .base_path
++        .file_name()
++        .and_then(|n| n.to_str())
++        .unwrap_or("");
++    let hwmon_idx = dir_name
++        .strip_prefix("hwmon")
++        .ok_or("not a hwmon directory")?
++        .parse::<u32>()?;
+ 
+-    // if rpm don't exist skip directory
+-    let _ = fanpath
+-        .read_to_string(&format!("fan{}_input", findex))?
+-        .trim()
++    let file_name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
++    let findex = file_name
++        .strip_prefix("fan")
++        .and_then(|rest| rest.strip_suffix("_input"))
++        .ok_or("not a fan input")?
+         .parse::<u32>()?;
+ 
+-    // do not change the case here. we report how it is, not how it ought to be.
+-    let fan_label = fanpath
+-        .read_to_string(&format!("fan{}_label", findex))
+-        .map(|it| it.trim().to_owned())
+-        .ok()
++    // A fan whose speed cannot be read is skipped.
++    let input = dir.path(&format!("fan{findex}_input"));
++    read_to_string(&input)?.trim().parse::<u32>()?;
++
++    // Do not change the case here. We report how it is, not how it ought to be.
++    let fan_label = dir
++        .read(&format!("fan{findex}_label"))
+         .filter(|it| !it.is_empty());
+ 
+-    let temp_label = fanpath
+-        .read_to_string(&format!("temp{}_label", findex))
+-        .map(|it| it.trim().to_owned())
+-        .ok()
++    let channel = dir.temperature_channel(findex);
++    let temp_name = channel
++        .and_then(|channel| dir.read(&format!("temp{channel}_label")))
+         .filter(|it| !it.is_empty());
++    let temp = channel.and_then(|channel| dir.existing(&format!("temp{channel}_input")));
+ 
+-    let max_speed = match fanpath.read_to_string(&format!("fan{}_max", findex)) {
+-        Err(_) => None,
+-        Ok(it) => it.trim().parse::<u32>().ok(),
+-    };
++    let max_rpm = dir
++        .read(&format!("fan{findex}_max"))
++        .and_then(|it| it.parse::<u32>().ok());
+ 
+     let fan = Fan {
+         fan_index: findex,
+         hwmon_index: hwmon_idx,
+         fan_label,
+-        temp_name: temp_label,
++        temp_name,
+         temp_amount: None,
+         rpm: 0,
+         pwm_percent: None,
+ 
+-        max_rpm: max_speed,
++        max_rpm,
++    };
++    let fanpath = FanPath {
++        input,
++        pwm: dir.existing(&format!("pwm{findex}")),
++        temp,
+     };
+     Ok((fan, fanpath))
+ }
+ 
++fn read_number<T: std::str::FromStr>(path: &Path) -> Option<T> {
++    read_to_string(path).ok()?.trim().parse().ok()
++}
++
+ fn update_fan((fan, fanpath): (&mut Fan, &FanPath)) {
+-    fan.pwm_percent = match fanpath.read_to_string(&format!("pwm{}", fan.fan_index)) {
+-        Err(_) => None,
+-        Ok(it) => it.trim().parse::<u64>().ok().map(|v| v as f32 / 255.),
+-    };
++    // pwmN is a duty cycle from 0 to 255 (Documentation/hwmon/sysfs-interface.rst).
++    fan.pwm_percent = fanpath
++        .pwm
++        .as_deref()
++        .and_then(read_number::<u64>)
++        .map(|v| v as f32 / 255.);
++
++    fan.rpm = read_number::<u32>(&fanpath.input).unwrap_or_default();
+ 
+-    fan.rpm = match fanpath.read_to_string(&format!("fan{}_input", fan.fan_index)) {
+-        Err(_) => None,
+-        Ok(it) => it.trim().parse::<u32>().ok(),
++    fan.temp_amount = fanpath
++        .temp
++        .as_deref()
++        .and_then(read_number::<i64>)
++        .map(|v| (v + crate::util::MK_TO_0_C) as u32);
++}
++
++/// Every fan whose input matches `pattern`, in hwmon order: by chip, then by fan number.
++fn scan(pattern: &str, source: &str) -> (Vec<Fan>, Vec<FanPath>) {
++    let mut found = Vec::new();
++    match glob(pattern) {
++        Ok(globs) => {
++            for entry in globs {
++                match entry {
++                    Ok(path) => match new_fan(&path) {
++                        Ok(fan) => found.push(fan),
++                        Err(e) => log::warn!("Failed to add fan from {}: {}", source, e),
++                    },
++                    Err(e) => log::warn!("Failed to read {}: {}", source, e),
++                }
++            }
++        }
++        Err(e) => log::warn!("Failed to read {}: {}", source, e),
+     }
+-    .unwrap_or_default();
+ 
+-    fan.temp_amount = match fanpath.read_to_string(&format!("temp{}_input", fan.fan_index)) {
+-        Err(_) => None,
+-        Ok(v) => v
+-            .trim()
+-            .parse::<i64>()
+-            .map(|v| (v + crate::util::MK_TO_0_C) as u32)
+-            .ok(),
+-    };
++    // glob sorts names as text, which puts fan10 before fan2.
++    found.sort_by_key(|(fan, _)| (fan.hwmon_index, fan.fan_index));
++    found.into_iter().unzip()
+ }
+ 
+ impl magpie_platform::fan::FanCache for FanCache {
+@@ -139,41 +202,15 @@ impl magpie_platform::fan::FanCache for FanCache {
+     where
+         Self: Sized,
+     {
+-        let config_dir = config_dir::build_path("hwmon0");
+-        let mut fans = Vec::new();
+-        let mut fanpaths = Vec::new();
+-
+-        let (search_str, error_str) = if let Some(config_dir) = &config_dir {
+-            (
+-                format!("{}/fan[0-9]*_input", config_dir.display()),
++        let (fans, fanpaths) = match config_dir::build_path("hwmon0") {
++            Some(config_dir) => scan(
++                &format!("{}/fan[0-9]*_input", config_dir.display()),
+                 "config files",
+-            )
+-        } else {
+-            (
+-                "/sys/class/hwmon/hwmon[0-9]*/fan[0-9]*_input".into(),
++            ),
++            None => scan(
++                "/sys/class/hwmon/hwmon[0-9]*/fan[0-9]*_input",
+                 "hwmon entry",
+-            )
+-        };
+-        match glob(&search_str) {
+-            Ok(globs) => {
+-                for entry in globs {
+-                    match entry {
+-                        Ok(path) => match new_fan(&path) {
+-                            Ok((fan, fanpath)) => {
+-                                fans.push(fan);
+-                                fanpaths.push(fanpath);
+-                            }
+-                            Err(e) => log::warn!("Failed to add fan from {}: {}", error_str, e),
+-                        },
+-                        Err(e) => {
+-                            log::warn!("Failed to read {}: {}", error_str, e)
+-                        }
+-                    }
+-                }
+-            }
+-            Err(e) => {
+-                log::warn!("Failed to read {}: {}", error_str, e)
+-            }
++            ),
+         };
+         Self { fans, fanpaths }
+     }
+@@ -191,11 +228,97 @@ impl magpie_platform::fan::FanCache for FanCache {
+ 
+ #[cfg(test)]
+ mod tests {
+-    use magpie_platform::fan::FanCache;
++    use super::*;
++
++    /// A fake hwmon chip directory, removed when dropped.
++    struct FakeHwmon {
++        root: PathBuf,
++    }
++
++    impl FakeHwmon {
++        /// Files of an MSI B550 board's nct6687 (CachyOS, kernel 7.3, 2026-11-05), trimmed.
++        fn nct6687(test: &str) -> Self {
++            let root =
++                std::env::temp_dir().join(format!("magpie-fan-{}-{test}", std::process::id()));
++            let _ = std::fs::remove_dir_all(&root);
++            let fake = Self { root };
++            fake.write("name", "nct6687");
++            fake.write("fan1_input", "1623");
++            fake.write("fan2_input", "2771");
++            fake.write("fan10_input", "0");
++            fake.write("pwm1", "232");
++            fake.write("pwm2", "255");
++            fake.write("temp1_label", "AMD TSI Addr 98h");
++            fake.write("temp1_input", "68000");
++            fake.write("temp2_label", "Diode 0 (curr)");
++            fake.write("temp2_input", "41000");
++            fake
++        }
++
++        fn write(&self, name: &str, content: &str) {
++            let dir = self.root.join("hwmon4");
++            std::fs::create_dir_all(&dir).expect("create the fake hwmon directory");
++            std::fs::write(dir.join(name), format!("{content}\n"))
++                .expect("write a fake hwmon file");
++        }
++
++        fn scan(&self) -> Vec<Fan> {
++            let pattern = format!("{}/hwmon[0-9]*/fan[0-9]*_input", self.root.display());
++            let (mut fans, paths) = scan(&pattern, "test");
++            for fan in zip(fans.iter_mut(), paths.iter()) {
++                update_fan(fan);
++            }
++            fans
++        }
++    }
++
++    impl Drop for FakeHwmon {
++        fn drop(&mut self) {
++            let _ = std::fs::remove_dir_all(&self.root);
++        }
++    }
++
++    #[test]
++    fn fans_come_in_the_order_of_their_numbers() {
++        let fans = FakeHwmon::nct6687("order").scan();
++        let numbers: Vec<u32> = fans.iter().map(|fan| fan.fan_index).collect();
++        assert_eq!(numbers, vec![1, 2, 10]);
++        assert!(fans.iter().all(|fan| fan.hwmon_index == 4));
++    }
++
++    #[test]
++    fn a_fan_reports_its_speed_and_duty_cycle() {
++        let fans = FakeHwmon::nct6687("speed").scan();
++        assert_eq!(fans[0].rpm, 1623);
++        assert_eq!(fans[0].pwm_percent, Some(232. / 255.));
++        assert_eq!(fans[2].pwm_percent, None, "fan10 has no pwm10");
++    }
++
++    #[test]
++    fn a_temperature_with_the_same_number_does_not_belong_to_the_fan() {
++        let fans = FakeHwmon::nct6687("unrelated").scan();
++        assert_eq!(fans[0].temp_name, None);
++        assert_eq!(fans[0].temp_amount, None);
++    }
++
++    #[test]
++    fn a_fan_whose_pwm_selects_a_temperature_reports_that_one() {
++        let hwmon = FakeHwmon::nct6687("temp-sel");
++        hwmon.write("pwm1_temp_sel", "2");
++        let fans = hwmon.scan();
++        assert_eq!(fans[0].temp_name.as_deref(), Some("Diode 0 (curr)"));
++        assert_eq!(
++            fans[0].temp_amount,
++            Some((41000 + crate::util::MK_TO_0_C) as u32)
++        );
++    }
+ 
+     #[test]
+-    fn test_disks_cache() {
+-        let mut cache = super::FanCache::new();
+-        cache.refresh();
++    fn a_fan_driven_by_temperature_channels_reports_the_first_one() {
++        let hwmon = FakeHwmon::nct6687("auto-channels");
++        // Bits 0 and 1: temp1 and temp2.
++        hwmon.write("pwm2_auto_channels_temp", "3");
++        let fans = hwmon.scan();
++        assert_eq!(fans[1].temp_name.as_deref(), Some("AMD TSI Addr 98h"));
+     }
+ }
+diff --git a/platform-linux/src/gpus/mod.rs b/platform-linux/src/gpus/mod.rs
+index dfb013b..443f691 100644
+--- a/platform-linux/src/gpus/mod.rs
++++ b/platform-linux/src/gpus/mod.rs
+@@ -23,8 +23,9 @@ use std::ops::DerefMut;
+ use std::path::{Path, PathBuf};
+ use std::sync::RwLock;
+ use std::sync::{Arc, OnceLock};
++use std::time::Instant;
+ 
+-use magpie_platform::gpus::{Gpu, Process, ProcessKind};
++use magpie_platform::gpus::{Gpu, Process, ProcessKind, ProcessUsage};
+ 
+ use crate::gpu_info_valid;
+ 
+@@ -32,6 +33,7 @@ use drm::DrmDevice;
+ use nvtop::{
+     GpuInfoDynamicInfoValid, GpuInfoProcessInfoValid, GpuInfoStaticInfoValid, GpuProcessType,
+ };
++use processes::{process_refresh_due, processes_needed};
+ use run_forked::run_forked;
+ use vulkan_info::VulkanDevice;
+ 
+@@ -39,6 +41,7 @@ mod drm;
+ mod gl_info;
+ #[allow(unused)]
+ mod nvtop;
++mod processes;
+ mod run_forked;
+ mod util;
+ mod vulkan_info;
+@@ -206,7 +209,7 @@ pub struct GpuCache {
+     gpu_list: Arc<RwLock<nvtop::ListHead>>,
+     devices: HashMap<usize, GpuDevice>,
+     gpus: HashMap<String, Gpu>,
+-    proc_refresh_counter: u8,
++    last_process_refresh: Option<Instant>,
+ }
+ 
+ impl magpie_platform::gpus::GpuCache for GpuCache {
+@@ -364,11 +367,11 @@ impl magpie_platform::gpus::GpuCache for GpuCache {
+             gpu_list,
+             devices,
+             gpus,
+-            proc_refresh_counter: 2, // Start at 2 so that the first increment will refresh processes
++            last_process_refresh: None,
+         }
+     }
+ 
+-    fn refresh(&mut self) {
++    fn refresh(&mut self, processes: ProcessUsage) {
+         let mut gpu_list = self.gpu_list.write().unwrap();
+         let gpu_list = gpu_list.deref_mut();
+ 
+@@ -378,13 +381,34 @@ impl magpie_platform::gpus::GpuCache for GpuCache {
+             return;
+         }
+ 
+-        // Refreshing processes is very expensive, so refresh them only every 3rd time
+-        self.proc_refresh_counter = (self.proc_refresh_counter + 1) % 3;
+-        if self.proc_refresh_counter == 0 {
+-            let result = unsafe { nvtop::gpuinfo_refresh_processes(gpu_list) };
+-            if result == 0 {
+-                log::warn!("Unable to refresh GPU processes");
++        // A GPU that cannot report its own utilization gets it from the sum over its processes
++        // (`gpuinfo_fix_dynamic_info_from_process_info`), so its processes are read in any case.
++        let mut every_gpu_reports_utilization = true;
++        let mut device: *mut nvtop::ListHead = gpu_list.next;
++        while device != gpu_list {
++            let dev = unsafe { &*(device as *const nvtop::GpuInfo) };
++            every_gpu_reports_utilization &=
++                gpu_info_valid!(dev.dynamic_info, GpuInfoDynamicInfoValid::GpuUtilRateValid);
++            device = unsafe { (*device).next };
++        }
++        let now = Instant::now();
++        if processes_needed(processes, every_gpu_reports_utilization) {
++            if process_refresh_due(self.last_process_refresh, now) {
++                self.last_process_refresh = Some(now);
++                let result = unsafe { nvtop::gpuinfo_refresh_processes(gpu_list) };
++                if result == 0 {
++                    log::warn!("Unable to refresh GPU processes");
++                }
++            }
++        } else {
++            // Stale samples would otherwise keep raising the device utilization below.
++            let mut device: *mut nvtop::ListHead = gpu_list.next;
++            while device != gpu_list {
++                let dev = unsafe { &mut *(device as *mut nvtop::GpuInfo) };
++                dev.processes_count = 0;
++                device = unsafe { (*device).next };
+             }
++            self.last_process_refresh = None;
+         }
+ 
+         let result = unsafe { nvtop::gpuinfo_utilisation_rate(gpu_list) };
+@@ -606,7 +630,7 @@ impl magpie_platform::gpus::GpuCache for GpuCache {
+                         None
+                     },
+                 };
+-                gpu.processes.insert(nvtop_proc.pid as u32, process);
++                processes::insert_process(&mut gpu.processes, nvtop_proc.pid as u32, process);
+             }
+         }
+     }
+diff --git a/platform-linux/src/processes/io.rs b/platform-linux/src/processes/io.rs
+index 355bd00..447ab48 100644
+--- a/platform-linux/src/processes/io.rs
++++ b/platform-linux/src/processes/io.rs
+@@ -18,32 +18,9 @@
+  * SPDX-License-Identifier: GPL-3.0-or-later
+  */
+ 
+-use std::fmt::Write;
+-
+-use arrayvec::ArrayString;
+-
+-use super::MAX_U32_LEN;
+-
+ const PROC_PID_IO_READ_BYTES: usize = 4;
+ const PROC_PID_IO_WRITE_BYTES: usize = 5;
+ 
+-pub fn open(pid: u32) -> Option<std::fs::File> {
+-    const MAX_PATH_LEN: usize = "/proc/".len() + "/io".len() + MAX_U32_LEN;
+-
+-    let mut path: ArrayString<MAX_PATH_LEN> = ArrayString::new();
+-    let _ = write!(path, "/proc/{}/io", pid);
+-
+-    let io_file = match std::fs::OpenOptions::new().read(true).open(path) {
+-        Ok(f) => f,
+-        Err(e) => {
+-            log::debug!("Failed to open `io` file for process {}: {}", pid, e,);
+-            return None;
+-        }
+-    };
+-
+-    Some(io_file)
+-}
+-
+ pub fn parse_io_file(io_file_content: &str) -> [u64; 7] {
+     let mut output = [0u64; 7];
+ 
+diff --git a/platform-linux/src/processes/mem_hybrid.rs b/platform-linux/src/processes/mem_hybrid.rs
+deleted file mode 100644
+index d74cd68..0000000
+--- a/platform-linux/src/processes/mem_hybrid.rs
++++ /dev/null
+@@ -1,299 +0,0 @@
+-/* src/processes/mem_hybrid.rs
+- *
+- * Copyright 2026 Mission Center Developers
+- *
+- * This program is free software: you can redistribute it and/or modify
+- * it under the terms of the GNU General Public License as published by
+- * the Free Software Foundation, either version 3 of the License, or
+- * (at your option) any later version.
+- *
+- * This program is distributed in the hope that it will be useful,
+- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+- * GNU General Public License for more details.
+- *
+- * You should have received a copy of the GNU General Public License
+- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+- *
+- * SPDX-License-Identifier: GPL-3.0-or-later
+- */
+-
+-use std::collections::{HashMap, HashSet};
+-use std::fmt::Write;
+-use std::io::{BufRead, BufReader};
+-use std::sync::Arc;
+-use std::time::Instant;
+-
+-use arrayvec::{ArrayString, ArrayVec};
+-
+-use crate::processes::MAX_U32_LEN;
+-use crate::util::parse_u64;
+-
+-const MAPS_REFRESH_INTERVAL: std::time::Duration = std::time::Duration::from_secs(5);
+-
+-#[derive(Clone, Debug)]
+-pub struct FileMapping {
+-    path: Arc<str>,
+-    size: u64,
+-}
+-
+-#[derive(Debug, Default)]
+-pub struct MemoryMaps {
+-    share_count: HashMap<Arc<str>, u32>,
+-    file_mappings: HashMap<u32, Vec<FileMapping>>,
+-    last_maps_walk: Option<Instant>,
+-}
+-
+-impl MemoryMaps {
+-    pub fn refresh(&mut self, pids: &[u32]) {
+-        let now = Instant::now();
+-
+-        let mut do_refresh = || {
+-            let mut share_count: HashMap<Arc<str>, u32> = HashMap::new();
+-            let mut file_mappings: HashMap<u32, Vec<FileMapping>> = HashMap::new();
+-
+-            for &pid in pids {
+-                let mappings = match read_file_mappings(pid) {
+-                    Some(m) => m,
+-                    None => continue,
+-                };
+-                // Each unique path in this process counts once toward "this
+-                // PID maps this file" — collapse duplicate mappings of the
+-                // same file (common for executables: separate text/rodata/
+-                // data segments all backed by the same path).
+-                let mut seen: HashSet<*const str> = HashSet::new();
+-                for m in &mappings {
+-                    if seen.insert(Arc::as_ptr(&m.path)) {
+-                        *share_count.entry(Arc::clone(&m.path)).or_insert(0) += 1;
+-                    }
+-                }
+-                file_mappings.insert(pid, mappings);
+-            }
+-
+-            self.share_count = share_count;
+-            self.file_mappings = file_mappings;
+-        };
+-
+-        match self.last_maps_walk {
+-            None => {
+-                do_refresh();
+-                self.last_maps_walk = Some(now);
+-            }
+-            Some(t) => {
+-                if now.duration_since(t) >= MAPS_REFRESH_INTERVAL {
+-                    do_refresh();
+-                    self.last_maps_walk = Some(now);
+-                }
+-            }
+-        }
+-    }
+-}
+-
+-pub fn hybrid_pss(pid: u32, maps: &MemoryMaps) -> Option<(u64, u64)> {
+-    let status = read_status(pid)?;
+-    let share = match maps.file_mappings.get(&pid) {
+-        Some(file_mappings) => harmonic_avg_share(file_mappings, &maps.share_count),
+-        None => 1.0,
+-    };
+-    let amortized_file = (status.rss_file as f64 / share.max(1.0)) as u64;
+-
+-    Some((
+-        status.rss_anon + status.rss_shmem + amortized_file,
+-        status.vm_swap,
+-    ))
+-}
+-
+-#[derive(Clone, Debug, Default)]
+-struct ProcStatus {
+-    rss_anon: u64,
+-    rss_file: u64,
+-    rss_shmem: u64,
+-    vm_swap: u64,
+-}
+-
+-fn read_status(pid: u32) -> Option<ProcStatus> {
+-    let mut status_file = BufReader::new(open_status(pid)?);
+-    let mut buffer = Vec::with_capacity(64);
+-
+-    let mut result = ProcStatus::default();
+-    loop {
+-        buffer.clear();
+-        let bytes_read = match status_file.read_until(b'\n', &mut buffer) {
+-            Ok(n) => n,
+-            Err(err) => {
+-                log::error!(
+-                    "Failed to read line from `status` file for process {}: {}",
+-                    pid,
+-                    err,
+-                );
+-                return None;
+-            }
+-        };
+-
+-        if bytes_read == 0 {
+-            break;
+-        }
+-
+-        if let Some(rest) = buffer.strip_prefix(b"RssAnon:") {
+-            result.rss_anon = parse_u64(to_c_buf(rest).as_slice(), 10, "RssAnon")? * 1024;
+-        } else if let Some(rest) = buffer.strip_prefix(b"RssFile:") {
+-            result.rss_file = parse_u64(to_c_buf(rest).as_slice(), 10, "RssFile")? * 1024;
+-        } else if let Some(rest) = buffer.strip_prefix(b"RssShmem:") {
+-            result.rss_shmem = parse_u64(to_c_buf(rest).as_slice(), 10, "RssShmem")? * 1024;
+-        } else if let Some(rest) = buffer.strip_prefix(b"VmSwap:") {
+-            result.vm_swap = parse_u64(to_c_buf(rest).as_slice(), 10, "VmSwap")? * 1024;
+-        }
+-    }
+-
+-    Some(result)
+-}
+-
+-fn read_file_mappings(pid: u32) -> Option<Vec<FileMapping>> {
+-    let mut interned: HashSet<Arc<str>> = HashSet::new();
+-    let mut maps_file = BufReader::new(open_maps(pid)?);
+-    let mut buffer = Vec::with_capacity(256);
+-
+-    let mut result = Vec::new();
+-    // Each line: "start-end perms offset dev inode  [path]"
+-    loop {
+-        buffer.clear();
+-        let bytes_read = match maps_file.read_until(b'\n', &mut buffer) {
+-            Ok(n) => n,
+-            Err(err) => {
+-                log::error!(
+-                    "Failed to read line from `maps` file for process {}: {}",
+-                    pid,
+-                    err,
+-                );
+-                return None;
+-            }
+-        };
+-
+-        if bytes_read == 0 {
+-            break;
+-        }
+-
+-        let mut fields = buffer.splitn(6, u8::is_ascii_whitespace);
+-        let range = match fields.next() {
+-            Some(r) => r,
+-            None => continue,
+-        };
+-
+-        // Skip perms / offset / dev / inode.
+-        for _ in 0..4 {
+-            if fields.next().is_none() {
+-                break;
+-            }
+-        }
+-
+-        let path = match fields.next() {
+-            Some(p) => p.trim_ascii(),
+-            None => continue, // anonymous mapping — already accounted for by RssAnon
+-        };
+-
+-        if path.is_empty() || path.starts_with(b"[") {
+-            // pseudo-paths like [heap], [stack], [vvar] — anonymous-equivalent
+-            continue;
+-        }
+-
+-        if path.ends_with(b" (deleted)") {
+-            continue;
+-        }
+-
+-        let path = String::from_utf8_lossy(path);
+-        let path = match interned.get(path.as_ref()) {
+-            Some(k) => Arc::clone(k),
+-            None => {
+-                let arc = Arc::from(path.as_ref());
+-                interned.insert(Arc::clone(&arc));
+-                arc
+-            }
+-        };
+-
+-        let dash = match range.iter().position(|byte| *byte == b'-') {
+-            Some(i) => i,
+-            None => continue,
+-        };
+-
+-        let start = match parse_u64(to_c_buf(&range[..dash]).as_slice(), 16, "maps range start") {
+-            Some(s) => s,
+-            None => continue,
+-        };
+-        let end = match parse_u64(
+-            to_c_buf(&range[dash + 1..]).as_slice(),
+-            16,
+-            "maps range end",
+-        ) {
+-            Some(e) => e,
+-            None => continue,
+-        };
+-        if end <= start {
+-            continue;
+-        }
+-
+-        result.push(FileMapping {
+-            path,
+-            size: end - start,
+-        });
+-    }
+-
+-    Some(result)
+-}
+-
+-/// Size-weighted harmonic mean of per-file share counts
+-fn harmonic_avg_share(maps: &[FileMapping], share_count: &HashMap<Arc<str>, u32>) -> f64 {
+-    let mut total_size: f64 = 0.0;
+-    let mut weighted_inv: f64 = 0.0;
+-    for m in maps {
+-        let share = (*share_count.get(&m.path).unwrap_or(&1)).max(1) as f64;
+-        let sz = m.size as f64;
+-        weighted_inv += sz / share;
+-        total_size += sz;
+-    }
+-    if weighted_inv == 0.0 {
+-        1.0
+-    } else {
+-        total_size / weighted_inv
+-    }
+-}
+-
+-fn open_status(pid: u32) -> Option<std::fs::File> {
+-    const MAX_PATH_LEN: usize = "/proc/".len() + "/status".len() + MAX_U32_LEN;
+-
+-    let mut path: ArrayString<MAX_PATH_LEN> = ArrayString::new();
+-    let _ = write!(path, "/proc/{}/status", pid);
+-
+-    let file = match std::fs::OpenOptions::new().read(true).open(path) {
+-        Ok(f) => f,
+-        Err(err) => {
+-            log::debug!("Failed to open `status` file for process {}: {}", pid, err,);
+-            return None;
+-        }
+-    };
+-
+-    Some(file)
+-}
+-
+-fn open_maps(pid: u32) -> Option<std::fs::File> {
+-    const MAX_PATH_LEN: usize = "/proc/".len() + "/maps".len() + MAX_U32_LEN;
+-
+-    let mut path: ArrayString<MAX_PATH_LEN> = ArrayString::new();
+-    let _ = write!(path, "/proc/{}/maps", pid);
+-
+-    let file = match std::fs::OpenOptions::new().read(true).open(path) {
+-        Ok(f) => f,
+-        Err(err) => {
+-            log::debug!("Failed to open `maps` file for process {}: {}", pid, err,);
+-            return None;
+-        }
+-    };
+-
+-    Some(file)
+-}
+-
+-fn to_c_buf(s: &[u8]) -> ArrayVec<u8, 65> {
+-    let mut out = ArrayVec::new();
+-    out.extend(s.trim_ascii_start().iter().cloned().take(64));
+-    out.push(0);
+-    out
+-}
+diff --git a/platform-linux/src/processes/mod.rs b/platform-linux/src/processes/mod.rs
+index 0701ce1..bcda6c3 100644
+--- a/platform-linux/src/processes/mod.rs
++++ b/platform-linux/src/processes/mod.rs
+@@ -21,32 +21,47 @@
+ use std::collections::HashMap;
+ use std::fmt::Write;
+ use std::io::Read;
+-use std::num::NonZeroU16;
+ use std::time::Instant;
+ 
+ use arrayvec::ArrayString;
+-use regex::RegexBuilder;
+ use tokio::sync::mpsc::error::TryRecvError;
+ use tokio::sync::mpsc::{channel, Receiver, Sender};
+-use virtual_terminal::Output;
+ 
+ use magpie_platform::processes::{NetworkStatsError, PermissionsError, Process};
+ 
+-use crate::processes::mem_hybrid::{hybrid_pss, MemoryMaps};
+-use crate::util::async_runtime;
++use crate::processes::memory::{parse_status, ProportionalMemory};
++use crate::processes::open_files::{OpenFiles, ProcFile};
+ pub use linux_process::ProcessStats;
+ pub use manager::ProcessManager;
+ 
+ mod io;
+ mod linux_process;
+ mod manager;
+-mod mem_hybrid;
++mod memory;
++mod nethogs;
++mod open_files;
+ mod raw_stats;
+ mod stat;
+ mod statm;
+ 
+ const MAX_U32_LEN: usize = 10;
+ 
++/// How long a process's command line and executable path are reused before they are read again.
++/// A process that calls exec() changes its name and is read at once; this interval only bounds how
++/// stale a command line rewritten in place (setproctitle) can get.
++const IDENTITY_RECHECK_INTERVAL: std::time::Duration = std::time::Duration::from_secs(5);
++
++/// A PID reused by a new process must not inherit the counters of the one that exited, and a
++/// process keeps its start time for its whole life.
++fn is_same_process(previous_start_time: u64, start_time: u64) -> bool {
++    previous_start_time == start_time
++}
++
++/// Whether the command line and executable path read at `read_at` still describe the process.
++fn identity_is_fresh(previous_name: &str, name: &str, read_at: Instant, now: Instant) -> bool {
++    previous_name == name && now.saturating_duration_since(read_at) < IDENTITY_RECHECK_INTERVAL
++}
++
+ fn open_cmdline(pid: u32) -> Option<std::fs::File> {
+     const MAX_PATH_LEN: usize = "/proc/".len() + "/cmdline".len() + MAX_U32_LEN;
+ 
+@@ -104,15 +119,6 @@ fn exe_path(pid: u32) -> ArrayString<20> {
+     path
+ }
+ 
+-fn task_path(pid: u32) -> ArrayString<21> {
+-    const MAX_PATH_LEN: usize = "/proc/".len() + "/task".len() + MAX_U32_LEN;
+-
+-    let mut path: ArrayString<MAX_PATH_LEN> = ArrayString::new();
+-    let _ = write!(path, "/proc/{}/task", pid);
+-
+-    path
+-}
+-
+ pub struct ProcessCache {
+     processes: HashMap<u32, Process>,
+     process_stats: HashMap<u32, ProcessStats>,
+@@ -121,101 +127,8 @@ pub struct ProcessCache {
+     nethogs_reciever: Receiver<NethogsRecord>,
+     nethogs_process_lut: HashMap<u32, NethogsRecord>,
+ 
+-    memory_maps: MemoryMaps,
+-}
+-
+-async fn run_nethogs(sender: Sender<NethogsRecord>) {
+-    let cmd = virtual_terminal::Command::new("nethogs")
+-        .terminal_size((250, 1000))
+-        .arg("-v")
+-        .arg("2")
+-        .arg("-C");
+-
+-    const ROWS: NonZeroU16 = NonZeroU16::new(1000).unwrap();
+-    const COLS: NonZeroU16 = NonZeroU16::new(250).unwrap();
+-    let mut nethogs_term = vt100::Parser::new(ROWS, COLS, 0);
+-
+-    let out_rx = cmd.out_rx();
+-    async_runtime().spawn(cmd.run());
+-
+-    let nethogs_regex = match RegexBuilder::new(
+-        r"^\s*(\d+|\?) (.{8}) (.*?)\s+(.{0,16})([ \d.]{12})([ \d.]{12})[Bb]",
+-    )
+-    .multi_line(true)
+-    .build()
+-    {
+-        Ok(p) => p,
+-        Err(e) => {
+-            log::warn!("Failed to build nethogs regex {}", e);
+-            return;
+-        }
+-    };
+-
+-    // TODO report the difference between no nethogs and no perms
+-    // let mut is_alive = false;
+-
+-    while let Ok(msg) = out_rx.recv().await {
+-        match msg {
+-            Output::Pid(pid) => {
+-                log::debug!("Nethogs PID: {}", pid);
+-                // is_alive = true;
+-            }
+-            Output::Stdout(out) => {
+-                nethogs_term.process(&out);
+-
+-                let (_, cursor_col) = nethogs_term.screen().cursor_position();
+-
+-                if cursor_col == 0 {
+-                    for (_, [pid, _user, command_line, iface, sent_b, recv_b]) in nethogs_regex
+-                        .captures_iter(nethogs_term.screen().contents().as_str())
+-                        .map(|c| c.extract())
+-                    {
+-                        if pid == "?" {
+-                            continue;
+-                        }
+-
+-                        let pid = match pid.parse::<u32>() {
+-                            Ok(pid) => pid,
+-                            _ => {
+-                                continue;
+-                            }
+-                        };
+-
+-                        let sent_b = match sent_b.trim().parse::<f64>() {
+-                            Ok(sent_b) => sent_b as u64,
+-                            _ => continue,
+-                        };
+-
+-                        let recv_b = match recv_b.trim().parse::<f64>() {
+-                            Ok(recv_b) => recv_b as u64,
+-                            _ => continue,
+-                        };
+-
+-                        // ignore result, just keep sending
+-                        let _ = sender
+-                            .send(NethogsRecord::new(
+-                                command_line.into(),
+-                                pid,
+-                                iface.into(),
+-                                sent_b,
+-                                recv_b,
+-                            ))
+-                            .await;
+-                    }
+-                }
+-            }
+-            Output::Error(err) => {
+-                log::warn!("Nethogs stderr: {}", err);
+-            }
+-            Output::Terminated(e) => {
+-                if let Some(code) = e {
+-                    log::warn!("Nethogs exited with code {}", code);
+-                }
+-
+-                break;
+-            }
+-        }
+-    }
++    memory: ProportionalMemory,
++    files: OpenFiles,
+ }
+ 
+ impl magpie_platform::processes::ProcessCache for ProcessCache {
+@@ -225,7 +138,7 @@ impl magpie_platform::processes::ProcessCache for ProcessCache {
+     {
+         let (tx, rx): (Sender<NethogsRecord>, Receiver<NethogsRecord>) = channel(1000);
+ 
+-        async_runtime().spawn(run_nethogs(tx));
++        nethogs::spawn(tx);
+ 
+         Self {
+             processes: HashMap::new(),
+@@ -235,7 +148,8 @@ impl magpie_platform::processes::ProcessCache for ProcessCache {
+             nethogs_reciever: rx,
+             nethogs_process_lut: HashMap::new(),
+ 
+-            memory_maps: Default::default(),
++            memory: Default::default(),
++            files: Default::default(),
+         }
+     }
+ 
+@@ -249,8 +163,8 @@ impl magpie_platform::processes::ProcessCache for ProcessCache {
+         let result_stats = &mut self.process_stats;
+         result_stats.reserve(old_stats.len());
+ 
+-        let mut stat_file_content = String::new();
+-        stat_file_content.reserve(512);
++        let mut stat_bytes = Vec::with_capacity(512);
++        let mut proc_bytes = Vec::with_capacity(2048);
+ 
+         let mut read_buffer = String::new();
+         read_buffer.reserve(512);
+@@ -305,34 +219,21 @@ impl magpie_platform::processes::ProcessCache for ProcessCache {
+         }
+ 
+         let mut children: HashMap<u32, Vec<u32>> = HashMap::new();
+-
+-        self.memory_maps.refresh(&pids);
++        let mut statuses = Vec::with_capacity(pids.len());
+ 
+         for pid in pids.iter().copied() {
+-            let Some(mut stat_file) = stat::open(pid) else {
++            // A process that exits between the directory listing and this read is skipped.
++            if !self.files.read(pid, ProcFile::Stat, &mut stat_bytes) {
++                continue;
++            }
++            let Ok(stat_file_content) = std::str::from_utf8(&stat_bytes) else {
++                log::warn!(
++                    "Stat information for process {} is not UTF-8, skipping",
++                    pid
++                );
+                 continue;
+             };
+-            stat_file_content.clear();
+-            match stat_file.read_to_string(&mut stat_file_content) {
+-                Ok(sfc) => {
+-                    if sfc == 0 {
+-                        log::warn!(
+-                            "Failed to read stat information for process {}, skipping",
+-                            pid
+-                        );
+-                        continue;
+-                    }
+-                }
+-                Err(e) => {
+-                    log::warn!(
+-                        "Failed to read stat information for process {}, skipping: {}",
+-                        pid,
+-                        e,
+-                    );
+-                    continue;
+-                }
+-            };
+-            let Some(stat_parsed) = stat::parse_stat_file(&stat_file_content) else {
++            let Some(stat_parsed) = stat::parse_stat_file(stat_file_content) else {
+                 log::warn!(
+                     "Failed to parse stat information for process {}, skipping",
+                     pid
+@@ -342,26 +243,17 @@ impl magpie_platform::processes::ProcessCache for ProcessCache {
+ 
+             let utime = stat::user_mode_jiffies(&stat_parsed);
+             let stime = stat::kernel_mode_jiffies(&stat_parsed);
+-
+-            let io_parsed = io::open(pid)
+-                .map(|mut io_file| {
+-                    read_buffer.clear();
+-                    match io_file.read_to_string(&mut read_buffer) {
+-                        Ok(rb) => {
+-                            if rb == 0 {
+-                                log::debug!("Failed to read io information for process {}", pid);
+-                                [0; 7]
+-                            } else {
+-                                io::parse_io_file(&read_buffer)
+-                            }
+-                        }
+-                        Err(e) => {
+-                            log::debug!("Failed to read io information for process {}: {}", pid, e);
+-                            [0; 7]
+-                        }
+-                    }
+-                })
+-                .unwrap_or([0; 7]);
++            let start_time = stat::start_time(&stat_parsed);
++            let name = stat::name(&stat_parsed);
++
++            // Another user's `io` cannot be read; its disk usage stays 0.
++            let io_parsed = if self.files.read(pid, ProcFile::Io, &mut proc_bytes) {
++                std::str::from_utf8(&proc_bytes)
++                    .map(io::parse_io_file)
++                    .unwrap_or([0; 7])
++            } else {
++                [0; 7]
++            };
+ 
+             let total_net_sent = nethogs_process_lut
+                 .get(&pid)
+@@ -372,10 +264,16 @@ impl magpie_platform::processes::ProcessCache for ProcessCache {
+                 .map(|it| it.recv_bytes)
+                 .unwrap_or(0);
+ 
+-            let (mut process, mut stats) = match old_processes.remove(&pid) {
++            let previous = old_processes.remove(&pid).zip(old_stats.remove(&pid));
++            let previous = previous
++                .filter(|(_, stats)| is_same_process(stats.raw_stats.start_time, start_time));
++            let identity_known = previous.as_ref().is_some_and(|(process, stats)| {
++                identity_is_fresh(&process.name, name, stats.raw_stats.identity_read_at, now)
++            });
++
++            let (mut process, mut stats) = match previous {
+                 None => (Process::default(), ProcessStats::default()),
+-                Some(mut process) => {
+-                    let stats = unsafe { old_stats.remove(&pid).unwrap_unchecked() };
++                Some((mut process, stats)) => {
+                     let delta_time = now - stats.raw_stats.timestamp;
+ 
+                     let prev_utime = stats.raw_stats.user_jiffies;
+@@ -424,36 +322,49 @@ impl magpie_platform::processes::ProcessCache for ProcessCache {
+                 }
+             };
+ 
+-            read_buffer.clear();
+-            let cmd = open_cmdline(pid)
+-                .and_then(|mut f| {
+-                    match f
+-                        .read_to_string(&mut read_buffer)
+-                        .ok()
+-                        .map(|_| &read_buffer)
+-                    {
+-                        Some(cmd) => Some(
+-                            cmd.split('\0')
+-                                .map(|s| s.trim())
+-                                .filter(|s| !s.is_empty())
+-                                .map(|s| s.to_string())
+-                                .collect::<Vec<_>>(),
+-                        ),
+-                        None => {
+-                            log::warn!("Failed to read `cmdline` for process {}", pid);
+-                            None
++            if !identity_known {
++                read_buffer.clear();
++                let cmd = open_cmdline(pid)
++                    .and_then(|mut f| {
++                        match f
++                            .read_to_string(&mut read_buffer)
++                            .ok()
++                            .map(|_| &read_buffer)
++                        {
++                            Some(cmd) => Some(
++                                cmd.split('\0')
++                                    .map(|s| s.trim())
++                                    .filter(|s| !s.is_empty())
++                                    .map(|s| s.to_string())
++                                    .collect::<Vec<_>>(),
++                            ),
++                            None => {
++                                log::warn!("Failed to read `cmdline` for process {}", pid);
++                                None
++                            }
+                         }
+-                    }
+-                })
+-                .unwrap_or(vec![]);
++                    })
++                    .unwrap_or(vec![]);
++
++                let exe = std::path::Path::new(exe_path(pid).as_str())
++                    .read_link()
++                    .map(|p| p.as_os_str().to_string_lossy().to_string())
++                    .unwrap_or("".to_owned());
+ 
+-            let exe = std::path::Path::new(exe_path(pid).as_str())
+-                .read_link()
+-                .map(|p| p.as_os_str().to_string_lossy().to_string())
+-                .unwrap_or("".to_owned());
++                process.cmd = cmd;
++                process.exe = exe;
++                stats.raw_stats.identity_read_at = now;
++            }
+ 
+-            let (memory, swap) = if let Some((pss, swap_pss)) = hybrid_pss(pid, &self.memory_maps) {
+-                (pss, swap_pss)
++            // Memory is filled in after the loop, when every process has its exact reading.
++            let status = self
++                .files
++                .read(pid, ProcFile::Status, &mut proc_bytes)
++                .then(|| parse_status(&proc_bytes))
++                .flatten();
++            let (memory, swap) = if let Some(status) = status {
++                statuses.push((pid, start_time, status));
++                (0, 0)
+             } else {
+                 (
+                     statm::open(pid)
+@@ -486,40 +397,22 @@ impl magpie_platform::processes::ProcessCache for ProcessCache {
+                 )
+             };
+ 
+-            let task_count = match std::fs::read_dir(task_path(pid).as_str()) {
+-                Ok(tasks) => {
+-                    let mut task_count = 0u64;
+-                    for task in tasks.filter_map(|t| t.ok()) {
+-                        if task.file_name().to_string_lossy().parse::<u32>().is_err() {
+-                            continue;
+-                        }
+-                        task_count += 1;
+-                    }
+-                    task_count
+-                }
+-                Err(e) => {
+-                    log::debug!("Failed to read task directory for process {pid}: {e}");
+-                    1
+-                }
+-            };
+-
+             process.pid = pid;
+-            process.name = stat::name(&stat_parsed).to_string();
+-            process.cmd = cmd;
+-            process.exe = exe;
++            process.name = name.to_string();
+             process.state = stat::state(&stat_parsed) as _;
+             process.parent = stat::parent_pid(&stat_parsed);
+             process.usage_stats.gpu_usage = 0.;
+             process.usage_stats.gpu_memory_usage = 0;
+             process.usage_stats.memory_usage = memory;
+             process.usage_stats.swap_usage = swap;
+-            process.task_count = task_count;
++            process.task_count = stat::thread_count(&stat_parsed);
+             stats.raw_stats.user_jiffies = utime;
+             stats.raw_stats.kernel_jiffies = stime;
+             stats.raw_stats.disk_read_bytes = io::read_bytes(&io_parsed);
+             stats.raw_stats.disk_write_bytes = io::write_bytes(&io_parsed);
+             stats.raw_stats.net_bytes_sent = total_net_sent;
+             stats.raw_stats.net_bytes_recv = total_net_recv;
++            stats.raw_stats.start_time = start_time;
+             stats.raw_stats.timestamp = now;
+ 
+             match children.get_mut(&process.parent) {
+@@ -533,6 +426,15 @@ impl magpie_platform::processes::ProcessCache for ProcessCache {
+             result_stats.insert(pid, stats);
+         }
+ 
++        self.files.retain(|pid| result.contains_key(&pid));
++        self.memory.refresh(&statuses, now);
++        for (pid, start_time, status) in &statuses {
++            if let Some(process) = result.get_mut(pid) {
++                process.usage_stats.memory_usage = self.memory.memory(*pid, *start_time, status);
++                process.usage_stats.swap_usage = status.swap();
++            }
++        }
++
+         // Prune processes that don't have a parent (init and kernel processes)
+         children.remove(&0);
+ 
+@@ -554,3 +456,33 @@ impl magpie_platform::processes::ProcessCache for ProcessCache {
+         &self.network_stats_error
+     }
+ }
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++
++    #[test]
++    fn a_pid_reused_by_a_new_process_is_a_different_process() {
++        assert!(is_same_process(4_812_337, 4_812_337));
++        assert!(!is_same_process(4_812_337, 4_830_001));
++    }
++
++    #[test]
++    fn a_known_identity_is_reused_until_the_recheck_interval() {
++        let read_at = Instant::now();
++        let soon = read_at + std::time::Duration::from_secs(1);
++        assert!(identity_is_fresh("bash", "bash", read_at, soon));
++        assert!(!identity_is_fresh(
++            "bash",
++            "bash",
++            read_at,
++            read_at + IDENTITY_RECHECK_INTERVAL
++        ));
++    }
++
++    #[test]
++    fn a_process_that_called_exec_is_read_again_at_once() {
++        let read_at = Instant::now();
++        assert!(!identity_is_fresh("bash", "python3", read_at, read_at));
++    }
++}
+diff --git a/platform-linux/src/processes/raw_stats.rs b/platform-linux/src/processes/raw_stats.rs
+index cc17314..67e5d3f 100644
+--- a/platform-linux/src/processes/raw_stats.rs
++++ b/platform-linux/src/processes/raw_stats.rs
+@@ -31,6 +31,11 @@ pub struct RawStats {
+     pub net_bytes_sent: u64,
+     pub net_bytes_recv: u64,
+ 
++    /// Start time from `/proc/<pid>/stat`; tells a reused PID from the process seen before.
++    pub start_time: u64,
++    /// When the command line and executable path were last read.
++    pub identity_read_at: Instant,
++
+     pub timestamp: Instant,
+ }
+ 
+@@ -46,6 +51,9 @@ impl Default for RawStats {
+             net_bytes_sent: 0,
+             net_bytes_recv: 0,
+ 
++            start_time: 0,
++            identity_read_at: Instant::now(),
++
+             timestamp: Instant::now(),
+         }
+     }
+diff --git a/platform-linux/src/processes/stat.rs b/platform-linux/src/processes/stat.rs
+index 3d32c92..e5e6c9d 100644
+--- a/platform-linux/src/processes/stat.rs
++++ b/platform-linux/src/processes/stat.rs
+@@ -18,39 +18,15 @@
+  * SPDX-License-Identifier: GPL-3.0-or-later
+  */
+ 
+-use std::fmt::Write;
+-
+-use arrayvec::ArrayString;
+ use magpie_platform::processes::ProcessState;
+ 
+-use super::MAX_U32_LEN;
+-
+ const PROC_PID_STAT_TCOMM: usize = 1;
+ const PROC_PID_STAT_STATE: usize = 2;
+ const PROC_PID_STAT_PPID: usize = 3;
+ const PROC_PID_STAT_UTIME: usize = 13;
+ const PROC_PID_STAT_STIME: usize = 14;
+-
+-pub fn open(pid: u32) -> Option<std::fs::File> {
+-    const MAX_PATH_LEN: usize = "/proc/".len() + "/stat".len() + MAX_U32_LEN;
+-
+-    let mut path: ArrayString<MAX_PATH_LEN> = ArrayString::new();
+-    let _ = write!(path, "/proc/{}/stat", pid);
+-
+-    let stat_file = match std::fs::OpenOptions::new().read(true).open(path) {
+-        Ok(f) => f,
+-        Err(e) => {
+-            log::warn!(
+-                "Failed to open `stat` file for process {}, skipping: {}",
+-                pid,
+-                e,
+-            );
+-            return None;
+-        }
+-    };
+-
+-    Some(stat_file)
+-}
++const PROC_PID_STAT_NUM_THREADS: usize = 19;
++const PROC_PID_STAT_STARTTIME: usize = 21;
+ 
+ pub fn parse_stat_file(stat_file_content: &str) -> Option<[&str; 52]> {
+     let mut output = [""; 52];
+@@ -108,6 +84,16 @@ pub fn kernel_mode_jiffies(stat: &[&str; 52]) -> u64 {
+     stat[PROC_PID_STAT_STIME].parse::<u64>().unwrap_or(0)
+ }
+ 
++/// Number of threads in the process, the same count as the entries of `/proc/<pid>/task`.
++pub fn thread_count(stat: &[&str; 52]) -> u64 {
++    stat[PROC_PID_STAT_NUM_THREADS].parse::<u64>().unwrap_or(1)
++}
++
++/// Clock ticks after boot at which the process started. A PID that is reused gets a different value.
++pub fn start_time(stat: &[&str; 52]) -> u64 {
++    stat[PROC_PID_STAT_STARTTIME].parse::<u64>().unwrap_or(0)
++}
++
+ #[cfg(test)]
+ mod tests {
+     use super::*;
+@@ -130,6 +116,24 @@ mod tests {
+         assert_eq!(parent_pid(&parsed), 1);
+         assert_eq!(user_mode_jiffies(&parsed), 12);
+         assert_eq!(kernel_mode_jiffies(&parsed), 34);
++        assert_eq!(thread_count(&parsed), 1);
++        assert_eq!(start_time(&parsed), 5678);
++    }
++
++    // Read 2026-11-05 18:08 from /proc/3109476/stat, Edge's GPU process (kernel 7.3): 23 threads,
++    // started 6,135,258 ticks after boot.
++    #[test]
++    fn reads_thread_count_and_start_time_from_a_real_line() {
++        let line = "3109476 (msedge) S 3109442 3109426 3109426 0 -1 4194368 2064976 0 146900 0 \
++            29307 10945 0 0 20 0 23 0 6135258 62017695744 29828 18446744073709551615 \
++            93944474722304 93944803342576 140721822143200 0 0 0 0 4098 25232636 0 0 0 17 12 0 0 \
++            0 0 0 93944818880512 93944820170753 93944836943872 140721822146659 140721822146815 \
++            140721822146815 140721822150619 0";
++        let parsed = parse_stat_file(line).expect("should parse");
++        assert_eq!(name(&parsed), "msedge");
++        assert_eq!(user_mode_jiffies(&parsed), 29307);
++        assert_eq!(thread_count(&parsed), 23);
++        assert_eq!(start_time(&parsed), 6135258);
+     }
+ 
+     #[test]
+diff --git a/platform/src/gpus.rs b/platform/src/gpus.rs
+index 3efc7f1..3e36418 100644
+--- a/platform/src/gpus.rs
++++ b/platform/src/gpus.rs
+@@ -20,6 +20,7 @@
+ 
+ use std::collections::HashMap;
+ use std::sync::atomic::{AtomicBool, Ordering};
++use std::time::{Duration, Instant};
+ 
+ use parking_lot::Mutex;
+ use rayon::ThreadPool;
+@@ -37,12 +38,58 @@ pub type GpusRequest = types::gpus::GpusRequest;
+ pub type GpusResponse = types::gpus::GpusResponse;
+ pub type GpusResponseError = types::gpus::GpusResponseError;
+ 
++/// Whether a GPU refresh must read the GPU usage of each process.
++#[derive(Clone, Copy, Debug, PartialEq, Eq)]
++pub enum ProcessUsage {
++    /// Someone shows processes, so their GPU usage is read.
++    Wanted,
++    /// Nobody shows processes (the window is hidden), so the per-process reads can be skipped.
++    NotWanted,
++}
++
++/// Shortest time a process request keeps the per-process GPU usage wanted.
++const PROCESSES_WANTED_MIN: Duration = Duration::from_millis(1500);
++
++/// When processes were last asked for, to tell whether anyone still shows them.
++///
++/// Mission Center asks for processes once per update tick while its window is visible, and stops
++/// while it is hidden. A tick lasts from 0.5 s to 10 s depending on the update speed setting, so
++/// processes stay wanted for two of the last measured ticks.
++#[derive(Debug, Default)]
++pub struct ProcessRequests {
++    last: Option<Instant>,
++    tick: Option<Duration>,
++}
++
++impl ProcessRequests {
++    pub fn record(&mut self, now: Instant) {
++        if let Some(last) = self.last {
++            self.tick = Some(now.saturating_duration_since(last));
++        }
++        self.last = Some(now);
++    }
++
++    pub fn usage(&self, now: Instant) -> ProcessUsage {
++        let Some(last) = self.last else {
++            return ProcessUsage::NotWanted;
++        };
++        let window = self.tick.map_or(PROCESSES_WANTED_MIN, |tick| {
++            (tick * 2).max(PROCESSES_WANTED_MIN)
++        });
++        if now.saturating_duration_since(last) <= window {
++            ProcessUsage::Wanted
++        } else {
++            ProcessUsage::NotWanted
++        }
++    }
++}
++
+ pub trait GpuCache {
+     fn new() -> Self
+     where
+         Self: Sized;
+ 
+-    fn refresh(&mut self);
++    fn refresh(&mut self, processes: ProcessUsage);
+     fn cached_entries(&self) -> &HashMap<String, Gpu>;
+ }
+ 
+@@ -52,6 +99,7 @@ where
+ {
+     pub(crate) gpus: Mutex<GC>,
+     pub(crate) local_cache: Mutex<HashMap<String, Gpu>>,
++    process_requests: Mutex<ProcessRequests>,
+     refreshing: AtomicBool,
+ }
+ 
+@@ -72,13 +120,20 @@ where
+         Self {
+             gpus: Mutex::new(GC::new()),
+             local_cache: Mutex::new(HashMap::new()),
++            process_requests: Mutex::new(ProcessRequests::default()),
+             refreshing: AtomicBool::new(false),
+         }
+     }
+ 
++    /// Records that processes were asked for, so the next refreshes read their GPU usage.
++    pub fn note_processes_requested(&self) {
++        self.process_requests.lock().record(Instant::now());
++    }
++
+     pub fn refresh(&self) {
++        let processes = self.process_requests.lock().usage(Instant::now());
+         let mut gpus = self.gpus.lock();
+-        gpus.refresh();
++        gpus.refresh(processes);
+         *self.local_cache.lock() = gpus.cached_entries().clone();
+     }
+ 
+@@ -97,3 +152,61 @@ where
+         });
+     }
+ }
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++
++    #[test]
++    fn nothing_is_wanted_before_the_first_request() {
++        let requests = ProcessRequests::default();
++        assert_eq!(requests.usage(Instant::now()), ProcessUsage::NotWanted);
++    }
++
++    #[test]
++    fn processes_asked_for_every_second_stay_wanted_for_two_seconds() {
++        let start = Instant::now();
++        let mut requests = ProcessRequests::default();
++        requests.record(start);
++        requests.record(start + Duration::from_secs(1));
++
++        let last = start + Duration::from_secs(1);
++        assert_eq!(
++            requests.usage(last + Duration::from_secs(2)),
++            ProcessUsage::Wanted
++        );
++        assert_eq!(
++            requests.usage(last + Duration::from_millis(2100)),
++            ProcessUsage::NotWanted
++        );
++    }
++
++    #[test]
++    fn the_slowest_update_speed_keeps_processes_wanted_between_its_ticks() {
++        let start = Instant::now();
++        let mut requests = ProcessRequests::default();
++        requests.record(start);
++        requests.record(start + Duration::from_secs(10));
++
++        let last = start + Duration::from_secs(10);
++        assert_eq!(
++            requests.usage(last + Duration::from_secs(9)),
++            ProcessUsage::Wanted
++        );
++    }
++
++    #[test]
++    fn a_single_request_keeps_processes_wanted_for_the_minimum_window() {
++        let start = Instant::now();
++        let mut requests = ProcessRequests::default();
++        requests.record(start);
++        assert_eq!(
++            requests.usage(start + PROCESSES_WANTED_MIN),
++            ProcessUsage::Wanted
++        );
++        assert_eq!(
++            requests.usage(start + PROCESSES_WANTED_MIN + Duration::from_millis(1)),
++            ProcessUsage::NotWanted
++        );
++    }
++}
+diff --git a/platform/src/lib.rs b/platform/src/lib.rs
+index 0d8c51d..bee012a 100644
+--- a/platform/src/lib.rs
++++ b/platform/src/lib.rs
+@@ -230,6 +230,7 @@ where
+     }
+ 
+     pub fn refresh_processes_async(&'static self) {
++        self.gpus.note_processes_requested();
+         self.processes
+             .refresh_async(&self.thread_pool, &self.gpus.local_cache);
+     }
+diff --git a/src/main.rs b/src/main.rs
+index d9d2d66..89849aa 100644
+--- a/src/main.rs
++++ b/src/main.rs
+@@ -18,7 +18,7 @@
+  * SPDX-License-Identifier: GPL-3.0-or-later
+  */
+ 
+-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
++use std::sync::atomic::{AtomicBool, Ordering};
+ use std::sync::{Arc, OnceLock};
+ use std::time::Duration;
+ 
+@@ -26,7 +26,7 @@ use clap::Parser;
+ use log::LevelFilter;
+ use prost::Message;
+ use signal_hook::consts::signal::*;
+-use signal_hook::flag as signal_flag;
++use signal_hook::iterator::Signals;
+ 
+ use magpie_platform::ipc::{Request, RequestBody, Response, ResponseBody, ResponseError};
+ use magpie_platform::DataCache;
+@@ -50,48 +50,49 @@ mod processes;
+ mod services;
+ mod setup_script;
+ 
++/// Most files magpie asks to keep open: three `/proc` files per process with room to spare.
++const OPEN_FILE_LIMIT: libc::rlim_t = 16384;
++
++/// Raises the soft limit of open files toward the hard one, so the `/proc` files of every process can
++/// stay open between refreshes. magpie waits with epoll, never select(), so descriptors above 1024 are
++/// safe. On failure the files are opened on each refresh as before.
++fn raise_open_file_limit() {
++    let mut limit = libc::rlimit {
++        rlim_cur: 0,
++        rlim_max: 0,
++    };
++    // SAFETY: `limit` is a valid, writable rlimit and RLIMIT_NOFILE is a valid resource.
++    if unsafe { libc::getrlimit(libc::RLIMIT_NOFILE, &mut limit) } != 0 {
++        return;
++    }
++    let wanted = OPEN_FILE_LIMIT.min(limit.rlim_max);
++    if limit.rlim_cur >= wanted {
++        return;
++    }
++    limit.rlim_cur = wanted;
++    // SAFETY: `limit` is a valid rlimit whose soft value does not exceed its hard value.
++    if unsafe { libc::setrlimit(libc::RLIMIT_NOFILE, &limit) } != 0 {
++        log::warn!("Failed to raise the open file limit to {}", wanted);
++    }
++}
++
++/// `NNG_DURATION_INFINITE` from `nng.h`.
++const RECEIVE_WITHOUT_TIMEOUT: nng::nng_duration = -1;
++
+ fn data_cache() -> &'static DataCache<DataCacheTypes> {
+     static DATA_CACHE: OnceLock<DataCache<DataCacheTypes>> = OnceLock::new();
+     DATA_CACHE.get_or_init(DataCache::new)
+ }
+ 
+-fn os_signals_listen(flag: Arc<AtomicBool>) {
+-    const SIGTERM_U: usize = SIGTERM as usize;
+-    const SIGINT_U: usize = SIGINT as usize;
+-    const SIGQUIT_U: usize = SIGQUIT as usize;
+-
+-    let term = Arc::new(AtomicUsize::new(0));
+-
+-    signal_flag::register_usize(SIGTERM, Arc::clone(&term), SIGTERM_U)
+-        .expect("Failed to register TERM signal");
+-    signal_flag::register_usize(SIGINT, Arc::clone(&term), SIGINT_U)
+-        .expect("Failed to register INT signal");
+-    signal_flag::register_usize(SIGQUIT, Arc::clone(&term), SIGQUIT_U)
+-        .expect("Failed to register QUIT signal");
+-
+-    loop {
+-        match term.load(Ordering::Relaxed) {
+-            0 => {
+-                std::thread::sleep(Duration::from_millis(50));
+-            }
+-            SIGTERM_U => {
+-                log::debug!("Caught TERM signal, stopping...");
+-                flag.store(true, Ordering::Relaxed);
+-                break;
+-            }
+-            SIGINT_U => {
+-                log::debug!("Caught INT signal, stopping...");
+-                flag.store(true, Ordering::Relaxed);
+-                break;
+-            }
+-            SIGQUIT_U => {
+-                log::debug!("Caught QUIT signal, stopping...");
+-                flag.store(true, Ordering::Relaxed);
+-                break;
+-            }
+-            _ => unreachable!(),
+-        }
++/// Waits for a stop signal, then closes the socket, which ends the blocking receive in [`serve`].
++fn os_signals_listen(flag: Arc<AtomicBool>, socket: nng::nng_socket) {
++    let mut signals =
++        Signals::new([SIGTERM, SIGINT, SIGQUIT]).expect("Failed to register stop signals");
++    if let Some(signal) = signals.forever().next() {
++        log::debug!("Caught signal {signal}, stopping...");
+     }
++    flag.store(true, Ordering::Relaxed);
++    unsafe { nng::nng_close(socket) };
+ }
+ 
+ fn handle_request(request_data: &[u8], socket: nng::nng_socket) {
+@@ -204,7 +205,16 @@ fn bind(socket_addr: &str) -> magpie_platform::Result<nng::nng_socket> {
+         }
+     }
+ 
+-    let res = unsafe { nng::nng_setopt_ms(socket, nng::NNG_OPT_RECVTIMEO.as_ptr() as _, 100) };
++    // Receive without a timeout: the stop signal closes the socket instead. With a timeout, nng's
++    // timer threads woke 10 times per second and spun until the millisecond tick that matched the
++    // deadline (`a_expire < now` in `nni_aio_expire_loop`), about 9 ms of CPU per second when idle.
++    let res = unsafe {
++        nng::nng_setopt_ms(
++            socket,
++            nng::NNG_OPT_RECVTIMEO.as_ptr() as _,
++            RECEIVE_WITHOUT_TIMEOUT,
++        )
++    };
+     match res {
+         nng::NNG_OK => {}
+         nng::NNG_ECLOSED => {
+@@ -291,7 +301,7 @@ fn bind(socket_addr: &str) -> magpie_platform::Result<nng::nng_socket> {
+ fn serve(socket: nng::nng_socket, stop_requested: Arc<AtomicBool>) -> magpie_platform::Result<()> {
+     std::thread::spawn({
+         let stop_requested = stop_requested.clone();
+-        move || os_signals_listen(stop_requested)
++        move || os_signals_listen(stop_requested, socket)
+     });
+ 
+     while !stop_requested.load(Ordering::Relaxed) {
+@@ -308,15 +318,12 @@ fn serve(socket: nng::nng_socket, stop_requested: Arc<AtomicBool>) -> magpie_pla
+         };
+         match res {
+             nng::NNG_OK => {}
+-            nng::NNG_ETIMEDOUT => {
+-                log::debug!("No message received for 100ms, waiting and trying again...");
+-                std::thread::sleep(Duration::from_millis(10));
+-                continue;
+-            }
++            nng::NNG_ETIMEDOUT => continue,
+             nng::NNG_EAGAIN => {
+                 log::error!("Failed to read message: The operation would block, but NNG_FLAG_NONBLOCK was specified");
+                 continue;
+             }
++            nng::NNG_ECLOSED if stop_requested.load(Ordering::Relaxed) => break,
+             nng::NNG_ECLOSED => {
+                 log::error!("Failed to read message: The socket is not open");
+                 continue;
+@@ -386,6 +393,8 @@ fn main() -> magpie_platform::Result<()> {
+         libc::prctl(libc::PR_SET_PDEATHSIG, SIGKILL);
+     }
+ 
++    raise_open_file_limit();
++
+     env_logger::init();
+     unsafe { nng::nng_log_set_logger(Some(nng::nng_log_fn)) };
+     match log::max_level() {
+diff --git a/platform-linux/3rdparty/nvtop/patches/nvtop-lean-refresh.patch b/platform-linux/3rdparty/nvtop/patches/nvtop-lean-refresh.patch
+new file mode 100644
+index 0000000..2c74ce8
+--- /dev/null
++++ b/platform-linux/3rdparty/nvtop/patches/nvtop-lean-refresh.patch
+@@ -0,0 +1,168 @@
++diff --git a/src/extract_gpuinfo.c b/src/extract_gpuinfo.c
++index f049dd3..233faf0 100644
++--- a/src/extract_gpuinfo.c
+++++ b/src/extract_gpuinfo.c
++@@ -300,11 +300,11 @@ bool gpuinfo_refresh_processes(struct list_head *devices) {
++   // Go through the /proc hierarchy once and populate the processes for all registered GPUs
++   processinfo_sweep_fdinfos();
++ 
+++  // Mission Center reads the command line, user and CPU use of every process itself, so the per-process
+++  // /proc lookups of gpuinfo_populate_process_info() would only repeat that work on every refresh.
++   list_for_each_entry(device, devices, list) {
++     device->vendor->refresh_running_processes(device);
++-    gpuinfo_populate_process_info(device);
++   }
++-  gpuinfo_clean_old_cache();
++ 
++   return true;
++ }
++diff --git a/src/extract_gpuinfo_nvidia.c b/src/extract_gpuinfo_nvidia.c
++index 87959cf..87d2de9 100644
++--- a/src/extract_gpuinfo_nvidia.c
+++++ b/src/extract_gpuinfo_nvidia.c
++@@ -186,6 +186,11 @@ typedef struct {
++   unsigned long long used;
++ } nvmlMemory_v2_t;
++ 
+++// nvmlMemory_v2 in nvml.h, NVML_STRUCT_VERSION(Memory, 2): the struct size with the version in the top
+++// byte. A bare 2 is refused with NVML_ERROR_ARGUMENT_VERSION_MISMATCH, and the v1 fallback counts the
+++// memory the driver reserves as used (357 MiB on an RTX 4070 Ti SUPER, driver 615.78).
+++#define NVML_MEMORY_V2 ((unsigned int)(sizeof(nvmlMemory_v2_t) | (2u << 24)))
+++
++ static nvmlReturn_t (*nvmlDeviceGetMemoryInfo)(nvmlDevice_t device, nvmlMemory_v1_t *memory);
++ static nvmlReturn_t (*nvmlDeviceGetMemoryInfo_v2)(nvmlDevice_t device, nvmlMemory_v2_t *memory);
++ 
++@@ -631,6 +636,11 @@ struct gpu_info_nvidia {
++   bool isInMigMode;
++   unsigned long long last_utilization_timestamp;
++ 
+++  // Maximum clocks are fixed for a board, and NVML spends about 1.7 ms of CPU on each query
+++  // (RTX 4070 Ti SUPER, driver 615.78), so they are read once. 0 means not read yet.
+++  unsigned max_clock_mhz[NVML_CLOCK_VIDEO + 1];
+++  bool mig_unsupported;
+++
++   // NVLink throughput via NVML API (data counters, aggregate across all links)
++   unsigned long long nvlink_last_tx; // Cumulative aggregate TX for delta computation
++   unsigned long long nvlink_last_rx; // Cumulative aggregate RX for delta computation
++@@ -994,7 +1004,7 @@ static void gpuinfo_nvidia_populate_static_info(struct gpu_info *_gpu_info) {
++   static_info->memory_shared_with_host = false;
++   if (nvmlDeviceGetMemoryInfo_v2) {
++     nvmlMemory_v2_t memory_info;
++-    memory_info.version = 2;
+++    memory_info.version = NVML_MEMORY_V2;
++     nvmlReturn_t ret = nvmlDeviceGetMemoryInfo_v2(device, &memory_info);
++     static_info->memory_shared_with_host =
++         ret == NVML_ERROR_NOT_SUPPORTED || (ret == NVML_SUCCESS && memory_info.total == 0);
++@@ -1086,6 +1096,19 @@ static void gpuinfo_nvidia_populate_static_info(struct gpu_info *_gpu_info) {
++     SET_VALID(gpuinfo_temperature_slowdown_threshold_valid, static_info->valid);
++ }
++ 
+++static nvmlReturn_t gpuinfo_nvidia_max_clock(struct gpu_info_nvidia *gpu_info, nvmlClockType_t type,
+++                                             unsigned *mhz) {
+++  if (!gpu_info->max_clock_mhz[type]) {
+++    nvmlReturn_t status = nvmlDeviceGetMaxClockInfo(gpu_info->gpuhandle, type, &gpu_info->max_clock_mhz[type]);
+++    if (status != NVML_SUCCESS) {
+++      gpu_info->max_clock_mhz[type] = 0;
+++      return status;
+++    }
+++  }
+++  *mhz = gpu_info->max_clock_mhz[type];
+++  return NVML_SUCCESS;
+++}
+++
++ static void gpuinfo_nvidia_refresh_dynamic_info(struct gpu_info *_gpu_info) {
++   struct gpu_info_nvidia *gpu_info = container_of(_gpu_info, struct gpu_info_nvidia, base);
++   struct gpuinfo_dynamic_info *dynamic_info = &gpu_info->base.dynamic_info;
++@@ -1121,7 +1144,7 @@ static void gpuinfo_nvidia_refresh_dynamic_info(struct gpu_info *_gpu_info) {
++   }
++ 
++   // GPU max speed
++-  last_nvml_return_status = nvmlDeviceGetMaxClockInfo(device, getMaxClockFrom, &dynamic_info->gpu_clock_speed_max);
+++  last_nvml_return_status = gpuinfo_nvidia_max_clock(gpu_info, getMaxClockFrom, &dynamic_info->gpu_clock_speed_max);
++   if (last_nvml_return_status == NVML_SUCCESS)
++     SET_VALID(gpuinfo_gpu_clock_speed_max_valid, dynamic_info->valid);
++ 
++@@ -1131,16 +1154,11 @@ static void gpuinfo_nvidia_refresh_dynamic_info(struct gpu_info *_gpu_info) {
++     SET_VALID(gpuinfo_mem_clock_speed_valid, dynamic_info->valid);
++ 
++   // Memory max speed
++-  last_nvml_return_status = nvmlDeviceGetMaxClockInfo(device, NVML_CLOCK_MEM, &dynamic_info->mem_clock_speed_max);
+++  last_nvml_return_status = gpuinfo_nvidia_max_clock(gpu_info, NVML_CLOCK_MEM, &dynamic_info->mem_clock_speed_max);
++   if (last_nvml_return_status == NVML_SUCCESS)
++     SET_VALID(gpuinfo_mem_clock_speed_max_valid, dynamic_info->valid);
++ 
++-  // Clock domains NVML does not report, such as XBAR. Pass the clocks NVML just
++-  // read so the private API's layout can be cross-checked before it is trusted.
++-  gpuinfo_nvidia_refresh_extra_clocks(gpu_info->nvapihandle, dynamic_info, graphics_clock_valid ? graphics_clock : 0,
++-                                      GPUINFO_DYNAMIC_FIELD_VALID(dynamic_info, mem_clock_speed)
++-                                          ? dynamic_info->mem_clock_speed
++-                                          : 0);
+++  // Mission Center shows no extra clock domains (XBAR and the like), so the NvAPI query is skipped.
++ 
++   // CPU and Memory utilization rates
++   nvmlUtilization_t utilization_percentages;
++@@ -1171,7 +1189,7 @@ static void gpuinfo_nvidia_refresh_dynamic_info(struct gpu_info *_gpu_info) {
++     bool got_meminfo = false;
++     if (nvmlDeviceGetMemoryInfo_v2) {
++       nvmlMemory_v2_t memory_info;
++-      memory_info.version = 2;
+++      memory_info.version = NVML_MEMORY_V2;
++       last_nvml_return_status = nvmlDeviceGetMemoryInfo_v2(device, &memory_info);
++       if (last_nvml_return_status == NVML_SUCCESS && memory_info.total != 0) {
++         got_meminfo = true;
++@@ -1216,20 +1234,11 @@ static void gpuinfo_nvidia_refresh_dynamic_info(struct gpu_info *_gpu_info) {
++       SET_VALID(gpuinfo_pcie_link_width_valid, dynamic_info->valid);
++   }
++ 
++-  // Pcie reception throughput
++-  last_nvml_return_status = nvmlDeviceGetPcieThroughput(device, NVML_PCIE_UTIL_RX_BYTES, &dynamic_info->pcie_rx);
++-  if (last_nvml_return_status == NVML_SUCCESS)
++-    SET_VALID(gpuinfo_pcie_rx_valid, dynamic_info->valid);
+++  // Mission Center shows no PCIe throughput. Each NVML throughput query samples the bus for 20 ms,
+++  // so the two queries are skipped.
++ 
++-  // Pcie transmission throughput
++-  last_nvml_return_status = nvmlDeviceGetPcieThroughput(device, NVML_PCIE_UTIL_TX_BYTES, &dynamic_info->pcie_tx);
++-  if (last_nvml_return_status == NVML_SUCCESS)
++-    SET_VALID(gpuinfo_pcie_tx_valid, dynamic_info->valid);
++-
++-  // Fan speed
++-  last_nvml_return_status = nvmlDeviceGetFanSpeed(device, &dynamic_info->fan_speed);
++-  if (last_nvml_return_status == NVML_SUCCESS)
++-    SET_VALID(gpuinfo_fan_speed_valid, dynamic_info->valid);
+++  // Mission Center shows no GPU fan speed, and the NVML fan query is the most expensive one left
+++  // (about 2.5 ms of CPU per refresh on an RTX 4070 Ti SUPER, driver 615.78), so it is skipped.
++ 
++   // GPU temperature
++   last_nvml_return_status = nvmlDeviceGetTemperature(device, NVML_TEMPERATURE_GPU, &dynamic_info->gpu_temp);
++@@ -1246,24 +1255,17 @@ static void gpuinfo_nvidia_refresh_dynamic_info(struct gpu_info *_gpu_info) {
++   if (last_nvml_return_status == NVML_SUCCESS)
++     SET_VALID(gpuinfo_power_draw_max_valid, dynamic_info->valid);
++ 
++-  if (nvmlDeviceGetTotalEccErrors) {
++-    unsigned long long ecc_count;
++-    last_nvml_return_status =
++-        nvmlDeviceGetTotalEccErrors(device, NVML_MEMORY_ERROR_TYPE_CORRECTED, NVML_VOLATILE_ECC, &ecc_count);
++-    if (last_nvml_return_status == NVML_SUCCESS)
++-      SET_GPUINFO_DYNAMIC(dynamic_info, ecc_corrected, ecc_count);
++-    last_nvml_return_status =
++-        nvmlDeviceGetTotalEccErrors(device, NVML_MEMORY_ERROR_TYPE_UNCORRECTED, NVML_VOLATILE_ECC, &ecc_count);
++-    if (last_nvml_return_status == NVML_SUCCESS)
++-      SET_GPUINFO_DYNAMIC(dynamic_info, ecc_uncorrected, ecc_count);
++-  }
+++  // Mission Center shows no ECC error counts, so the two ECC queries are skipped.
++ 
++-  // MIG mode
++-  if (nvmlDeviceGetMigMode) {
+++  // MIG mode. A board without MIG support (every GeForce) answers NOT_SUPPORTED for good, so it is
+++  // not asked again.
+++  if (nvmlDeviceGetMigMode && !gpu_info->mig_unsupported) {
++     unsigned currentMode, pendingMode;
++     last_nvml_return_status = nvmlDeviceGetMigMode(device, &currentMode, &pendingMode);
++     if (last_nvml_return_status == NVML_SUCCESS) {
++       SET_GPUINFO_DYNAMIC(dynamic_info, multi_instance_mode, currentMode == NVML_DEVICE_MIG_ENABLE);
+++    } else if (last_nvml_return_status == NVML_ERROR_NOT_SUPPORTED) {
+++      gpu_info->mig_unsupported = true;
++     }
++   }
++ 
+diff --git a/platform-linux/src/gpus/processes.rs b/platform-linux/src/gpus/processes.rs
+new file mode 100644
+index 0000000..024409a
+--- /dev/null
++++ b/platform-linux/src/gpus/processes.rs
+@@ -0,0 +1,195 @@
++/* src/gpus/processes.rs
++ *
++ * Copyright 2026 Mission Center Developers
++ *
++ * This program is free software: you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation, either version 3 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
++ *
++ * SPDX-License-Identifier: GPL-3.0-or-later
++ */
++
++use std::collections::HashMap;
++use std::time::{Duration, Instant};
++
++use magpie_platform::gpus::{Process, ProcessKind, ProcessUsage};
++
++/// Shortest time between two reads of the per-process GPU usage.
++///
++/// NVML answers a utilization query with the samples taken since the previous one
++/// (`nvmlDeviceGetProcessUtilization`, `lastSeenTimeStamp`); a second query a few milliseconds later
++/// finds no new sample and NVTop then reports 0% for every process. Mission Center refreshes at most
++/// once per update tick (1 s by default, 0.5 s at the fastest setting), so this gap only drops the
++/// extra refreshes that can arrive within one tick.
++const PROCESS_REFRESH_MIN_GAP: Duration = Duration::from_millis(450);
++
++/// Whether the per-process GPU usage should be read again now.
++pub fn process_refresh_due(last: Option<Instant>, now: Instant) -> bool {
++    last.is_none_or(|last| now.saturating_duration_since(last) >= PROCESS_REFRESH_MIN_GAP)
++}
++
++/// Whether this refresh reads the per-process GPU usage: when someone shows processes, or when a GPU
++/// needs its processes to compute its own utilization.
++pub fn processes_needed(processes: ProcessUsage, every_gpu_reports_utilization: bool) -> bool {
++    processes == ProcessUsage::Wanted || !every_gpu_reports_utilization
++}
++
++/// Adds one NVTop process entry to the per-PID map, merging it with an earlier entry for the same PID.
++///
++/// NVML lists a process that holds both a graphics and a compute context twice, once per list, and
++/// NVTop gives the utilization sample to the first copy only, setting the other copy to 0%
++/// (`gpuinfo_nvidia_get_process_utilization` in `extract_gpuinfo_nvidia.c`). Both copies carry the
++/// process's whole memory use. So the merged entry keeps the highest value of each field, which never
++/// counts one sample or one allocation twice, and a kind that covers both contexts.
++pub fn insert_process(processes: &mut HashMap<u32, Process>, pid: u32, process: Process) {
++    let Some(existing) = processes.get_mut(&pid) else {
++        processes.insert(pid, process);
++        return;
++    };
++
++    existing.kind = merge_kind(existing.kind, process.kind);
++    existing.memory_usage_bytes = max_of(existing.memory_usage_bytes, process.memory_usage_bytes);
++    existing.gpu_usage_percent = max_of(existing.gpu_usage_percent, process.gpu_usage_percent);
++    existing.encode_usage_percent =
++        max_of(existing.encode_usage_percent, process.encode_usage_percent);
++    existing.decode_usage_percent =
++        max_of(existing.decode_usage_percent, process.decode_usage_percent);
++}
++
++fn max_of<T: PartialOrd>(a: Option<T>, b: Option<T>) -> Option<T> {
++    match (a, b) {
++        (Some(a), Some(b)) => Some(if b > a { b } else { a }),
++        (a, None) => a,
++        (None, b) => b,
++    }
++}
++
++fn merge_kind(a: Option<i32>, b: Option<i32>) -> Option<i32> {
++    let (Some(a), Some(b)) = (a, b) else {
++        return a.or(b);
++    };
++    if a == b {
++        Some(a)
++    } else {
++        Some(ProcessKind::GraphicalCompute as i32)
++    }
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++
++    #[test]
++    fn a_hidden_window_skips_the_per_process_gpu_usage() {
++        assert!(processes_needed(ProcessUsage::Wanted, true));
++        assert!(!processes_needed(ProcessUsage::NotWanted, true));
++    }
++
++    #[test]
++    fn a_gpu_that_needs_its_processes_for_its_utilization_reads_them_anyway() {
++        assert!(processes_needed(ProcessUsage::NotWanted, false));
++    }
++
++    const RE9: u32 = 3216454;
++    const VRAM: u64 = 11_402 << 20;
++
++    fn entry(kind: ProcessKind, gpu: f32) -> Process {
++        Process {
++            kind: Some(kind as i32),
++            memory_usage_bytes: Some(VRAM),
++            gpu_usage_percent: Some(gpu),
++            encode_usage_percent: Some(0.),
++            decode_usage_percent: Some(0.),
++        }
++    }
++
++    // Recorded 2026-11-05 on an RTX 4070 Ti SUPER (nvidia-open 615.78.08): re9.exe was listed by NVML
++    // as graphics (89%) and as compute (0%), both with 11402 MiB.
++    #[test]
++    fn a_process_with_graphics_and_compute_contexts_keeps_its_utilization() {
++        let mut map = HashMap::new();
++        insert_process(&mut map, RE9, entry(ProcessKind::Graphical, 89.));
++        insert_process(&mut map, RE9, entry(ProcessKind::Compute, 0.));
++
++        let merged = &map[&RE9];
++        assert_eq!(merged.gpu_usage_percent, Some(89.));
++        assert_eq!(
++            merged.memory_usage_bytes,
++            Some(VRAM),
++            "memory is counted once"
++        );
++        assert_eq!(merged.kind, Some(ProcessKind::GraphicalCompute as i32));
++    }
++
++    #[test]
++    fn the_order_of_the_two_entries_does_not_matter() {
++        let mut map = HashMap::new();
++        insert_process(&mut map, RE9, entry(ProcessKind::Compute, 0.));
++        insert_process(&mut map, RE9, entry(ProcessKind::Graphical, 89.));
++
++        assert_eq!(map[&RE9].gpu_usage_percent, Some(89.));
++        assert_eq!(map[&RE9].kind, Some(ProcessKind::GraphicalCompute as i32));
++    }
++
++    #[test]
++    fn a_known_value_wins_over_a_missing_one() {
++        let mut map = HashMap::new();
++        let mut unknown = entry(ProcessKind::Graphical, 0.);
++        unknown.gpu_usage_percent = None;
++        unknown.decode_usage_percent = None;
++        insert_process(&mut map, RE9, unknown);
++        let mut decoding = entry(ProcessKind::Compute, 12.);
++        decoding.decode_usage_percent = Some(30.);
++        insert_process(&mut map, RE9, decoding);
++
++        assert_eq!(map[&RE9].gpu_usage_percent, Some(12.));
++        assert_eq!(map[&RE9].decode_usage_percent, Some(30.));
++    }
++
++    #[test]
++    fn the_first_refresh_reads_processes() {
++        assert!(process_refresh_due(None, Instant::now()));
++    }
++
++    #[test]
++    fn a_refresh_on_the_next_tick_reads_processes_again() {
++        let last = Instant::now();
++        assert!(process_refresh_due(
++            Some(last),
++            last + Duration::from_millis(500)
++        ));
++        assert!(process_refresh_due(
++            Some(last),
++            last + Duration::from_secs(1)
++        ));
++    }
++
++    #[test]
++    fn a_second_refresh_within_the_same_tick_keeps_the_last_reading() {
++        let last = Instant::now();
++        assert!(!process_refresh_due(
++            Some(last),
++            last + Duration::from_millis(5)
++        ));
++    }
++
++    #[test]
++    fn different_processes_stay_separate() {
++        let mut map = HashMap::new();
++        insert_process(&mut map, 1, entry(ProcessKind::Graphical, 5.));
++        insert_process(&mut map, 2, entry(ProcessKind::Compute, 7.));
++
++        assert_eq!(map.len(), 2);
++        assert_eq!(map[&1].kind, Some(ProcessKind::Graphical as i32));
++        assert_eq!(map[&2].gpu_usage_percent, Some(7.));
++    }
++}
+diff --git a/platform-linux/src/processes/memory.rs b/platform-linux/src/processes/memory.rs
+new file mode 100644
+index 0000000..9cbdb21
+--- /dev/null
++++ b/platform-linux/src/processes/memory.rs
+@@ -0,0 +1,549 @@
++/* src/processes/memory.rs
++ *
++ * Copyright 2026 Mission Center Developers
++ *
++ * This program is free software: you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation, either version 3 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
++ *
++ * SPDX-License-Identifier: GPL-3.0-or-later
++ */
++
++//! Memory of each process as its proportional set size (PSS), kept exact at a small cost.
++//!
++//! PSS divides every shared page between the processes that map it, so the memory of all processes
++//! adds up to what they really use. The kernel computes it in `/proc/<pid>/smaps_rollup` by walking
++//! the page tables of the process: about 2 ms of CPU per process on average, and up to 37 ms for a
++//! large address space (157 processes, kernel 7.3, 2026-11-05). That is too much to repeat every
++//! second. `/proc/<pid>/status` counts resident pages exactly and cheaply (`get_mm_counter_sum()` in
++//! `fs/proc/task_mmu.c`), but counts shared pages in full.
++//!
++//! So the PSS of a process is read once, then follows the changes of its resident counters, each
++//! scaled by the share the last exact reading measured for its kind of memory. A process is read
++//! again when its counters drifted far enough, and the rereads of one refresh are capped.
++
++use std::collections::{HashMap, HashSet};
++use std::fmt::Write;
++use std::io::Read;
++use std::time::{Duration, Instant};
++
++use arrayvec::{ArrayString, ArrayVec};
++
++use crate::processes::MAX_U32_LEN;
++use crate::util::parse_u64;
++
++/// Smallest drift of the resident counters that makes a process worth reading again.
++const MIN_DRIFT: u64 = 1024 * 1024;
++
++/// A drift of this many hundredths of the last PSS also makes a process worth reading again.
++const DRIFT_PERCENT: u64 = 1;
++
++/// Shortest time between two exact readings of one process.
++const MIN_REREAD_INTERVAL: Duration = Duration::from_secs(10);
++
++/// Longest time a process goes without an exact reading: other processes that start or stop mapping
++/// the same files change its share without changing its counters.
++const RECHECK_INTERVAL: Duration = Duration::from_secs(60);
++
++/// A process is read at most once per this many times the CPU time its last reading took. The kernel
++/// holds the memory map lock of the process while it walks it, so a slow walk is repeated less often.
++const READ_COST_FACTOR: u32 = 1000;
++
++/// CPU time one refresh may spend reading known processes again. New processes are always read.
++const REREAD_BUDGET: Duration = Duration::from_millis(3);
++
++/// A process, told apart from an earlier one with the same PID by its start time.
++type Key = (u32, u64);
++
++/// The resident counters of `/proc/<pid>/status`, in bytes.
++#[derive(Clone, Copy, Debug, Default, PartialEq)]
++pub struct ProcStatus {
++    rss_anon: u64,
++    rss_file: u64,
++    rss_shmem: u64,
++    vm_swap: u64,
++}
++
++impl ProcStatus {
++    fn resident(&self) -> u64 {
++        self.rss_anon + self.rss_file + self.rss_shmem
++    }
++
++    pub fn swap(&self) -> u64 {
++        self.vm_swap
++    }
++}
++
++/// The PSS of each kind of memory, from `/proc/<pid>/smaps_rollup`, in bytes.
++#[derive(Clone, Copy, Debug, Default, PartialEq)]
++pub struct Rollup {
++    pss_anon: u64,
++    pss_file: u64,
++    pss_shmem: u64,
++}
++
++#[derive(Clone, Copy, Debug)]
++struct Reading {
++    rollup: Rollup,
++    /// The resident counters when the rollup was read.
++    status: ProcStatus,
++    read_at: Instant,
++    cost: Duration,
++}
++
++impl Reading {
++    fn pss(&self) -> u64 {
++        self.rollup.pss_anon + self.rollup.pss_file + self.rollup.pss_shmem
++    }
++
++    fn estimate(&self, now: &ProcStatus) -> u64 {
++        let then = &self.status;
++        follow_anon(self.rollup.pss_anon, then.rss_anon, now.rss_anon)
++            + follow(self.rollup.pss_file, then.rss_file, now.rss_file)
++            + follow(self.rollup.pss_shmem, then.rss_shmem, now.rss_shmem)
++    }
++
++    fn drift(&self, now: &ProcStatus) -> u64 {
++        let then = &self.status;
++        then.rss_anon.abs_diff(now.rss_anon)
++            + then.rss_file.abs_diff(now.rss_file)
++            + then.rss_shmem.abs_diff(now.rss_shmem)
++    }
++
++    /// The priority of reading the process again, or `None` when the estimate is still good. The
++    /// priority is the drift of the counters plus, for changes the counters cannot show, the PSS
++    /// prorated by the time since the last reading over [`RECHECK_INTERVAL`].
++    fn reread_priority(&self, now_status: &ProcStatus, now: Instant) -> Option<u64> {
++        let age = now.saturating_duration_since(self.read_at);
++        let cost_floor = self.cost * READ_COST_FACTOR;
++        let drift = self.drift(now_status);
++        let staleness =
++            (self.pss() as f64 * age.as_secs_f64() / RECHECK_INTERVAL.as_secs_f64()) as u64;
++
++        let threshold = MIN_DRIFT.max(self.pss() * DRIFT_PERCENT / 100);
++        let due = age >= RECHECK_INTERVAL.max(cost_floor)
++            || (drift >= threshold && age >= MIN_REREAD_INTERVAL.max(cost_floor));
++        due.then_some(drift + staleness)
++    }
++}
++
++/// Like [`follow`], but new anonymous pages belong to the process alone: an anonymous page is only
++/// shared after a fork, until either side writes to it.
++fn follow_anon(pss: u64, resident_then: u64, resident_now: u64) -> u64 {
++    match resident_now.checked_sub(resident_then) {
++        Some(grown) => pss + grown,
++        None => follow(pss, resident_then, resident_now),
++    }
++}
++
++/// Moves `pss` by the change of a resident counter, scaled by the share measured with `pss`.
++fn follow(pss: u64, resident_then: u64, resident_now: u64) -> u64 {
++    if resident_then == 0 {
++        return pss + resident_now;
++    }
++    let share = pss as f64 / resident_then as f64;
++    let moved = pss as f64 + (resident_now as f64 - resident_then as f64) * share;
++    moved.max(0.0) as u64
++}
++
++/// Exact PSS readings of every process that can be read, and which processes cannot.
++#[derive(Debug, Default)]
++pub struct ProportionalMemory {
++    readings: HashMap<Key, Reading>,
++    unreadable: HashSet<Key>,
++}
++
++impl ProportionalMemory {
++    /// Reads the processes that are new or whose estimate drifted. `processes` holds every live
++    /// process as (PID, start time, status); the others are forgotten.
++    pub fn refresh(&mut self, processes: &[(u32, u64, ProcStatus)], now: Instant) {
++        self.refresh_with(processes, now, |pid| {
++            let started = Instant::now();
++            read_rollup(pid).map(|rollup| (rollup, started.elapsed()))
++        });
++    }
++
++    fn refresh_with(
++        &mut self,
++        processes: &[(u32, u64, ProcStatus)],
++        now: Instant,
++        mut read: impl FnMut(u32) -> std::io::Result<(Rollup, Duration)>,
++    ) {
++        let alive: HashSet<Key> = processes
++            .iter()
++            .map(|(pid, start, _)| (*pid, *start))
++            .collect();
++        self.readings.retain(|key, _| alive.contains(key));
++        self.unreadable.retain(|key| alive.contains(key));
++
++        let mut rereads = Vec::new();
++        for (pid, start, status) in processes {
++            let key = (*pid, *start);
++            if self.unreadable.contains(&key) {
++                continue;
++            }
++            match self.readings.get(&key) {
++                None => {
++                    self.read(key, status, now, &mut read);
++                }
++                Some(reading) => {
++                    if let Some(priority) = reading.reread_priority(status, now) {
++                        rereads.push((priority, key, status));
++                    }
++                }
++            }
++        }
++
++        rereads.sort_unstable_by_key(|(priority, _, _)| std::cmp::Reverse(*priority));
++        let mut spent = Duration::ZERO;
++        for (_, key, status) in rereads {
++            if spent >= REREAD_BUDGET {
++                break;
++            }
++            spent += self.read(key, status, now, &mut read);
++        }
++    }
++
++    fn read(
++        &mut self,
++        key: Key,
++        status: &ProcStatus,
++        now: Instant,
++        read: &mut impl FnMut(u32) -> std::io::Result<(Rollup, Duration)>,
++    ) -> Duration {
++        match read(key.0) {
++            Ok((rollup, cost)) => {
++                self.readings.insert(
++                    key,
++                    Reading {
++                        rollup,
++                        status: *status,
++                        read_at: now,
++                        cost,
++                    },
++                );
++                cost
++            }
++            Err(err) if err.kind() == std::io::ErrorKind::PermissionDenied => {
++                self.readings.remove(&key);
++                self.unreadable.insert(key);
++                Duration::ZERO
++            }
++            // The process exited after its status was read; the next refresh forgets it.
++            Err(err) => {
++                log::debug!(
++                    "Failed to read `smaps_rollup` of process {}: {}",
++                    key.0,
++                    err
++                );
++                Duration::ZERO
++            }
++        }
++    }
++
++    /// The memory of a process: its PSS when it can be read, otherwise its resident set size.
++    pub fn memory(&self, pid: u32, start_time: u64, status: &ProcStatus) -> u64 {
++        match self.readings.get(&(pid, start_time)) {
++            Some(reading) => reading.estimate(status),
++            None => status.resident(),
++        }
++    }
++}
++
++pub fn parse_status(content: &[u8]) -> Option<ProcStatus> {
++    let mut result = ProcStatus::default();
++    for line in content.split(|byte| *byte == b'\n') {
++        if let Some(rest) = line.strip_prefix(b"RssAnon:") {
++            result.rss_anon = parse_kib(rest, "RssAnon")?;
++        } else if let Some(rest) = line.strip_prefix(b"RssFile:") {
++            result.rss_file = parse_kib(rest, "RssFile")?;
++        } else if let Some(rest) = line.strip_prefix(b"RssShmem:") {
++            result.rss_shmem = parse_kib(rest, "RssShmem")?;
++        } else if let Some(rest) = line.strip_prefix(b"VmSwap:") {
++            result.vm_swap = parse_kib(rest, "VmSwap")?;
++        }
++    }
++    Some(result)
++}
++
++fn read_rollup(pid: u32) -> std::io::Result<Rollup> {
++    let mut content = Vec::with_capacity(1024);
++    open_proc_file(pid, "smaps_rollup")?.read_to_end(&mut content)?;
++    parse_rollup(&content)
++        .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::InvalidData, "bad smaps_rollup"))
++}
++
++/// A process without an address space (a kernel thread) has an empty rollup, which reads as zero.
++fn parse_rollup(content: &[u8]) -> Option<Rollup> {
++    let mut result = Rollup::default();
++    for line in content.split(|byte| *byte == b'\n') {
++        if let Some(rest) = line.strip_prefix(b"Pss_Anon:") {
++            result.pss_anon = parse_kib(rest, "Pss_Anon")?;
++        } else if let Some(rest) = line.strip_prefix(b"Pss_File:") {
++            result.pss_file = parse_kib(rest, "Pss_File")?;
++        } else if let Some(rest) = line.strip_prefix(b"Pss_Shmem:") {
++            result.pss_shmem = parse_kib(rest, "Pss_Shmem")?;
++        }
++    }
++    Some(result)
++}
++
++/// Parses the "  1234 kB" value of a `/proc` field into bytes.
++fn parse_kib(value: &[u8], what: &str) -> Option<u64> {
++    let mut c_buf: ArrayVec<u8, 65> = ArrayVec::new();
++    c_buf.extend(value.trim_ascii_start().iter().copied().take(64));
++    c_buf.push(0);
++    Some(parse_u64(c_buf.as_slice(), 10, what)? * 1024)
++}
++
++fn open_proc_file(pid: u32, name: &str) -> std::io::Result<std::fs::File> {
++    const MAX_PATH_LEN: usize = "/proc/".len() + "/smaps_rollup".len() + MAX_U32_LEN;
++
++    let mut path: ArrayString<MAX_PATH_LEN> = ArrayString::new();
++    let _ = write!(path, "/proc/{}/{}", pid, name);
++    std::fs::File::open(path.as_str())
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++
++    const MIB: u64 = 1024 * 1024;
++
++    fn status(anon_mib: u64, file_mib: u64, shmem_mib: u64) -> ProcStatus {
++        ProcStatus {
++            rss_anon: anon_mib * MIB,
++            rss_file: file_mib * MIB,
++            rss_shmem: shmem_mib * MIB,
++            vm_swap: 0,
++        }
++    }
++
++    fn rollup(anon_mib: u64, file_mib: u64, shmem_mib: u64) -> Rollup {
++        Rollup {
++            pss_anon: anon_mib * MIB,
++            pss_file: file_mib * MIB,
++            pss_shmem: shmem_mib * MIB,
++        }
++    }
++
++    fn fast(r: Rollup) -> std::io::Result<(Rollup, Duration)> {
++        Ok((r, Duration::from_micros(500)))
++    }
++
++    #[test]
++    fn a_new_process_shows_its_exact_pss_on_its_first_refresh() {
++        let mut memory = ProportionalMemory::default();
++        let now = Instant::now();
++        memory.refresh_with(&[(7, 1, status(100, 40, 8))], now, |_| {
++            fast(rollup(90, 10, 2))
++        });
++
++        assert_eq!(memory.memory(7, 1, &status(100, 40, 8)), 102 * MIB);
++    }
++
++    #[test]
++    fn between_readings_memory_follows_the_counters_at_the_measured_share() {
++        let mut memory = ProportionalMemory::default();
++        let now = Instant::now();
++        // Anonymous memory is all private, file memory is shared by four processes.
++        memory.refresh_with(&[(7, 1, status(100, 40, 0))], now, |_| {
++            fast(rollup(100, 10, 0))
++        });
++
++        // 20 MiB more anonymous memory counts in full, 8 MiB more file memory counts a quarter.
++        assert_eq!(memory.memory(7, 1, &status(120, 48, 0)), 132 * MIB);
++        // Memory that starts from nothing has no measured share yet and counts in full.
++        assert_eq!(memory.memory(7, 1, &status(100, 40, 3)), 113 * MIB);
++    }
++
++    #[test]
++    fn new_anonymous_memory_of_a_forked_process_counts_in_full() {
++        let mut memory = ProportionalMemory::default();
++        let now = Instant::now();
++        // Half of the anonymous memory is still shared with the parent after a fork.
++        memory.refresh_with(&[(7, 1, status(100, 0, 0))], now, |_| {
++            fast(rollup(50, 0, 0))
++        });
++
++        assert_eq!(memory.memory(7, 1, &status(120, 0, 0)), 70 * MIB);
++        // Freed pages were shared in the measured proportion.
++        assert_eq!(memory.memory(7, 1, &status(80, 0, 0)), 40 * MIB);
++    }
++
++    #[test]
++    fn a_drifted_process_is_read_again_after_the_reread_interval() {
++        let mut memory = ProportionalMemory::default();
++        let start = Instant::now();
++        memory.refresh_with(&[(7, 1, status(100, 0, 0))], start, |_| {
++            fast(rollup(100, 0, 0))
++        });
++
++        let mut reads = 0;
++        let grown = [(7, 1, status(150, 0, 0))];
++        memory.refresh_with(&grown, start + Duration::from_secs(1), |_| {
++            reads += 1;
++            fast(rollup(140, 0, 0))
++        });
++        assert_eq!(reads, 0, "too soon after the last reading");
++
++        memory.refresh_with(&grown, start + MIN_REREAD_INTERVAL, |_| {
++            reads += 1;
++            fast(rollup(140, 0, 0))
++        });
++        assert_eq!(reads, 1);
++        assert_eq!(memory.memory(7, 1, &status(150, 0, 0)), 140 * MIB);
++    }
++
++    #[test]
++    fn a_process_whose_counters_barely_moved_waits_for_the_recheck() {
++        let mut memory = ProportionalMemory::default();
++        let start = Instant::now();
++        memory.refresh_with(&[(7, 1, status(500, 0, 0))], start, |_| {
++            fast(rollup(500, 0, 0))
++        });
++
++        // 4 MiB is below 1% of 500 MiB.
++        let barely = [(7, 1, status(504, 0, 0))];
++        let mut reads = 0;
++        memory.refresh_with(&barely, start + MIN_REREAD_INTERVAL, |_| {
++            reads += 1;
++            fast(rollup(504, 0, 0))
++        });
++        assert_eq!(reads, 0);
++
++        memory.refresh_with(&barely, start + RECHECK_INTERVAL, |_| {
++            reads += 1;
++            fast(rollup(504, 0, 0))
++        });
++        assert_eq!(reads, 1);
++    }
++
++    #[test]
++    fn a_process_that_is_slow_to_read_is_read_less_often() {
++        let mut memory = ProportionalMemory::default();
++        let start = Instant::now();
++        memory.refresh_with(&[(7, 1, status(100, 0, 0))], start, |_| {
++            Ok((rollup(100, 0, 0), Duration::from_millis(40)))
++        });
++
++        let grown = [(7, 1, status(300, 0, 0))];
++        let mut reads = 0;
++        memory.refresh_with(&grown, start + MIN_REREAD_INTERVAL, |_| {
++            reads += 1;
++            fast(rollup(300, 0, 0))
++        });
++        assert_eq!(reads, 0, "40 ms of reading allows one reading per 40 s");
++
++        memory.refresh_with(&grown, start + Duration::from_secs(40), |_| {
++            reads += 1;
++            fast(rollup(300, 0, 0))
++        });
++        assert_eq!(reads, 1);
++    }
++
++    #[test]
++    fn one_refresh_rereads_within_its_budget_the_largest_drift_first() {
++        let mut memory = ProportionalMemory::default();
++        let start = Instant::now();
++        let pids: Vec<u32> = (1..=6).collect();
++        let first: Vec<_> = pids.iter().map(|pid| (*pid, 0, status(10, 0, 0))).collect();
++        memory.refresh_with(&first, start, |_| fast(rollup(10, 0, 0)));
++
++        // Process N grew by N MiB.
++        let grown: Vec<_> = pids
++            .iter()
++            .map(|pid| (*pid, 0, status(10 + u64::from(*pid), 0, 0)))
++            .collect();
++        // Each reading takes 1 ms, so the budget allows three.
++        let mut read = Vec::new();
++        memory.refresh_with(&grown, start + MIN_REREAD_INTERVAL, |pid| {
++            read.push(pid);
++            Ok((rollup(10, 0, 0), Duration::from_millis(1)))
++        });
++        read.sort_unstable();
++        assert_eq!(read, vec![4, 5, 6]);
++    }
++
++    #[test]
++    fn a_process_of_another_user_shows_its_resident_memory_and_is_not_retried() {
++        let mut memory = ProportionalMemory::default();
++        let start = Instant::now();
++        let denied = || Err(std::io::Error::from(std::io::ErrorKind::PermissionDenied));
++        memory.refresh_with(&[(7, 1, status(10, 20, 1))], start, |_| denied());
++
++        assert_eq!(memory.memory(7, 1, &status(10, 20, 1)), 31 * MIB);
++
++        let mut reads = 0;
++        memory.refresh_with(
++            &[(7, 1, status(50, 20, 1))],
++            start + RECHECK_INTERVAL,
++            |_| {
++                reads += 1;
++                denied()
++            },
++        );
++        assert_eq!(reads, 0);
++    }
++
++    #[test]
++    fn a_reused_pid_is_read_as_a_new_process() {
++        let mut memory = ProportionalMemory::default();
++        let start = Instant::now();
++        memory.refresh_with(&[(7, 1, status(100, 0, 0))], start, |_| {
++            fast(rollup(100, 0, 0))
++        });
++        memory.refresh_with(
++            &[(7, 2, status(5, 0, 0))],
++            start + Duration::from_secs(1),
++            |_| fast(rollup(4, 0, 0)),
++        );
++
++        assert_eq!(memory.memory(7, 2, &status(5, 0, 0)), 4 * MIB);
++        assert_eq!(memory.readings.len(), 1, "the exited process is forgotten");
++    }
++
++    // A real /proc/<pid>/smaps_rollup (CachyOS, kernel 7.3, 2026-11-05).
++    #[test]
++    fn rollup_fields_are_read_in_bytes() {
++        let content = b"557366de5000-7ffc44245000 ---p 00000000 00:00 0      [rollup]\n\
++Rss:                2504 kB\nPss:                 253 kB\nPss_Dirty:           120 kB\n\
++Pss_Anon:            120 kB\nPss_File:            133 kB\nPss_Shmem:             0 kB\n\
++Shared_Clean:       2364 kB\nPrivate_Dirty:       120 kB\nSwapPss:               0 kB\n";
++        assert_eq!(
++            parse_rollup(content),
++            Some(Rollup {
++                pss_anon: 120 * 1024,
++                pss_file: 133 * 1024,
++                pss_shmem: 0,
++            })
++        );
++        assert_eq!(parse_rollup(b""), Some(Rollup::default()));
++    }
++
++    // Lines of a real /proc/<pid>/status (CachyOS, kernel 7.3, 2026-11-05).
++    #[test]
++    fn status_fields_are_read_in_bytes() {
++        let status = b"Name:\tbash\nVmPeak:\t   10000 kB\nVmSize:\t    9312 kB\nVmRSS:\t    5400 kB\n\
++RssAnon:\t    1820 kB\nRssFile:\t    3580 kB\nRssShmem:\t       0 kB\nVmSwap:\t      12 kB\nThreads:\t1\n";
++        let parsed = parse_status(status).expect("a valid status file parses");
++        assert_eq!(
++            parsed,
++            ProcStatus {
++                rss_anon: 1820 * 1024,
++                rss_file: 3580 * 1024,
++                rss_shmem: 0,
++                vm_swap: 12 * 1024,
++            }
++        );
++    }
++}
+diff --git a/platform-linux/src/processes/nethogs.rs b/platform-linux/src/processes/nethogs.rs
+new file mode 100644
+index 0000000..64dfd65
+--- /dev/null
++++ b/platform-linux/src/processes/nethogs.rs
+@@ -0,0 +1,143 @@
++/* src/processes/nethogs.rs
++ *
++ * Copyright 2026 Mission Center Developers
++ *
++ * This program is free software: you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation, either version 3 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
++ *
++ * SPDX-License-Identifier: GPL-3.0-or-later
++ */
++
++//! Network use per process from nethogs' trace mode.
++//!
++//! `nethogs -t -v 2 -C` prints, after each "Refreshing:" line, one line per process with traffic:
++//! `<command line>/<pid>/<uid>\t<bytes sent>\t<bytes received>`, totals since nethogs started. The
++//! trace output is plain text, so it is read line by line instead of rendering nethogs' curses screen.
++
++use std::io::{BufRead, BufReader};
++use std::os::unix::process::CommandExt;
++use std::process::{Command, Stdio};
++
++use tokio::sync::mpsc::Sender;
++
++use super::NethogsRecord;
++
++/// Starts nethogs on a thread of its own and sends every record it prints. The sender is dropped
++/// when nethogs cannot start or exits (missing, or without its capture capabilities), which the
++/// process cache reports as a permissions error.
++pub fn spawn(sender: Sender<NethogsRecord>) {
++    let started = std::thread::Builder::new()
++        .name("nethogs".to_owned())
++        .spawn(move || read_nethogs(sender));
++    if let Err(err) = started {
++        log::warn!("Failed to start the nethogs thread: {err}");
++    }
++}
++
++fn read_nethogs(sender: Sender<NethogsRecord>) {
++    let mut command = Command::new("nethogs");
++    command
++        .args(["-t", "-v", "2", "-C"])
++        .stdin(Stdio::null())
++        .stdout(Stdio::piped())
++        .stderr(Stdio::null());
++    // SAFETY: prctl is async-signal-safe and touches no memory of the parent. The child dies with
++    // this thread, which lives as long as magpie reads it.
++    unsafe {
++        command.pre_exec(|| {
++            libc::prctl(libc::PR_SET_PDEATHSIG, libc::SIGTERM);
++            Ok(())
++        });
++    }
++    let mut child = match command.spawn() {
++        Ok(child) => child,
++        Err(err) => {
++            log::warn!("Failed to start nethogs: {err}");
++            return;
++        }
++    };
++    let Some(stdout) = child.stdout.take() else {
++        return;
++    };
++    for line in BufReader::new(stdout).lines() {
++        let Ok(line) = line else {
++            break;
++        };
++        if let Some(record) = parse_trace_line(&line) {
++            if sender.blocking_send(record).is_err() {
++                break;
++            }
++        }
++    }
++    let _ = child.kill();
++    let status = child.wait();
++    log::warn!("nethogs exited: {status:?}");
++}
++
++/// Parses one trace line; `None` for "Refreshing:", connections without a process and other text.
++pub fn parse_trace_line(line: &str) -> Option<NethogsRecord> {
++    let mut fields = line.rsplitn(3, '\t');
++    let received = fields.next()?.trim().parse::<f64>().ok()?;
++    let sent = fields.next()?.trim().parse::<f64>().ok()?;
++    let program = fields.next()?;
++
++    let mut ids = program.rsplitn(3, '/');
++    let _uid = ids.next()?;
++    let pid = ids.next()?.parse::<u32>().ok()?;
++    let name = ids.next()?;
++    if pid == 0 {
++        return None;
++    }
++    Some(NethogsRecord::new(
++        name.to_owned(),
++        pid,
++        String::new(),
++        sent as u64,
++        received as u64,
++    ))
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++
++    // Lines of `nethogs -t -v 2 -C`, nethogs 0.9.0 (CachyOS, 2026-11-05).
++    #[test]
++    fn a_process_line_gives_its_pid_and_byte_totals() {
++        let record = parse_trace_line(
++            "/home/user/.local/share/Steam/ubuntu12_32/steam/1041161/1000\t132\t936",
++        )
++        .expect("a process line parses");
++        assert_eq!(record.pid, 1041161);
++        assert_eq!(record.sent_bytes, 132);
++        assert_eq!(record.recv_bytes, 936);
++    }
++
++    #[test]
++    fn a_command_line_with_spaces_and_slashes_keeps_the_pid_at_its_end() {
++        let line = "/opt/microsoft/msedge/msedge --type=utility --lang=en-US --x=a/b/c/3109594/1000\t66\t2104";
++        let record = parse_trace_line(line).expect("a long command line parses");
++        assert_eq!(record.pid, 3109594);
++        assert_eq!((record.sent_bytes, record.recv_bytes), (66, 2104));
++    }
++
++    #[test]
++    fn connections_without_a_process_and_headers_are_skipped() {
++        assert!(parse_trace_line("unknown TCP/0/0\t0\t0").is_none());
++        assert!(parse_trace_line("Refreshing:").is_none());
++        assert!(
++            parse_trace_line("Unknown connection: 192.168.1.123:51870-140.82.114.5:443").is_none()
++        );
++        assert!(parse_trace_line("").is_none());
++    }
++}
+diff --git a/platform-linux/src/processes/open_files.rs b/platform-linux/src/processes/open_files.rs
+new file mode 100644
+index 0000000..b514c43
+--- /dev/null
++++ b/platform-linux/src/processes/open_files.rs
+@@ -0,0 +1,253 @@
++/* src/processes/open_files.rs
++ *
++ * Copyright 2026 Mission Center Developers
++ *
++ * This program is free software: you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation, either version 3 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
++ *
++ * SPDX-License-Identifier: GPL-3.0-or-later
++ */
++
++//! Files of `/proc/<pid>` kept open from one refresh to the next.
++//!
++//! Opening a `/proc` file resolves the path and sets up a file each time, which was half the cost of
++//! reading `stat`, `io` and `status` for every process (9.8 ms against 4.8 ms for 625 processes). A
++//! read at offset 0 makes the kernel generate the content again, so one open per process lifetime
++//! is enough. A file opened for a process that exited answers `ESRCH`, also after its PID was reused,
++//! so a failed read closes the file and opens the path once more.
++
++use std::collections::HashMap;
++use std::fmt::Write;
++use std::fs::File;
++use std::os::unix::fs::FileExt;
++
++use arrayvec::ArrayString;
++
++use crate::processes::MAX_U32_LEN;
++
++/// File descriptors kept free for everything else magpie opens.
++const RESERVED_DESCRIPTORS: usize = 256;
++
++#[derive(Clone, Copy, Debug, PartialEq, Eq)]
++pub enum ProcFile {
++    Stat,
++    Io,
++    Status,
++}
++
++impl ProcFile {
++    const COUNT: usize = 3;
++
++    fn name(self) -> &'static str {
++        match self {
++            ProcFile::Stat => "stat",
++            ProcFile::Io => "io",
++            ProcFile::Status => "status",
++        }
++    }
++}
++
++#[derive(Debug)]
++pub struct OpenFiles {
++    files: HashMap<u32, [Option<File>; ProcFile::COUNT]>,
++    open: usize,
++    max_open: usize,
++}
++
++impl Default for OpenFiles {
++    fn default() -> Self {
++        Self::new(descriptor_budget())
++    }
++}
++
++impl OpenFiles {
++    fn new(max_open: usize) -> Self {
++        Self {
++            files: HashMap::new(),
++            open: 0,
++            max_open,
++        }
++    }
++
++    /// Reads `kind` of `pid` into `buf`. Returns false when the process is gone or the file cannot be
++    /// read (another user's `io`, for instance).
++    pub fn read(&mut self, pid: u32, kind: ProcFile, buf: &mut Vec<u8>) -> bool {
++        self.read_with(pid, kind, buf, open)
++    }
++
++    fn read_with(
++        &mut self,
++        pid: u32,
++        kind: ProcFile,
++        buf: &mut Vec<u8>,
++        open: impl Fn(u32, ProcFile) -> std::io::Result<File>,
++    ) -> bool {
++        let slots = self.files.entry(pid).or_default();
++        let slot = &mut slots[kind as usize];
++        if let Some(file) = slot {
++            if read_whole(file, buf) {
++                return true;
++            }
++            *slot = None;
++            self.open -= 1;
++        }
++
++        let Ok(file) = open(pid, kind) else {
++            return false;
++        };
++        if !read_whole(&file, buf) {
++            return false;
++        }
++        if self.open < self.max_open {
++            *slot = Some(file);
++            self.open += 1;
++        }
++        true
++    }
++
++    /// Closes the files of the processes for which `alive` is false.
++    pub fn retain(&mut self, mut alive: impl FnMut(u32) -> bool) {
++        let open = &mut self.open;
++        self.files.retain(|pid, slots| {
++            let keep = alive(*pid);
++            if !keep {
++                *open -= slots.iter().filter(|slot| slot.is_some()).count();
++            }
++            keep
++        });
++    }
++}
++
++/// Reads the whole file from offset 0; false on an error or an empty file.
++fn read_whole(file: &File, buf: &mut Vec<u8>) -> bool {
++    const CHUNK: usize = 4096;
++
++    buf.clear();
++    loop {
++        let start = buf.len();
++        buf.resize(start + CHUNK, 0);
++        match file.read_at(&mut buf[start..], start as u64) {
++            Ok(0) => {
++                buf.truncate(start);
++                return start > 0;
++            }
++            Ok(read) => buf.truncate(start + read),
++            Err(_) => {
++                buf.clear();
++                return false;
++            }
++        }
++    }
++}
++
++fn open(pid: u32, kind: ProcFile) -> std::io::Result<File> {
++    const MAX_PATH_LEN: usize = "/proc/".len() + "/status".len() + MAX_U32_LEN;
++
++    let mut path: ArrayString<MAX_PATH_LEN> = ArrayString::new();
++    let _ = write!(path, "/proc/{}/{}", pid, kind.name());
++    File::open(path.as_str())
++}
++
++/// How many files may stay open: the soft descriptor limit, which magpie raises at start, minus a
++/// reserve for everything else.
++fn descriptor_budget() -> usize {
++    let mut limit = libc::rlimit {
++        rlim_cur: 0,
++        rlim_max: 0,
++    };
++    // SAFETY: `limit` is a valid, writable rlimit and RLIMIT_NOFILE is a valid resource.
++    if unsafe { libc::getrlimit(libc::RLIMIT_NOFILE, &mut limit) } != 0 {
++        return 0;
++    }
++    (limit.rlim_cur as usize).saturating_sub(RESERVED_DESCRIPTORS)
++}
++
++#[cfg(test)]
++mod tests {
++    use std::cell::Cell;
++    use std::process::{Command, Stdio};
++
++    use super::*;
++
++    fn counting_open(opens: &Cell<u32>) -> impl Fn(u32, ProcFile) -> std::io::Result<File> + '_ {
++        move |pid, kind| {
++            opens.set(opens.get() + 1);
++            open(pid, kind)
++        }
++    }
++
++    #[test]
++    fn a_file_is_opened_once_and_read_again_on_every_refresh() {
++        let mut files = OpenFiles::new(16);
++        let opens = Cell::new(0);
++        let mut buf = Vec::new();
++        let pid = std::process::id();
++
++        for _ in 0..3 {
++            assert!(files.read_with(pid, ProcFile::Status, &mut buf, counting_open(&opens)));
++            assert!(buf.starts_with(b"Name:"), "a whole status file is read");
++        }
++        assert_eq!(opens.get(), 1);
++    }
++
++    #[test]
++    fn the_file_of_an_exited_process_is_closed() {
++        let mut child = Command::new("sleep")
++            .arg("30")
++            .stdout(Stdio::null())
++            .spawn()
++            .expect("start a child process");
++        let pid = child.id();
++        let mut files = OpenFiles::new(16);
++        let mut buf = Vec::new();
++        assert!(files.read(pid, ProcFile::Stat, &mut buf));
++        assert_eq!(files.open, 1);
++
++        child.kill().expect("stop the child process");
++        child.wait().expect("reap the child process");
++
++        assert!(!files.read(pid, ProcFile::Stat, &mut buf));
++        assert_eq!(files.open, 0, "the stale file is closed");
++    }
++
++    #[test]
++    fn files_beyond_the_budget_are_read_without_being_kept() {
++        let mut files = OpenFiles::new(1);
++        let opens = Cell::new(0);
++        let mut buf = Vec::new();
++        let pid = std::process::id();
++
++        for _ in 0..3 {
++            assert!(files.read_with(pid, ProcFile::Stat, &mut buf, counting_open(&opens)));
++            assert!(files.read_with(pid, ProcFile::Status, &mut buf, counting_open(&opens)));
++        }
++        assert_eq!(
++            opens.get(),
++            1 + 3,
++            "stat stays open, status is opened on every read"
++        );
++    }
++
++    #[test]
++    fn processes_that_are_gone_give_back_their_files() {
++        let mut files = OpenFiles::new(16);
++        let mut buf = Vec::new();
++        let pid = std::process::id();
++        assert!(files.read(pid, ProcFile::Stat, &mut buf));
++        assert!(files.read(pid, ProcFile::Status, &mut buf));
++
++        files.retain(|alive| alive != pid);
++        assert_eq!(files.open, 0);
++        assert!(files.files.is_empty());
++    }
++}
