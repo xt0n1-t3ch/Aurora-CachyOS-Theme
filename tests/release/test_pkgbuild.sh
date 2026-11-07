@@ -35,6 +35,33 @@ clobbered=$(grep -E "(^|[;[:space:]])(for|local|declare)?[[:space:]]*($names)(=|
     | grep -v -E "local[[:space:]]+[a-z_]+=" | head -3)
 check "the package functions leave makepkg's variables alone" "$clobbered" ""
 
+# makepkg hands build() the build machine's flags, and CachyOS's makepkg.conf asks for that machine's CPU; the
+# package still has to run on every x86_64 PC. The compilers themselves say what the flags build() sets target.
+# shellcheck disable=SC1091,SC2016 # the PKGBUILD is read on purpose; $CFLAGS expands in the subshell
+mapfile -t flags < <(cd "$root/packaging/aur" &&
+    CFLAGS="-march=native -O3 -pipe" CXXFLAGS="-march=native -O3 -pipe" RUSTFLAGS="-C opt-level=3 -C target-cpu=native" \
+    bash -c 'source ./PKGBUILD; _baseline; printf "%s\n" "$CFLAGS" "$CXXFLAGS" "$RUSTFLAGS"' 2>/dev/null)
+check "the flags reach the compilers" "${#flags[@]}" "3"
+# The baseline is SSE2; each name below is a newer instruction set the compiler would announce it may use.
+above='SSE3|SSSE3|SSE4_1|SSE4_2|POPCNT|AVX|AVX2|BMI|BMI2|FMA|LZCNT|MOVBE|AVX512F'
+# shellcheck disable=SC2086 # one argument per flag
+newer=$(gcc ${flags[0]:-} -dM -E -x c /dev/null 2>/dev/null | grep -cE "#define __($above)__ ")
+check "C code in the package needs nothing newer than the x86-64 baseline" "$newer" "0"
+# shellcheck disable=SC2086
+newer=$(g++ ${flags[1]:-} -dM -E -x c++ /dev/null 2>/dev/null | grep -cE "#define __($above)__ ")
+check "C++ code in the package needs nothing newer than the x86-64 baseline" "$newer" "0"
+if command -v rustc > /dev/null; then
+    # shellcheck disable=SC2086
+    newer=$(rustc ${flags[2]:-} --print cfg 2>/dev/null | tr 'a-z.' 'A-Z_' | grep -cE "TARGET_FEATURE=\"($above|BMI1)\"")
+    check "Rust code in the package needs nothing newer than the x86-64 baseline" "$newer" "0"
+fi
+# shellcheck disable=SC1091
+check "build() builds for the x86-64 baseline" \
+    "$(cd "$root/packaging/aur" && bash -c 'source ./PKGBUILD && declare -f build' | grep -c '^ *_baseline;\?$')" "1"
+# shellcheck disable=SC1091
+check "check() refuses machine code that needs more than the baseline" \
+    "$(cd "$root/packaging/aur" && bash -c 'source ./PKGBUILD && declare -f check' | grep -c 'scripts/cpu_baseline.py')" "1"
+
 if command -v makepkg > /dev/null; then
     fresh=$(cd "$root/packaging/aur" && makepkg --printsrcinfo 2>/dev/null)
     check ".SRCINFO is what makepkg writes for the PKGBUILD" "$(diff <(echo "$fresh") "$root/packaging/aur/.SRCINFO" > /dev/null && echo same)" same

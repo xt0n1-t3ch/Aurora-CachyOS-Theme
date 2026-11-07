@@ -56,6 +56,7 @@ Notifications arrive as banners in the bottom-right corner.
 | | |
 | --- | --- |
 | System | CachyOS, or another Arch-based distribution with pacman |
+| Processor | Any 64-bit x86 processor (x86-64), old or new |
 | Desktop | KDE Plasma 6 on Wayland. Tested on Plasma 6.8.2, KWin 6.8.2 and Qt 6.12.0. |
 | Disk | About 700 MB for the build: the `build/` folder of a checkout, or `~/.cache/aurora/build` with the package |
 | Time | Under a minute with the package, which comes with its parts built; about 3 minutes from the source, which builds them |
@@ -965,7 +966,8 @@ export QT_QPA_PLATFORM=offscreen q=/usr/lib/qt6/bin/qmltestrunner B=$PWD/build
 | The repository's description and topics fit GitHub's limits (20 topics of lowercase letters, digits and hyphens, no repeats; 350 characters) | `python3 -I scripts/github_meta.py --check` | pass (20 topics) |
 | The social preview is 1280x640, under 1 MB, with its text at 7:1 or more (`make.py` refuses to write it otherwise) | `python3 -I assets/readme/make.py` | pass (73 KB, 12.4:1) |
 | Every shell script Aurora owns, and the `restore.sh` that `install.py` writes, has no ShellCheck finding at its strictest level (style), with `.shellcheckrc` | `scripts/lint-shell.sh` | pass (73 scripts) |
-| The package depends on `installer/dependencies.txt` plus what the `aurora` command needs (its update notices too: checkupdates, notify-send, Konsole), builds with `installer/build-dependencies.txt`, its functions leave makepkg's variables alone, and `.SRCINFO` matches the PKGBUILD | `tests/release/test_pkgbuild.sh` | 4 pass |
+| The package depends on `installer/dependencies.txt` plus what the `aurora` command needs (its update notices too: checkupdates, notify-send, Konsole), builds with `installer/build-dependencies.txt`, its functions leave makepkg's variables alone, and `.SRCINFO` matches the PKGBUILD; with a makepkg.conf that asks for the building PC's processor (`-march=native`, `-C target-cpu=native`), gcc, g++ and rustc report no instruction set newer than the x86-64 baseline for the flags `build()` sets, and `check()` runs the CPU check | `tests/release/test_pkgbuild.sh` | 10 pass |
+| `scripts/cpu_baseline.py`, on libraries gcc builds in a temporary folder: baseline C and C++ (templates, lambdas) pass; code built for AVX2 fails and names its function; popcnt, crc32 (register and memory forms), shlx, `lock cmpxchg16b` and rdrand fail with their level; a function built for AVX2 on purpose and named for it passes, a name that only holds the letters (submit) does not; a stripped file built for a newer processor fails; a folder is checked file by file, skipping links and files that are not machine code | `tests/release/test_cpu_baseline.sh` | 17 pass |
 | `scripts/pacman-repo.sh` builds a signed package and a signed `aurora` database of real files with the key's public half, refuses a key whose secret half is missing, and pacman (under fakeroot, in a throwaway root) installs the package from it and refuses a tampered database; publishing (through a stand-in gh) uploads the package before the database that lists it and removes an older build's files last, and refuses a package name the release already has | `tests/release/test_pacman_repo.sh` | 19 pass |
 
 ## Components
@@ -1159,6 +1161,17 @@ it again, so it is replaced only if the secret half is lost or exposed. `release
 a change to the package alone (a new dependency) raises `pkgrel` and runs it by hand. The flow is tested in
 [tests/release/test_pacman_repo.sh](../tests/release/test_pacman_repo.sh).
 
+The package is built on my PC and installed on everyone's, so it targets the x86-64 baseline, not my processor.
+CachyOS's makepkg.conf asks for the building PC's own (`-march=native`, `-C target-cpu=native`), and a package built
+that way stops with "Illegal instruction" on an older processor (issue #11). `build()` adds `-march=x86-64
+-mtune=generic` and `-C target-cpu=x86-64` after makepkg's flags, and the last one wins in GCC and rustc; makepkg's
+hardening flags stay. `check()` then runs [scripts/cpu_baseline.py](../scripts/cpu_baseline.py) on the `aurora`
+command and every built part, before they are stripped: an instruction newer than SSE2 is refused unless its
+function is built for that instruction set on purpose and named for it (memchr's `find_avx2`, which runs only after
+asking the processor). A static library of the build machine counts too: CachyOS's x86-64-v3 libgcc links
+`__popcountdi2` with `popcnt`. Both are tested in [tests/release/test_pkgbuild.sh](../tests/release/test_pkgbuild.sh)
+and [tests/release/test_cpu_baseline.sh](../tests/release/test_cpu_baseline.sh).
+
 ## Publishing to the AUR
 
 The AUR has closed new accounts for now, so `aurora-theme` is not on it yet. When it reopens:
@@ -1235,6 +1248,11 @@ it changes. A change that needs a fresh install, or that an earlier backup canno
 
 ### Fixed
 
+- Aurora runs on every 64-bit x86 PC. The package was built for the processor of the PC that built it, so on
+  a PC with an older processor `aurora` stopped with "Illegal instruction" right after the install, and its parts
+  would have stopped KWin and the panel the same way
+  ([#11](https://github.com/xt0n1-t3ch/Aurora-CachyOS-Theme/issues/11)). It is now built for any x86-64 processor,
+  and the package refuses to build when anything in it needs a newer one.
 - File Explorer's Group menu works again with Dolphin 26.08, which replaced the action it used: None, Name, Kind, Date
   Modified, Date Created, Size and Tags, with the current choice checked and kept per folder.
 - File Explorer's address and search fields show one focus ring. Breeze no longer adds its own square-cornered frame
@@ -1440,6 +1458,10 @@ The rules I set while building Aurora, and why. They decide every design questio
   theme.
 - Versions follow SemVer, the changelog Keep a Changelog 2.0.0, commits Conventional Commits; `scripts/release.sh`
   cuts a release and publishes only with `--publish`.
+- Everything a package ships prebuilt targets the x86-64 baseline, never the processor of the PC that builds it: the
+  package is built once and installed on PCs older than mine. The speed a newer instruction set would add to a theme
+  is not worth a desktop that stops with "Illegal instruction" (issue #11). Libraries that pick a faster path after
+  asking the processor (memchr's AVX2 search) keep doing so.
 
 ## License
 

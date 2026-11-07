@@ -51,6 +51,7 @@ Nothing in KWin is patched and no file that belongs to a package is edited. Some
 | | |
 | --- | --- |
 | System | CachyOS, or another Arch-based distribution with pacman |
+| Processor | Any 64-bit x86 processor (x86-64), old or new |
 | Desktop | KDE Plasma 6 on Wayland. Tested on Plasma 6.8.2, KWin 6.8.2 and Qt 6.12.0. |
 | Disk | About 700 MB for the build: the `build/` folder of a checkout, or `~/.cache/aurora/build` with the package |
 | Time | Under a minute with the package, which comes with its parts built; about 3 minutes from the source, which builds them |

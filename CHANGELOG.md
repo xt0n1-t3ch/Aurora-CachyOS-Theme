@@ -34,6 +34,11 @@ it changes. A change that needs a fresh install, or that an earlier backup canno
 
 ### Fixed
 
+- Aurora runs on every 64-bit x86 PC. The package was built for the processor of the PC that built it, so on
+  a PC with an older processor `aurora` stopped with "Illegal instruction" right after the install, and its parts
+  would have stopped KWin and the panel the same way
+  ([#11](https://github.com/xt0n1-t3ch/Aurora-CachyOS-Theme/issues/11)). It is now built for any x86-64 processor,
+  and the package refuses to build when anything in it needs a newer one.
 - File Explorer's Group menu works again with Dolphin 26.08, which replaced the action it used: None, Name, Kind, Date
   Modified, Date Created, Size and Tags, with the current choice checked and kept per folder.
 - File Explorer's address and search fields show one focus ring. Breeze no longer adds its own square-cornered frame
