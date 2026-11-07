@@ -11,6 +11,18 @@ it changes. A change that needs a fresh install, or that an earlier backup canno
 
 ## [Unreleased]
 
+### Changed
+
+- An inactive File Explorer window is opaque, as a macOS window is when it is not in front, so nothing behind it shows
+  through, blurred or not. Its sidebar selection turns gray with it, like the selections in the file views.
+
+### Fixed
+
+- File Explorer's Group menu works again with Dolphin 26.08, which replaced the action it used: None, Name, Kind, Date
+  Modified, Date Created, Size and Tags, with the current choice checked and kept per folder.
+- File Explorer's address and search fields show one focus ring. Breeze no longer adds its own square-cornered frame
+  around them when Ctrl+L, Alt+D or Tab focuses them.
+
 ## [1.1.1] - 2026-11-06
 
 ### Fixed

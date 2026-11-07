@@ -12,5 +12,7 @@ rm -rf "$HOME/X" "$HOME/.local/share/file-explorer/tags"
 mkdir -p "$project"
 for dir in assets cli components docs installer packaging scripts tests themes; do mkdir -p "$project/$dir"; done
 for name in CHANGELOG.md get.sh install.sh LICENSE README.md; do cp "$SB/$name" "$project/$name"; done
-# Menus from an X11 client: Wayland dismisses popups that no real input event opened.
-QT_QPA_PLATFORM=xcb "$SB/build/file-explorer/fe-shots" "$SBX/shots" "$project" finder > "$SBX/logs/fe-shots-finder.log" 2>&1
+# Menus from an X11 client: Wayland dismisses popups that no real input event opened. Qt logs to the journal when
+# stderr is not a terminal, so its lines are forced into the log.
+QT_QPA_PLATFORM=xcb QT_FORCE_STDERR_LOGGING=1 "$SB/build/file-explorer/fe-shots" "$SBX/shots" "$project" finder \
+    > "$SBX/logs/fe-shots-finder.log" 2>&1

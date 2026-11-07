@@ -35,6 +35,7 @@
 #include <QGraphicsView>
 #include <QKeyEvent>
 #include <QLineEdit>
+#include <QMenu>
 #include <QMouseEvent>
 #include <QToolTip>
 #include <QProcess>
@@ -42,6 +43,7 @@
 
 #include <sys/stat.h>
 
+#include <algorithm>
 #include <functional>
 
 namespace {
@@ -484,6 +486,39 @@ int main(int argc, char *argv[])
         {QStringLiteral("fe-f6-tag"), 2500, [sidebarModel, windowAction] {
              windowAction(QStringLiteral("Split View"));
              sidebarModel()->activate(sidebarModel()->indexForUrl(QUrl::fromLocalFile(fe::tagging::shelfRoot() + QStringLiteral("/Green"))));
+         }},
+        // Group: the toolbar's menu, then Kind chosen from it, as a person would.
+        {QStringLiteral("fe-f7-group-menu"), 2500, [tab, window, folder] {
+             tab()->openFolder(QUrl::fromLocalFile(folder));
+             QTimer::singleShot(1200, [window] { Q_EMIT window->findChild<fe::Toolbar *>()->groupClicked(); });
+         }},
+        {QStringLiteral("fe-f8-grouped"), 2000, [] {
+             auto *menu = qobject_cast<QMenu *>(QApplication::activePopupWidget());
+             if (!menu) {
+                 qWarning("FAIL: Group opened no menu");
+                 return;
+             }
+             const QList<QAction *> actions = menu->actions();
+             QStringList entries;
+             for (const QAction *action : actions) {
+                 entries.append(action->text() + (action->isChecked() ? QStringLiteral(" (checked)") : QString()));
+             }
+             qInfo("Group menu: %s", qPrintable(entries.join(QStringLiteral(", "))));
+             const auto kind = std::find_if(actions.cbegin(), actions.cend(), [](const QAction *action) { return action->text() == u"Kind"; });
+             if (kind != actions.cend()) {
+                 (*kind)->trigger();
+             } else {
+                 qWarning("FAIL: the Group menu has no Kind");
+             }
+             menu->close();
+         }},
+        // Another window takes the focus, as when the pointer works on another monitor, and this one turns inactive.
+        {QStringLiteral("fe-f9-inactive"), 2500, [] {
+             auto *elsewhere = new QWidget(nullptr, Qt::Window);
+             elsewhere->setWindowTitle(QStringLiteral("Elsewhere"));
+             elsewhere->setGeometry(60, 120, 360, 220);
+             elsewhere->show();
+             elsewhere->activateWindow();
          }},
     };
     const QList<Step> &steps = mode == u"menus"      ? menuSteps

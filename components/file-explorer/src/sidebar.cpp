@@ -343,7 +343,8 @@ public:
         if (selected) {
             QPainterPath path;
             path.addRoundedRect(pill, 7, 7);
-            painter->fillPath(path, style::SELECTION);
+            // Gray while the window is inactive, as the Finder's sidebar and the views' selections are.
+            painter->fillPath(path, (option.state & QStyle::State_Active) ? style::SELECTION : style::SELECTION_INACTIVE);
         } else if (option.state & QStyle::State_MouseOver) {
             QPainterPath path;
             path.addRoundedRect(pill, 7, 7);

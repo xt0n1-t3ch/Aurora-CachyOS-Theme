@@ -18,6 +18,14 @@ rules in `core/quicklook`), Split View (`fe::TabPage`, F3), a path bar that name
 count, Finder menus with shortcuts written the Windows way (`fe::shortcutLabel`: "Ctrl+Alt+C", "Alt+Enter", "Win+E"),
 and the pointing hand on every clickable widget.
 
+Group offers the Finder's choices (None, Name, Kind, Date Modified, Date Created, Size, Tags) through Dolphin's own
+actions: `group_by_none` and `group_<role>` since Dolphin 26.08, which groups apart from the sort order and remembers
+the choice per folder, and `show_in_groups` with the sort column before it. The toolbar's fields draw one capsule
+focus ring (`style::paintFocusRing`); `FinderStyle` drops the `QFocusFrame` Breeze adds around a field focused by Tab
+or a shortcut. The window is glass with KWin's blur while it is active and opaque while it is not, as macOS materials
+are when their window is not key, so nothing behind shows through it whether KWin blurs or not; selections turn gray
+with it.
+
 Color tags (`tagging.cpp`, rules in `core/tags`) live in the file's `user.xdg.tags` attribute through KFileMetaData, so
 Dolphin and Baloo read them too. Each tag's sidebar row opens its shelf, `~/.local/share/file-explorer/tags/<Tag>`, a
 folder of links to the tagged files that File Explorer keeps in step and tidies as it opens, so tags work without
@@ -30,7 +38,8 @@ portal backend (`--portal`: Open and Save panels with a chooser bar; it quits af
 `~/.local/bin/file-explorer`; Win+E launches it. Folders without a view of their own show Finder's columns (Name,
 Modified, Size, Type) from `~/.local/share/file-explorer/view_properties/global/.directory`. Tests: `fe_tests` (78),
 `fe_finder_tests` (33), `tests/installer/test_tag_emblems.sh` (5). Sandbox: `explorer.sh`, `explorer-finder.sh` (the
-mockup's scene: tags, the unfolded sidebar, the menu, a typed path, Quick Look, Split View, a tag's shelf),
+mockup's scene: tags, the unfolded sidebar, the menu, a typed path, Quick Look, Split View, a tag's shelf, the Group
+menu and the folder grouped by Kind from it, and the window inactive behind another),
 `explorer-menus.sh`, `explorer-drives.sh`, `show-in-folder.sh`, `open-save.sh`.
 
 ## Window buttons (`components/window-buttons`)

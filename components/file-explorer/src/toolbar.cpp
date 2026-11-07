@@ -201,6 +201,9 @@ void SearchField::paintEvent(QPaintEvent *event)
         QPainter painter(this);
         const QRectF bounds(rect());
         style::paintGlass(painter, bounds, bounds.height() / 2.0, hasFocus() ? style::CAPSULE_HOVER : style::CAPSULE_FILL);
+        if (hasFocus()) {
+            style::paintFocusRing(painter, bounds.adjusted(1, 1, -1, -1));
+        }
         const int size = 15;
         const QPixmap glass = style::tintedIcon(QStringLiteral("system-search-symbolic"), size, style::TEXT_SECONDARY, devicePixelRatioF());
         painter.drawPixmap(QPointF(11, (height() - size) / 2.0), glass);
