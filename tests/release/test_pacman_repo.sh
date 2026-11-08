@@ -73,11 +73,14 @@ EOF
 chmod +x "$work/bin/gh"
 # publish ASSETS: publishes the test package to a release that holds ASSETS. Sets code to the exit status and calls to
 # the gh calls that change the release.
+# The stand-in gh uploads nothing, so the check after the upload reads the built folder itself as the server, unless
+# SERVED names another one.
 publish() {
     printf '%s' "$1" > "$work/assets"
     : > "$work/gh.log"
     PATH="$work/bin:$PATH" GH_LOG="$work/gh.log" GH_ASSETS="$work/assets" \
-        "$root/scripts/pacman-repo.sh" "$work/pkg" "$work/published" --publish > "$work/publish.log" 2>&1
+        AURORA_REPO_SERVER="file://${SERVED:-$work/published}" \
+        "$root/scripts/pacman-repo.sh" "$work/pkg" "$work/published" "${MODE:---publish}" > "$work/publish.log" 2>&1
     code=$?
     calls=$(grep -E '^release (upload|delete-asset)' "$work/gh.log" | sed "s|$work/published/||g")
 }
@@ -94,6 +97,30 @@ publish "aurora-test-1.0.0-1-any.pkg.tar.zst
 check "a build under a published name is refused" "$([ "$code" -ne 0 ] && echo refused)" refused
 check "a refused publish changes nothing" "$calls" ""
 check "the refusal says to raise pkgrel" "$(grep -c 'raise pkgrel' "$work/publish.log")" 1
+if command -v fakeroot > /dev/null; then
+    publish ""
+    check "after the upload, pacman gets the package from the server, signed" \
+        "$(grep -c '^pacman gets aurora-test 1.0.0-1 from file://.*, signed and the same file$' "$work/publish.log")" 1
+    # A server that still offers another build, as when an upload did not land.
+    printf 'pkgname=aurora-test\npkgver=0.9.0\npkgrel=1\narch=(any)\npackage() { :; }\n' > "$work/old.PKGBUILD"
+    mkdir "$work/old" && cp "$work/old.PKGBUILD" "$work/old/PKGBUILD"
+    "$root/scripts/pacman-repo.sh" "$work/old" "$work/stale" > /dev/null 2>&1
+    SERVED="$work/stale" publish ""
+    check "a server that offers another version fails the publish" "$([ "$code" -ne 0 ] && echo refused)" refused
+    check "the failure names the version pacman sees" "$(grep -c 'pacman sees aurora-test 0.9.0-1' "$work/publish.log")" 1
+else
+    echo "SKIP the check after the upload: fakeroot is not installed"
+fi
+# --publish-built publishes the folder an earlier run built, without building again.
+before=$(sha256sum < "$work/published/aurora-test-1.0.0-1-any.pkg.tar.zst")
+MODE=--publish-built publish ""
+check "--publish-built publishes the built folder" "$code" 0
+check "--publish-built does not build again" "$(sha256sum < "$work/published/aurora-test-1.0.0-1-any.pkg.tar.zst")" "$before"
+check "--publish-built uploads the package" "$(grep -c 'release upload repo .*aurora-test-1.0.0-1-any.pkg.tar.zst' "$work/gh.log")" 1
+rm -rf "$work/empty" && mkdir "$work/empty"
+PATH="$work/bin:$PATH" GH_LOG="$work/gh.log" GH_ASSETS="$work/assets" \
+    "$root/scripts/pacman-repo.sh" "$work/pkg" "$work/empty" --publish-built > "$work/empty.log" 2>&1; code=$?
+check "--publish-built refuses a folder with nothing built" "$([ "$code" -ne 0 ] && echo refused)" refused
 
 # pacman installs the package from the repository, trusting only the key in aurora.asc. pacman-key and pacman need
 # root, which fakeroot gives them inside the throwaway root.

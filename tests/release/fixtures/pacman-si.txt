@@ -1,0 +1,184 @@
+Repository      : cachyos-extra-v3
+Name            : plasma-workspace
+Version         : 6.8.2-1.1
+Description     : KDE Plasma Workspace
+Architecture    : x86_64_v3
+URL             : https://kde.org/plasma-desktop/
+Licenses        : LGPL-2.0-or-later
+Groups          : plasma
+Provides        : None
+Depends On      : accountsservice  appstream-qt  dbus  fontconfig  freetype2  glibc  icu  kactivitymanagerd  karchive  kauth  kbookmarks  kcmutils  kcolorscheme  kcompletion  kconfig  kconfigwidgets  kcoreaddons  kcrash  kde-cli-tools  kdeclarative  kded  kdbusaddons  kglobalaccel  kguiaddons  kholidays  ki18n  kiconthemes  kidletime  kio  kio-extras  kio-fuse  kirigami  kirigami-addons  kitemmodels  kjobwidgets  knewstuff  knighttime  knotifications  kpackage  kparts  kpipewire  krunner  kquickcharts  kscreenlocker  kservice  kstatusnotifieritem  ksvg  ksystemstats  ktexteditor  ktextwidgets  kuserfeedback  kwallet  kwayland  kwidgetsaddons  kwin  kwindowsystem  kxmlgui  layer-shell-qt  libcanberra  libice  libgcc  libkexiv2  libksysguard  libplasma  libqalculate  libsm  libstdc++  libx11  libxau  libxcb  libxcrypt  libxft  libxtst  milou  ocean-sound-theme  plasma-activities  plasma-activities-stats  prison  qt6-5compat  qt6-base  qt6-declarative  qt6-location  qt6-positioning  qt6-svg  qt6-tools  qt6-virtualkeyboard  sh  solid  systemd-libs  union  wayland  xcb-util  xcb-util-cursor  xcb-util-image  xcb-util-wm  xorg-xmessage  xorg-xrdb  xorg-xwayland  zlib  plasma-integration
+Optional Deps   : appmenu-gtk-module: global menu support for some GTK3 applications
+                  baloo: Baloo search runner
+                  discover: manage applications installation from the launcher
+                  kdepim-addons: displaying PIM events in the calendar
+                  kwayland-integration: Wayland integration for Qt5 applications
+                  networkmanager-qt: IP based geolocation
+                  plasma-workspace-wallpapers: additional wallpapers
+                  plasma5-integration: use Plasma settings in Qt5 applications
+                  xdg-desktop-portal-gtk: sync font settings to Flatpak apps
+Conflicts With  : plasma-wayland-session  plasma-x11-session
+Replaces        : None
+Download Size   : 21.84 MiB
+Installed Size  : 59.71 MiB
+Packager        : CachyOS <admin@cachyos.org>
+Build Date      : mié 28 oct 2026 17:11:20
+Validated By    : SHA-256 Sum  Signature
+
+Repository      : extra
+Name            : plasma-workspace
+Version         : 6.8.2-1
+Description     : KDE Plasma Workspace
+Architecture    : x86_64
+URL             : https://kde.org/plasma-desktop/
+Licenses        : LGPL-2.0-or-later
+Groups          : plasma
+Provides        : None
+Depends On      : accountsservice  appstream-qt  dbus  fontconfig  freetype2  glibc  icu  kactivitymanagerd  karchive  kauth  kbookmarks  kcmutils  kcolorscheme  kcompletion  kconfig  kconfigwidgets  kcoreaddons  kcrash  kde-cli-tools  kdeclarative  kded  kdbusaddons  kglobalaccel  kguiaddons  kholidays  ki18n  kiconthemes  kidletime  kio  kio-extras  kio-fuse  kirigami  kirigami-addons  kitemmodels  kjobwidgets  knewstuff  knighttime  knotifications  kpackage  kparts  kpipewire  krunner  kquickcharts  kscreenlocker  kservice  kstatusnotifieritem  ksvg  ksystemstats  ktexteditor  ktextwidgets  kuserfeedback  kwallet  kwayland  kwidgetsaddons  kwin  kwindowsystem  kxmlgui  layer-shell-qt  libcanberra  libice  libgcc  libkexiv2  libksysguard  libplasma  libqalculate  libsm  libstdc++  libx11  libxau  libxcb  libxcrypt  libxft  libxtst  milou  ocean-sound-theme  plasma-activities  plasma-activities-stats  prison  qt6-5compat  qt6-base  qt6-declarative  qt6-location  qt6-positioning  qt6-svg  qt6-tools  qt6-virtualkeyboard  sh  solid  systemd-libs  union  wayland  xcb-util  xcb-util-cursor  xcb-util-image  xcb-util-wm  xorg-xmessage  xorg-xrdb  xorg-xwayland  zlib  plasma-integration
+Optional Deps   : appmenu-gtk-module: global menu support for some GTK3 applications
+                  baloo: Baloo search runner
+                  discover: manage applications installation from the launcher
+                  kdepim-addons: displaying PIM events in the calendar
+                  kwayland-integration: Wayland integration for Qt5 applications
+                  networkmanager-qt: IP based geolocation
+                  plasma-workspace-wallpapers: additional wallpapers
+                  plasma5-integration: use Plasma settings in Qt5 applications
+                  xdg-desktop-portal-gtk: sync font settings to Flatpak apps
+Conflicts With  : plasma-wayland-session  plasma-x11-session
+Replaces        : None
+Download Size   : 21.45 MiB
+Installed Size  : 57.63 MiB
+Packager        : Antonio Rojas <arojas@archlinux.org>
+Build Date      : mié 28 oct 2026 03:09:51
+Validated By    : SHA-256 Sum  Signature
+
+Repository      : cachyos-extra-v3
+Name            : kwin
+Version         : 6.8.2-2.1
+Description     : An easy to use, but flexible, Wayland compositor
+Architecture    : x86_64_v3
+URL             : https://kde.org/plasma-desktop/
+Licenses        : LGPL-2.0-or-later
+Groups          : plasma
+Provides        : None
+Depends On      : aurorae  breeze  glibc  iio-sensor-proxy  plasma-activities  kauth  kcmutils  kcolorscheme  kconfig  kcoreaddons  kcrash  kdbusaddons  kdeclarative  kdecoration  kglobalaccel  kglobalacceld  kguiaddons  ki18n  kidletime  kirigami  kitemmodels  knewstuff  knighttime  knotifications  kpackage  kquickcharts  krunner  kscreenlocker  kservice  ksvg  kwayland  kwidgetsaddons  kwindowsystem  kxmlgui  lcms2  libcanberra  libdisplay-info  libdrm  libei  libepoxy  libevdev  libgcc  libinput  libpipewire  libqaccessibilityclient-qt6  libstdc++  libxcb  libxcvt  libxkbcommon  mesa  milou  pipewire-session-manager  libplasma  qt6-5compat  qt6-base  qt6-declarative  qt6-svg  qt6-tools  systemd-libs  vulkan-icd-loader  wayland  xcb-util-keysyms  xcb-util-wm
+Optional Deps   : plasma-keyboard: virtual keyboard
+Conflicts With  : None
+Replaces        : None
+Download Size   : 11.00 MiB
+Installed Size  : 33.35 MiB
+Packager        : CachyOS <admin@cachyos.org>
+Build Date      : mar 03 nov 2026 12:48:11
+Validated By    : SHA-256 Sum  Signature
+
+Repository      : extra
+Name            : kwin
+Version         : 6.8.2-2
+Description     : An easy to use, but flexible, Wayland compositor
+Architecture    : x86_64
+URL             : https://kde.org/plasma-desktop/
+Licenses        : LGPL-2.0-or-later
+Groups          : plasma
+Provides        : None
+Depends On      : aurorae  breeze  glibc  iio-sensor-proxy  plasma-activities  kauth  kcmutils  kcolorscheme  kconfig  kcoreaddons  kcrash  kdbusaddons  kdeclarative  kdecoration  kglobalaccel  kglobalacceld  kguiaddons  ki18n  kidletime  kirigami  kitemmodels  knewstuff  knighttime  knotifications  kpackage  kquickcharts  krunner  kscreenlocker  kservice  ksvg  kwayland  kwidgetsaddons  kwindowsystem  kxmlgui  lcms2  libcanberra  libdisplay-info  libdrm  libei  libepoxy  libevdev  libgcc  libinput  libpipewire  libqaccessibilityclient-qt6  libstdc++  libxcb  libxcvt  libxkbcommon  mesa  milou  pipewire-session-manager  libplasma  qt6-5compat  qt6-base  qt6-declarative  qt6-svg  qt6-tools  systemd-libs  vulkan-icd-loader  wayland  xcb-util-keysyms  xcb-util-wm
+Optional Deps   : plasma-keyboard: virtual keyboard
+Conflicts With  : None
+Replaces        : None
+Download Size   : 10.60 MiB
+Installed Size  : 31.67 MiB
+Packager        : Antonio Rojas <arojas@archlinux.org>
+Build Date      : mar 03 nov 2026 08:57:51
+Validated By    : SHA-256 Sum  Signature
+
+Repository      : cachyos-extra-v3
+Name            : qt6-base
+Version         : 6.12.0-3.1
+Description     : A cross-platform application and UI framework
+Architecture    : x86_64_v3
+URL             : https://www.qt.io
+Licenses        : GPL-3.0-only  LGPL-3.0-only  LicenseRef-Qt-Commercial  Qt-GPL-exception-1.0
+Groups          : qt6
+Provides        : None
+Depends On      : brotli  dbus  double-conversion  fontconfig  freetype2  glib2  glibc  harfbuzz  icu  krb5  libb2  libcups  libdrm  libgcc  libgl  libice  libinput  libjpeg-turbo  libpng  libproxy  libsm  libstdc++  liburing  libx11  libxcb  libxkbcommon  libxkbcommon-x11  md4c  mesa  mtdev  openssl  pcre2  shared-mime-info  sqlite  systemd-libs  tslib  wayland  xcb-util-cursor  xcb-util-image  xcb-util-keysyms  xcb-util-renderutil  xcb-util-wm  xdg-utils  zlib  zstd  qt6-translations
+Optional Deps   : freetds: MS SQL driver
+                  gdk-pixbuf2: GTK platform plugin
+                  gtk3: GTK platform plugin
+                  libfbclient: Firebird/iBase driver
+                  mariadb-libs: MariaDB driver
+                  pango: GTK platform plugin
+                  perl: for syncqt
+                  postgresql-libs: PostgreSQL driver
+                  unixodbc: ODBC driver
+Conflicts With  : None
+Replaces        : None
+Download Size   : 16.33 MiB
+Installed Size  : 68.67 MiB
+Packager        : CachyOS <admin@cachyos.org>
+Build Date      : mié 14 oct 2026 14:28:39
+Validated By    : SHA-256 Sum  Signature
+
+Repository      : extra
+Name            : qt6-base
+Version         : 6.12.0-3
+Description     : A cross-platform application and UI framework
+Architecture    : x86_64
+URL             : https://www.qt.io
+Licenses        : GPL-3.0-only  LGPL-3.0-only  LicenseRef-Qt-Commercial  Qt-GPL-exception-1.0
+Groups          : qt6
+Provides        : None
+Depends On      : brotli  dbus  double-conversion  fontconfig  freetype2  glib2  glibc  harfbuzz  icu  krb5  libb2  libcups  libdrm  libgcc  libgl  libice  libinput  libjpeg-turbo  libpng  libproxy  libsm  libstdc++  liburing  libx11  libxcb  libxkbcommon  libxkbcommon-x11  md4c  mesa  mtdev  openssl  pcre2  shared-mime-info  sqlite  systemd-libs  tslib  wayland  xcb-util-cursor  xcb-util-image  xcb-util-keysyms  xcb-util-renderutil  xcb-util-wm  xdg-utils  zlib  zstd  qt6-translations
+Optional Deps   : freetds: MS SQL driver
+                  gdk-pixbuf2: GTK platform plugin
+                  gtk3: GTK platform plugin
+                  libfbclient: Firebird/iBase driver
+                  mariadb-libs: MariaDB driver
+                  pango: GTK platform plugin
+                  perl: for syncqt
+                  postgresql-libs: PostgreSQL driver
+                  unixodbc: ODBC driver
+Conflicts With  : None
+Replaces        : None
+Download Size   : 15.93 MiB
+Installed Size  : 67.56 MiB
+Packager        : Antonio Rojas <arojas@archlinux.org>
+Build Date      : mié 14 oct 2026 09:55:34
+Validated By    : SHA-256 Sum  Signature
+
+Repository      : cachyos-extra-v3
+Name            : kdecoration
+Version         : 6.8.2-1.1
+Description     : Plugin based library to create window decorations
+Architecture    : x86_64_v3
+URL             : https://kde.org/plasma-desktop/
+Licenses        : LGPL-2.0-or-later
+Groups          : plasma
+Provides        : None
+Depends On      : glibc  ki18n  libstdc++  qt6-base
+Optional Deps   : None
+Conflicts With  : None
+Replaces        : None
+Download Size   : 106.82 KiB
+Installed Size  : 413.91 KiB
+Packager        : CachyOS <admin@cachyos.org>
+Build Date      : mié 28 oct 2026 17:33:29
+Validated By    : SHA-256 Sum  Signature
+
+Repository      : extra
+Name            : kdecoration
+Version         : 6.8.2-1
+Description     : Plugin based library to create window decorations
+Architecture    : x86_64
+URL             : https://kde.org/plasma-desktop/
+Licenses        : LGPL-2.0-or-later
+Groups          : plasma
+Provides        : None
+Depends On      : glibc  ki18n  libstdc++  qt6-base
+Optional Deps   : None
+Conflicts With  : None
+Replaces        : None
+Download Size   : 101.67 KiB
+Installed Size  : 405.91 KiB
+Packager        : Antonio Rojas <arojas@archlinux.org>
+Build Date      : mié 28 oct 2026 02:51:41
+Validated By    : SHA-256 Sum  Signature
+

@@ -12,8 +12,11 @@
 #     without git), release-notes.md (the version's changelog section) and SHA256SUMS;
 #  4. writes the AUR package of the release in build/release/VERSION/aur: packaging/aur with pkgver set to VERSION,
 #     pkgrel to 1 and the archive's SHA-256, and its .SRCINFO (docs/releasing.md says how to push it to the AUR);
-#  5. with --publish only: pushes the branch and the tag, creates the GitHub release with those files, then builds
-#     the package of step 4 into the pacman repository and publishes it (scripts/pacman-repo.sh).
+#  5. builds the package of step 4 into the pacman repository in build/release/VERSION/repo (scripts/pacman-repo.sh):
+#     in the clean chroot, started on an older processor and checked against what `aurora update` installs; any
+#     failure stops the release here, before anything leaves this PC;
+#  6. with --publish only: pushes the branch and the tag, creates the GitHub release with those files, publishes the
+#     repository built in step 5 and checks it as a user's pacman sees it (pacman-repo.sh --publish-built).
 #
 # RELEASE_REPO_URL overrides the web address the changelog links to (default: the origin remote).
 # RELEASE_SKIP_CHECKS=1 skips step 1's test run (the release tests use it; never for a real release).
@@ -102,14 +105,17 @@ else
 fi
 ls -l "$out/aur"
 
+say "Building and checking the package"
+# makepkg finds the archive in the release folder, so it does not download what is not published yet.
+SRCDEST="$ROOT/$out" scripts/pacman-repo.sh "$out/aur" "$out/repo"
+
 if $publish; then
     say "Publishing $version"
     git push origin HEAD --follow-tags
     gh release create "v$version" "$out/$name.tar.gz" "$out/SHA256SUMS" --title "Aurora $version" \
         --notes-file "$out/release-notes.md" --verify-tag
-    # makepkg finds the archive in the release folder, so it does not download what was just uploaded.
-    SRCDEST="$ROOT/$out" scripts/pacman-repo.sh "$out/aur" "$out/repo" --publish
+    SRCDEST="$ROOT/$out" scripts/pacman-repo.sh "$out/aur" "$out/repo" --publish-built
 else
     say "Done; not published"
-    echo "Publish with: git push origin HEAD --follow-tags && gh release create v$version $out/$name.tar.gz $out/SHA256SUMS --title \"Aurora $version\" --notes-file $out/release-notes.md --verify-tag"
+    echo "Publish with: git push origin HEAD --follow-tags && gh release create v$version $out/$name.tar.gz $out/SHA256SUMS --title \"Aurora $version\" --notes-file $out/release-notes.md --verify-tag && SRCDEST=$ROOT/$out scripts/pacman-repo.sh $out/aur $out/repo --publish-built"
 fi

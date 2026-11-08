@@ -36,9 +36,12 @@ A supported Plasma version is not part of the promise: the parts build for whate
 ## Cutting a release
 
 ```bash
-scripts/release.sh 1.1.0             # checks, dates the changelog, commits, tags v1.1.0, builds the release files
-scripts/release.sh 1.1.0 --publish   # the same, then pushes and creates the GitHub release
+scripts/release.sh 1.1.0             # checks, dates the changelog, commits, tags, builds the files and the package
+scripts/release.sh 1.1.0 --publish   # the same, then pushes, creates the GitHub release and publishes the repository
 ```
+
+This is the only way a version goes out. Every step below runs every time, and a failing one stops the release
+before anything leaves the PC: no tag is pushed and no release is created for a package that failed its checks.
 
 `scripts/release.sh` refuses a dirty tree, a version that is not SemVer or not above the last one, a changelog out of
 format, an empty `[Unreleased]`, and a failing check. Then it:
@@ -49,11 +52,16 @@ format, an empty `[Unreleased]`, and a failing check. Then it:
    `release-notes.md` (the version's changelog section) and `SHA256SUMS`;
 4. writes the AUR package for that archive in `build/release/1.1.0/aur/`: `PKGBUILD` and `aurora-theme.install` from
    [packaging/aur](../packaging/aur) with `pkgver=1.1.0`, `pkgrel=1` and the archive's SHA-256, and `.SRCINFO`;
-5. with `--publish`, pushes the branch and the tag, runs `gh release create v1.1.0` with those files and notes, then
-   builds the package into the pacman repository and publishes it (next section).
+5. builds the package into `build/release/1.1.0/repo/` with [scripts/pacman-repo.sh](../scripts/pacman-repo.sh): in
+   the clean chroot, started on an older processor and checked against `aurora update` (section "Every x86-64
+   processor" below);
+6. with `--publish`, pushes the branch and the tag, runs `gh release create v1.1.0` with those files and notes, then
+   publishes the repository built in step 5 (`pacman-repo.sh --publish-built`) and checks it the way a user's pacman
+   sees it (next section).
 
-Without `--publish` it prints the exact publish command, so a release can be reviewed before anything leaves the
-machine. Afterwards, copy `build/release/1.1.0/aur/` (`PKGBUILD` and `.SRCINFO`) into `packaging/aur` and commit it
+Without `--publish` it prints the exact publish commands, so a release can be reviewed, package and checks included,
+before anything leaves the machine. A failed step leaves the release commit and tag on this PC only:
+`git tag -d v1.1.0 && git reset --hard HEAD~1` takes them back. Afterwards, copy `build/release/1.1.0/aur/` (`PKGBUILD` and `.SRCINFO`) into `packaging/aur` and commit it
 as `chore(packaging): AUR package for 1.1.0`, so the repository's package names the latest release. The release flow is tested in [tests/release/test_release.sh](../tests/release/test_release.sh).
 
 ## The pacman repository
@@ -69,7 +77,14 @@ builds the same bytes twice, so a rebuild raises `pkgrel`.
 ```bash
 scripts/pacman-repo.sh build/release/1.1.0/aur build/release/1.1.0/repo             # builds and signs, publishes nothing
 scripts/pacman-repo.sh build/release/1.1.0/aur build/release/1.1.0/repo --publish   # the same, then replaces the release's files
+scripts/pacman-repo.sh build/release/1.1.0/aur build/release/1.1.0/repo --publish-built   # publishes what is built
 ```
+
+After the upload, [scripts/verify-repo.sh](../scripts/verify-repo.sh) checks the repository as a user's pacman sees
+it: a throwaway pacman that trusts only `aurora.asc`, as get.sh sets it up, starts from the database that was online
+before the upload (saved with the server's time, so pacman asks only for a newer one, as on a PC that synced the last
+release), syncs, and must see the new version, verify its signature and download the very file the checks passed.
+A failure there means users would not get the release.
 
 Everything is signed with Aurora's key. Its public half is [packaging/repo/aurora.asc](../packaging/repo/aurora.asc)
 (fingerprint `657D8110799A4E65BE4E1AB4F028284112794CC2`), which users trust with `pacman-key --lsign-key`; its secret
@@ -115,11 +130,20 @@ processor. The fix is to build somewhere else.
    after asking the processor), and so is a mark above the baseline. These keep an AUR build on a CachyOS PC right
    too, where no chroot is used.
 
+4. **What `aurora update` installs.** The package is built against Arch's Plasma and a CachyOS user has CachyOS's
+   rebuild of it. `aurora update` installs a new package only when the Plasma, KWin, Qt and KDecoration it was built
+   for match the system's (cli/src/system.rs, `LINKS`), and waits otherwise. So clean-build.sh reads the package's
+   `.BUILDINFO` and compares it with a fresh copy of every repository of this PC, CachyOS's and Arch's
+   ([scripts/built_for.py](../scripts/built_for.py), by the same rules, read from that file). When Arch is ahead of
+   CachyOS, the release waits for CachyOS.
+
 The tests: [tests/release/test_cpu_baseline.sh](../tests/release/test_cpu_baseline.sh),
+[tests/release/test_built_for.sh](../tests/release/test_built_for.sh), [tests/release/test_release.sh](../tests/release/test_release.sh),
 [tests/release/test_pkgbuild.sh](../tests/release/test_pkgbuild.sh),
 [tests/release/test_old_cpu.sh](../tests/release/test_old_cpu.sh) and
 [tests/release/test_pacman_repo.sh](../tests/release/test_pacman_repo.sh) (a package with machine code is built only in
-the clean chroot). The release build itself is the large test: it does not publish what fails on the Opteron.
+the clean chroot). The release build itself is the large test: it does not publish what fails on the Opteron or what
+`aurora update` would not install.
 A release needs `devtools` and `qemu-user-static`, and root through sudo once (SUDO_ASKPASS for a graphical prompt).
 
 ## Publishing to the AUR
