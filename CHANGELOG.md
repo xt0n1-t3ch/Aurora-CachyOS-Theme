@@ -11,6 +11,8 @@ it changes. A change that needs a fresh install, or that an earlier backup canno
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-11-07
+
 ### Changed
 
 - The notifications popover in the menu bar looks like macOS Tahoe's Notification Center. Each notification sits on
@@ -205,7 +207,8 @@ question, and removed with one command.
 - After a Plasma, KWin or Qt update, the parts built for the old version step aside on their own until the package
   brings them built for the new one; `aurora rebuild` builds them right away.
 
-[Unreleased]: https://github.com/xt0n1-t3ch/Aurora-CachyOS-Theme/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/xt0n1-t3ch/Aurora-CachyOS-Theme/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/xt0n1-t3ch/Aurora-CachyOS-Theme/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/xt0n1-t3ch/Aurora-CachyOS-Theme/compare/v1.1.1...v1.2.0
 [1.1.1]: https://github.com/xt0n1-t3ch/Aurora-CachyOS-Theme/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/xt0n1-t3ch/Aurora-CachyOS-Theme/compare/v1.0.0...v1.1.0
