@@ -3,7 +3,8 @@
 # SPDX-License-Identifier: GPL-3.0-only
 # Additional terms (GPL-3.0 section 7, author attribution): see NOTICE.md.
 # The README's pictures, on Dawn Bird, the wallpaper of every Aurora picture (tests/helpers/showcase_wallpaper.sh): the
-# desktop with File Explorer, then Quick Menu, the Control Center, the Kali menu and notification banners. Captures go
+# desktop with File Explorer, then Quick Menu, the Control Center, the Kali menu, notification banners and the
+# notifications popover. Captures go
 # to shots/readme-*.png; run it with SANDBOX_SCALE=2 for the README's sharp pictures (assets/screenshots/make.py crops
 # them).
 source "$SBX/prelude.sh"
@@ -17,6 +18,13 @@ source "$SB/tests/helpers/showcase_wallpaper.sh"
 mkdir -p "$HOME/.config/aurora"
 printf '[Applications]\norder="{\\"Developer Tools\\":[\\"applications:orion-app.desktop\\"]}"\n' > "$HOME/.config/aurora/quick-menu.conf"
 kwriteconfig6 --file "$HOME/.config/plasmanotifyrc" --group Notifications --key PopupPosition BottomRight
+# A global shortcut for the notifications applet inside the tray, so the popover opens without a click having to find
+# the bell (as in notifications-history.sh).
+APPSRC="$HOME/.config/plasma-org.kde.plasma.desktop-appletsrc"
+group=$(grep -o '^\[Containments\]\[[0-9]*\]\[Applets\]\[[0-9]*\]\[Applets\]\[[0-9]*\]' \
+    <(grep -B2 '^plugin=org.kde.plasma.notifications$' "$APPSRC") | tail -1)
+notifications_id=$(echo "$group" | grep -o '[0-9]*' | tail -1)
+grep -qF "${group}[Shortcuts]" "$APPSRC" || printf '\n%s[Shortcuts]\nglobal=Meta+Alt+N\n' "$group" >> "$APPSRC"
 QT_FORCE_STDERR_LOGGING=1 plasmashell > "$SBX/logs/plasmashell.log" 2>&1 &
 waitfor 12
 showcase_wallpaper
@@ -91,6 +99,18 @@ waitfor 1
 notify-send -t 30000 -a "System Settings" -i preferences-system "Updates ready" "Plasma 6.8.3 is ready to install." -A "later=Later" -A "now=Install" &
 waitfor 3
 shot readme-notifications
+
+# The popover lists what went to the history once the banners expired; Plasma keeps a notification there only when it
+# names its app's desktop entry.
+waitfor 30
+notify-send -t 3000 -a "Microsoft Edge" -h string:desktop-entry:microsoft-edge "Download complete" "aurora-1.3.0.tar.gz"
+notify-send -t 3000 -a "File Explorer" -h string:desktop-entry:file-explorer "Moved to Trash" "Quarterly report.pdf"
+notify-send -t 3000 -a "ZapFast" -h string:desktop-entry:zapfast -h "string:image-path:$SB/tests/helpers/fake-album.png" "Alex" "On my way, see you at 8."
+waitfor 8
+qdbus6 org.kde.kglobalaccel /component/plasmashell org.kde.kglobalaccel.Component.invokeShortcut \
+    "activate widget $notifications_id"
+waitfor 3
+shot readme-notification-center
 [ "$SCALE" != 1 ] && kscreen-doctor output.Virtual-0.scale.1 >> "$SBX/logs/readme-scale.log" 2>&1
 qdbus6 org.kde.plasmashell /MainApplication org.qtproject.Qt.QCoreApplication.quit > /dev/null 2>&1
 waitfor 3

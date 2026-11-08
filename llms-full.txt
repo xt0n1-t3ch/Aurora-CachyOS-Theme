@@ -34,6 +34,14 @@ CachyOS's logo takes the Apple logo's place. Its settings offer Arch Linux, Appl
 (Picture: Two notification banners in the bottom-right corner, one with Later and Install buttons)
 Notifications arrive as banners in the bottom-right corner.
 
+(Picture: The notifications popover under the bell: Do not disturb, then each notification on its own glass card with the app's icon, a bold title, the message and a picture)
+The bell opens the notifications you missed, each on its own glass card as in macOS Tahoe.
+(Picture: Mission Center on Performance: the device sidebar on clearer glass, the CPU graphs as tinted cards and its readings as glass tiles)
+Mission Center in File Explorer's glass, with each app's GPU, memory and network counted exactly.
+
+(Picture: Mission Center on Apps: the running apps and processes on a glass card, busy cells tinted warmer as they rise)
+Apps and processes as in the Windows 11 Task Manager, with busy values tinted warmer as they rise.
+
 ## Features
 
 | Part | What it does | Source |
@@ -44,10 +52,11 @@ Notifications arrive as banners in the bottom-right corner.
 | System tray | Plasma's tray, with drag and drop like Windows 11: drag an icon to move it, or drop it on the arrow to hide it. | [`components/system-tray`](components/system-tray) |
 | Quick Menu | The Windows key opens Tahoe's Applications view: the apps you use most, then every app by category. Right-click an app (or press the Menu key) to pin it to the top or to the Dock, or to take it out of Suggestions. Drag an app onto another one in the same category to move it there; the order is kept. All Applications lists every app by letter. Start typing to search with KRunner. The rail at the bottom works like Windows 11's Start: your picture and name open Lock, Switch User and Log Out, and the power button opens Sleep, Restart and Shut Down. | [`components/quick-menu`](components/quick-menu), [`components/windows-key`](components/windows-key) |
 | Control Center | Network, Bluetooth, Focus, sound and its output devices, the player, Night Light, screen mirroring, settings and screenshots. | [`components/control-center`](components/control-center), [`components/glass`](components/glass) |
-| Notifications | Banners with the app icon, a bold title, the text and the action buttons, in the bottom-right corner. | [`components/notifications`](components/notifications) |
+| Notifications | Banners with the app icon, a bold title, the text and the action buttons, in the bottom-right corner. The bell in the menu bar lists what you missed on glass cards, with Do not disturb at the top. | [`components/notifications`](components/notifications) |
 | Dock | Your pinned apps, a divider, Downloads and Trash. It moves out of the way of windows that reach it; touch the bottom edge to bring it back. | [`components/dock-divider`](components/dock-divider), [`themes/panels`](themes/panels) |
 | Animations | Windows open, close and minimize into the Dock the way macOS does it, at Plasma's designed speed; `aurora settings` makes them faster or turns them off. | [`components/motion`](components/motion) |
 | Pointer | macOS cursors, and a pointing hand over anything you can click, KWin's window buttons included. | [`components/pointing-hand`](components/pointing-hand), [`themes/cursors`](themes/cursors) |
+| Mission Center | Optional, with `aurora mission-center on`: Mission Center in File Explorer's glass, with each app's GPU, memory and network counted exactly, a lean background service and a color per device. Apps and Services read like the Windows 11 Task Manager. | [`components/mission-center`](components/mission-center) |
 | Energy page | A page in Info Center that shows the CPU and GPU power draw, a two-minute chart and the power profiles. | [`components/energy-page`](components/energy-page) |
 | Themes | Dawn Bird, Aurora's own wallpaper; Aurora's colors, Plasma style, Kvantum and GTK themes, cursors and icons with each app's own logo, the Inter font (or SF Pro, if you installed it) and a Konsole profile. | [`themes`](themes) |
 
@@ -651,6 +660,70 @@ holds the package's recipe: the `PKGBUILD` (package `mission-center-improved`, i
 to count traffic without root, and an install script that takes them away with the package. `make_patches.sh` writes
 the patches from the four upstream clones the work is done in, which stay next to it and out of git.
 
+The look matches File Explorer's glass (`resources/ui/aurora.css` for the window, `aurora-header.css` for the header
+bars, `aurora-pages.css` for the pages and `aurora-popups.css` for what opens over them, in light and dark style
+alike, as Aurora's GTK theme is dark in both),
+measured over the same wallpaper as File Explorer in the sandbox. `src/glass.rs` paints File Explorer's tint,
+rgba(24, 24, 27, 0.63), over the window body but for the sidebar's card, which stays the clearer glass on its own
+(`paint_tint`, as File Explorer's `glassCutout`, drawn as the card's shadow with no blur so no path is rasterized);
+GTK's own window background stays clear, since the GTK theme fills it at 96 %. KWin blurs behind it, and the window
+turns the blur off while it is not in front and opaque, as File Explorer does: `glass.rs` asks through
+ext-background-effect-v1 itself, once per size or state (KWin 6.8 removed Plasma's `org_kde_kwin_blur`, which it
+still uses where the new protocol is missing). A surface may hold one effect object and GTK 4.24 makes one for every
+surface, so `main` keeps GDK off the protocol with `GDK_WAYLAND_DISABLE` (tested). GTK's own way, CSS
+`backdrop-filter`, built copy, paste and blur nodes into every frame and walked the whole frame for the region: with
+animated graphs the window used 66 % of a core instead of 20 % ([performance.md](performance.md)). KWin 6.8 places
+the region from the window's edge rather than the surface's, so GTK's client-side shadow put the blur 68 by 50 px
+off; the window is
+undecorated instead, KWin draws File Explorer's shadow (`src/shadow.rs`, `org_kde_kwin_shadow`, tests on the image and
+its tiles) and the window resizes from a 6 px band inside its edges (`src/edges.rs`, tested). `glass.rs` loads the
+four sheets one step above the user's sheet (`~/.config/gtk-4.0/gtk.css`): a desktop theme loaded there outranks every
+app's own sheet, and its generic row and button rules turned the selected row grey and the selected device solid
+blue. The header row is File Explorer's
+toolbar, measured on both apps' captures: 34 px capsules 15 px below the window's top, the window buttons in File
+Explorer's 120 by 34 px capsule 22 px in from the right edge with the same glyphs, round buttons of 34 px, 18 px
+symbols, File Explorer's fills and rim, and a search field of 230 px that narrows to 150 px when the header is short of
+room (below 1220 scaled pixels, or while the sidebar is edited) so the page switcher keeps its labels. The sidebar's
+header is File Explorer's too: its sidebar button (File Explorer's symbol) and the Edit button at the top left, the
+edit tools at the other end while editing; with the sidebar hidden, the header bar's sidebar button takes the same
+place, and a window in the background keeps its header as it is but for the window buttons' glyphs. The device sidebar
+is the clearer glass, 6 px from the window's edges; each device's pill keeps 8 px from the card's sides and its graph
+10 px from the pill's edge, as File Explorer's rows do. The tables and the Performance graphs start 25 px from the
+sidebar and end 16 px above the window's bottom edge and, like the details column, 22 px from its right edge, under
+the window buttons. The sidebar stays on every page; on Apps and Services it shows from 1220
+scaled pixels, where every column still fits (measured: the Apps table needs 871 px with a process tree ten levels
+deep, the sidebar and margins 328).
+Apps and Services put their table on a glass card with the column headings inside; section headings (Apps,
+Processes) never show as selected; Stop, Force Stop, Details, Start and Restart are separate glass pills. A heading
+keeps no room for the sort arrow until its column is sorted, reading columns are 64 px at least (75 upstream) and each
+tree level steps in 16 px (22 in the theme), which together let the table fit beside the sidebar. Busy cells get a
+rounded heat tint (`src/table_view/columns/heat.rs`, five steps per unit, accent blue for CPU and GPU shares and amber
+for memory and throughput, tested; setting `apps-page-heat-tint`). On Performance, `src/performance_page/tiles.rs`
+turns each device's readings into glass tiles (two to a row where the layout allows) with the facts on one card below,
+lined up with the top of the graphs; it reads the shape of each device's layout file, so every device gets the same
+look (tests on what counts as a reading, the facts' span and the pairing). A network's addresses are facts on the same
+card. A drive's partitions sit on a card of their own under the facts and as wide as theirs, under File Explorer's
+section title (11 px, semibold, secondary); each mount point shows a folder symbol, and each usage bar is File
+Explorer's capacity bar, blue, amber past 90 % used and red past 95 % (its thresholds, tested). The details column
+takes about a third of the page and is never narrower than its tiles; in a narrow window the graphs give way instead.
+The search field is always in the header bar. Graph corners stay at the stock 7 px: at 10 and 12 GTK 4.24's
+GPU renderer logged clip errors.
+Menus are File Explorer's (`aurora-popups.css`, from its `finderstyle.cpp`): glass 11 px round and at least 180 px
+wide, 24 px rows with the text 14 px in, an accent pill under the pointer or the keyboard but none on the first row
+when a menu opens with the mouse, an 18 px column with a check mark on the chosen choice, secondary shortcuts and
+chevrons, and hairlines between sections. Submenus open beside their menu (`flags: nested`) instead of sliding in, and
+no menu has a tail. Tooltips are the same glass, 8 px round. KWin blurs behind each of them and draws their shadow:
+`src/popups.rs` gives every popover and tooltip, as it maps, its own blur, fitted to its size as GTK lays it out, and
+File Explorer's menu shadow, those GTK makes on its own included (submenus, the search field's menu), through an
+emission hook on GtkWidget's `map`. Over a checkerboard in the sandbox, a shadow drawn by GTK widened the menu's surface and KWin put the blur off
+by the shadow's reach, as it did for the window. Dialogs are opaque in File Explorer's dialog color, rgb(30, 30, 32),
+with the window's rim, and their grouped rows sit on one card; Preferences is 820 px wide so its four page names fit
+(at 640 the switcher, which gives every page the room of the longest name, Performance Page, cut them short).
+The sandbox (`tools/sandbox`) captures over Aurora's wallpaper, or another picture with `MC_BACKDROP`, with the host's
+icons, fonts, icon theme, font setting and whole `~/.config/gtk-4.0`, at any width (`MC_WIDTH`) and style
+(`MC_STYLE`), and can click a spot first (`click+X+Y`), leave the pointer over one (`hover+X+Y`) or play any input
+(`input+WORDS`, fakeinput's words, such as a right-click and a move into the menu it opens).
+
 `aurora mission-center on` installs it from Aurora's repository when pacman finds it there, otherwise it builds it
 here with makepkg (about ten minutes; the build tools come and go with `--syncdeps --rmdeps`); `off` puts the
 distribution's back. Every change first saves a snapshot in `~/.local/state/aurora/mission-center/snapshots/<time>`
@@ -680,10 +753,20 @@ Sandbox: `tray-click.sh`, `tray-drag.sh`, `tray-show.sh`.
 
 Plasma 6.8.2's notifications applet with `notifications.patch`: macOS banners (356 px wide, a radius of about 22, the
 Control Center's glass shader, the app icon leading, a bold title, "now" in the trailing corner, four lines of body, a
-close button on hover over the top-left corner), in the bottom-right corner (`PopupPosition=BottomRight`), 8 px apart.
+close button on hover over the top-left corner, the button shared with the popover in `components/BannerButton.qml`),
+in the bottom-right corner (`PopupPosition=BottomRight`), 8 px apart. The popover (`FullRepresentation.qml`) keeps
+Plasma's history and every control, drawn as macOS Tahoe's Notification Center: each notification is a glass platter
+inset from the edges with the banner's layout (`DelegatePopup`, dates past 22 hours), a long body folded to four
+lines that a click or Show More opens, Clear on hover over its top-right corner (the time fades under it), and the
+app's settings, Minimize and Close in a right-click or Menu-key menu; a group is its app's icon and name above its
+platters; Do not disturb is a row with the switch trailing; the empty
+state is a bell with "No Notifications". SwipeDelegate moves its background with the swipe and ignores insets, so the
+platter is inset inside a full-width background item.
 The window asks for a theme frame that does not exist (`aurora/no-frame`), so Plasma draws no frame of its own, and
 an `inputRect` mask lets clicks through the shadow margin. The project needs `LANGUAGES C` for the generated Wayland
-protocol code; `plasma-shell.xml` is kept in `vendor/protocols`. Sandbox: `notifications.sh`.
+protocol code; `plasma-shell.xml` is kept in `vendor/protocols`. Sandbox: `notifications.sh`,
+`notifications-history.sh` (the popover with notifications, on hover, empty with `SCEN_TAG=empty`, a group with
+`SCEN_TAG=group`; Plasma keeps an expired notification only when it names its desktop entry).
 
 ## Quick Menu (`components/quick-menu`)
 
@@ -758,7 +841,8 @@ Tests: `test_power` (9). Sandbox: `energy-page.sh`.
 ## Menu bar and Dock layout (`themes/panels`)
 
 `layout.js` is a Plasma desktop script: the menu bar (menu bar style, logo menu, app name, spacer, tray, Quick Menu,
-Control Center, clock) and the Dock (task manager with the pinned apps carried over, divider, Downloads, Trash).
+Control Center, clock; translucent, because an adaptive bar turns opaque over a maximized window and its popups with
+it) and the Dock (task manager with the pinned apps carried over, divider, Downloads, Trash).
 `render_layout.sh` fills its placeholders: the home folder and the three gaps that keep the right-hand icons 46 px
 apart, as the tray's own icons are. A placeholder is a name in capitals between two `@`; the installer stops when
 one is left, and any other `@` is the script's own text. `patch_tray.py` copies the tray settings from the backup; `tray_hide.py` puts
@@ -778,11 +862,14 @@ Tests: `components/app-title/tests/tst_apptitle.qml`. Sandbox: `app-title.sh`.
 - Aurora's Plasma style (`themes/plasma/Aurora`; its top panel stays see-through), color scheme
   (`themes/colors/Aurora.colors`) and Kvantum theme (`themes/kvantum/Aurora`); the GTK theme in
   `themes/gtk/Aurora.tar.xz`, adjusted by `gtk_theme.py` (the window-button capsule for GTK 3, GTK 4 and
-  libadwaita).
+  libadwaita, with File Explorer's glyphs written half a pixel off the icon's middle, so each 1.4 px stroke falls on
+  one row of pixels as File Explorer and the decoration draw it; the GTK 4 sheet's copy of libadwaita's list header
+  padding is narrowed to lists, because the user sheet loads above every app's own and would otherwise pad table
+  headings that an app sets itself).
 - Icons: the base themes `Aurora-base` and `Aurora-base-dark`, kept built in `themes/icons/base/Aurora-base.tar.xz`
   (hidden in the icon picker), and `Aurora-dark` built at install by `themes/icons/build_icon_theme.py` (each app's
   own logo ahead of the base's redraws), `status_glyphs.py` (SF-like
-  status icons) and the theme's Settings, Downloads and Trash icons in `themes/icons/system` (drawn by
+  status icons, written as filled outlines because GTK 4 fills every shape of a symbolic icon and drops strokes) and the theme's Settings, Downloads and Trash icons in `themes/icons/system` (drawn by
   `draw_system_icons.py`).
 - Cursors: `themes/cursors/Aurora`, with four aliases Plasma asks for.
 - Fonts: none are shipped. The interface uses Inter (`inter-font`) and Konsole JetBrains Mono with Nerd Fonts' symbols
@@ -909,6 +996,52 @@ lavd `--performance`, flash and p2dq did worse; no scheduler was ejected. BORE s
 - THP defrag `defer` (`/etc/tmpfiles.d/thp.conf`) after 279k direct-compaction stalls.
 - MGLRU `min_ttl_ms` stays at 100: oomd is present.
 
+## Disk I/O scheduler: kyber stays
+
+CachyOS's kyber against ADIOS 3.2.0 on both NVMe disks (2026-11-07, `performance/measure/iosched/ab.py`, results in
+`result-2026-11-07.json`): 4 KiB direct random reads timed while two writers stream direct 1 MiB writes, in
+alternating 15 s windows. Flat out there was no clean winner; at a realistic load kyber did as well or better.
+
+- nvme0 (ADATA LEGEND 700, `/`): read median under load kyber 954, 3119, 3901 µs against ADIOS 1372, 1402, 1413 µs;
+  p99 2.5-10.3 ms against 3.1-7.9 ms. Kyber won the first pair, while the drive was fresh. ADIOS won the later pairs,
+  after the drive's write speed fell from 1.24 GB/s to about 0.8 GB/s, and its writers kept more speed (0.9-1.3 GB/s
+  against 0.8-1.2).
+- nvme1 (Kingston OM8PCP3, `/mnt/D`): the drive's own state ruled. Its writes fell from 618 MB/s to 22 MB/s within
+  minutes, and reads stalled up to 0.73 s whichever scheduler ran. ADIOS had the two best loaded windows (p99 0.7 and
+  3.7 ms against 25-47 ms for kyber) and also the single worst one (p99 280 ms).
+- Unloaded, both read in 77-98 µs at the median. The disk's slowdown under sustained writes costs far more than the
+  scheduler choice: builds and downloads on `/mnt/D` stall reads for tens of ms.
+- CachyOS keeps ADIOS optional because it is still in development and can lock up in rare cases
+  ([wiki](https://wiki.cachyos.org/configuration/general_system_tweaks/)).
+- Rerun with a realistic load (`result-2026-11-07-realistic.json`): two buffered writers at 75 MB/s each (150 MB/s,
+  a fast download or a build), 20 s of rest before each window, 5 alternating rounds. nvme0: read median 125 µs for
+  both; p99 median kyber 455 µs (400-906) against ADIOS 882 µs (409-1407), reads per second 6936 against 6479, kyber
+  better in 3 of 5 pairs. nvme1: p99 median kyber 1.5 ms against ADIOS 1.8 ms, reads per second 6055 against 2090,
+  kyber better in 3 of 5 pairs; both had windows where the drive stalled (kyber up to 1.1 s, ADIOS up to 0.35 s). At a
+  realistic load kyber is as good or better, which settles it.
+- The Kingston stalls reads for tens of ms, and once for 1.1 s, even at 150 MB/s of writes and even with the disk
+  quiet (p99.9 23 ms). The ADATA never went past 51 ms. Heavy writes belong on the ADATA (`/`, `/home`).
+
+## Mission Center's glass
+
+Measured in Mission Center's sandbox (`components/mission-center/tools/sandbox`, a nested KWin at 60 Hz, 2026-11-07):
+the window on the CPU page over Aurora's wallpaper, 15 s to settle, then the CPU used over 30 s, as a share of one
+core. With smooth and sliding graphs on (they redraw every frame), the UI of package 1.2.0.r52-5 and -6 used 20.7 and
+19.5 %; -7, whose glass asked GTK for KWin's blur with CSS `backdrop-filter`, used 66.3 % (6.6 % against 4.4 % with
+the graphs still). On the desktop's 240 Hz screen it used 52 %. magpie stayed at 4.5 % in every build.
+
+- GTK 4.24 builds `backdrop-filter` into every frame as copy, paste and blur nodes, and to find the region it sends
+  KWin it walks the frame (gsk/gskblurutils.c): with a copy around the whole window, it rasterized every clip and graph
+  line on the CPU each frame. The workspace's dev build used 66.6 % as it was, 29.3 % without `backdrop-filter` and
+  20.1 % with no blur and no tint at all.
+- The same nodes around nothing but the paste, from the window's own snapshot, still cost 44.8 %, cached or not: any
+  copy node costs every frame.
+- Mission Center now keeps GDK off ext-background-effect-v1 (`GDK_WAYLAND_DISABLE`) and asks KWin for the blur itself,
+  once per size or state (`src/glass.rs`): 21.4 %, as with no blur. The tint lost its path too: drawn as the sidebar
+  card's shadow with no blur, it costs nothing measurable. Package -8, built so: 20.0 % with the graphs animated and
+  4.8 % with them still, as before the glass; on the desktop, with the same settings and page, 22 % where -7 used
+  52 %.
+
 ## Power
 
 - Power profile stays **Performance** (power-profiles-daemon 0.30, amd_pstate EPP; it changes only the CPU's
@@ -946,7 +1079,8 @@ export QT_QPA_PLATFORM=offscreen q=/usr/lib/qt6/bin/qmltestrunner B=$PWD/build
 
 | What it proves | Command | Result |
 | --- | --- | --- |
-| The install keeps a menu bar that is already there, and the script that puts one up has the home folder and the gaps filled in (an @ in a comment or an address is the script's own text; a placeholder left or a renderer that prints nothing stops the install); its backup lists every file it adds (install, then delete `created.txt`, gives back the same home); a second backup keeps the first; it installs the `aurora` command and offers Aurora's wallpaper; it copies no font, uses Inter and JetBrains Mono unless SF Pro or SF Mono is installed, and the repository carries no Apple font; an install from before the Quick Menu's name moves its files, its saved order and the menu bar button over; old menu bar widgets give their place to Aurora's own; the package's prebuilt parts export without object files; installed from the package, an older `aurora` in `~/.local/bin` goes so the package's runs; the update notices' timer runs the installed aurora daily, catches up after the PC was off, is enabled once, and the backup lists it; a running Plasma stops before old widgets get Aurora's ids (it would write the old ones back) and nothing to move leaves it alone; GTK apps get Plasma's cursor; animations are smooth (1) unless aurora.conf chooses fast or instant, and only its [look] group counts; every loaded KWin effect reloads so the new speed reaches the running desktop; Aurora Motion is installed and turned on while KWin's Scale, Squash and Magic Lamp step aside | `python3 -I tests/installer/test_install.py` | 37 pass |
+| The install keeps a menu bar that is already there, and the script that puts one up has the home folder and the gaps filled in (an @ in a comment or an address is the script's own text; a placeholder left or a renderer that prints nothing stops the install); its backup lists every file it adds (install, then delete `created.txt`, gives back the same home); a second backup keeps the first; it installs the `aurora` command and offers Aurora's wallpaper; it copies no font, uses Inter and JetBrains Mono unless SF Pro or SF Mono is installed, and the repository carries no Apple font; an install from before the Quick Menu's name moves its files, its saved order and the menu bar button over; old menu bar widgets give their place to Aurora's own; the package's prebuilt parts export without object files; installed from the package, an older `aurora` in `~/.local/bin` goes so the package's runs; the update notices' timer runs the installed aurora daily, catches up after the PC was off, is enabled once, and the backup lists it; a running Plasma stops before old widgets get Aurora's ids (it would write the old ones back) and nothing to move leaves it alone; animations are smooth (1) unless aurora.conf chooses fast or instant, and only its [look] group counts; every loaded KWin effect reloads so the new speed reaches the running desktop; Aurora Motion is installed and turned on while KWin's Scale, Squash and Magic Lamp step aside | `python3 -I tests/installer/test_install.py` | 36 pass |
+| GTK apps get Plasma's cursor; the GTK 4 sheet leaves table headings to their app (no list padding on a column view's headings); the window button glyphs sit half a pixel off the icon's middle, so GTK's whole-pixel icon puts each stroke on one row of pixels, as File Explorer and the decoration draw them | `python3 -I tests/installer/test_gtk_theme.py` | 3 pass |
 | `install.sh --help` and `--version`, refuses unknown options, `--check` writes nothing and names the build folder (the user's cache for a read-only copy, as the aurora-theme package's); `uninstall.sh` without an install fails clearly | `tests/installer/test_cli.sh` | 12 pass |
 | `get.sh`, README.md's one command: checks the downloaded key's fingerprint before pacman trusts it, adds `[aurora]` to pacman.conf once, upgrades with `pacman -Syu --needed aurora-theme`, then opens the package's `aurora install` (`/usr/bin`, ahead of an older copy on PATH); a second run only upgrades and opens it; another key changes nothing; README.md's command, `curl -fsSL .../get.sh | bash`, runs in fish, zsh and bash, which find only the stand-in sudo (a real one failing would count toward pam_faillock's lockout); Aurora's wordmark comes first, the password is asked once before anything changes, and aurora does not draw the wordmark again; it names the system (Wayland, Plasma 6.8.2), numbers the four steps with a tick and a time each, ends with the installed version, refuses Plasma 5 before any sudo, uses no middle dots, and points a `[aurora]` section with another address back at Aurora's | `tests/installer/test_get.sh` | 38 pass |
 | The root part of the install (`installer/root-steps.sh`) takes paths as arguments: a path with a quote, `$(...)` or `;` is linked as written and runs nothing; unknown steps are refused; `install.sh` hands root no shell text | `tests/installer/test_root_steps.sh` | 6 pass |
@@ -985,12 +1119,14 @@ export QT_QPA_PLATFORM=offscreen q=/usr/lib/qt6/bin/qmltestrunner B=$PWD/build
 | Control Center (grid, module texts, a pill's title clear of its rounded end, its entrance at the desktop's speed) | `(cd components/control-center && $q -import $B/glass/qml -input tests/tst_cc.qml)` | 20 pass |
 | Window motion (open, close, minimize into the Dock icon and back, Quick Menu's close, windows it leaves alone) | `bun test components/motion/tests` | 6 pass |
 | The color tag emblems: 63 of them, their folder registered once, File Explorer's colors | `tests/installer/test_tag_emblems.sh` | 5 pass |
+| The menu bar's 19 status icons: filled shapes only, and GTK 4 draws the magnifier as a ring with a handle, not a dot | `tests/installer/test_status_glyphs.sh` | 4 pass |
 | Tray drag layering | `(cd components/system-tray/tests && $q -input tst_draglayering.qml)` | 5 pass |
 | Kali menu | `(cd components/kali-menu && $q -input tests/tst_menu.qml)` | 31 pass, 1 known fail: `test_mouse_drag_reorders` (the settings editor's drag under offscreen; it fails on the untouched upstream package too) |
 | Quick Menu logic (sections, keys, dragged order, the app menu, pins, the Dock script, the account and power rail, its entrance, All Applications by letter) | `(cd components/quick-menu && $q -input tests/tst_quickmenu.qml)` | 43 pass |
 | Quick Menu launcher | `components/quick-menu/tests/test_launch.sh` | 5 pass |
 | Menu bar logos (the logo table, colors, ids) | `(cd components/kali-menu && $q -input tests/tst_logos.qml)` | 8 pass |
 | The `aurora` command: logos, install steps, releases (SemVer tags, HTTPS links, checksums, archive members), sources, logs, the banner (not twice after get.sh, and not before a scripted `mission-center settings --set` or `--reset`); update notices (daily, weekly or never with a few hours of slack, settings and record round trips, checkupdates output recorded on CachyOS, a skipped version, the notice's title, text and buttons, and that it stays until answered; the package release `aurora update` compares; animation speeds read back, default to smooth and are steps of Plasma's slider, the same table as install.py's); sudo's password dialog behind a wrapper that keeps its warnings out of the terminal; the package's program installs the package's copy over an older installed one; the performance tuning's state and root steps, the backups' list and dates, the icon themes a person can pick; the safe update (what a package was built for, read from a recorded `.BUILDINFO` with lookalike names; what a system upgrade brings; KDE Plasma, KWin and Qt matched whole and KDecoration by its minor version; updating with the system, alone or not at all, and the pacman commands for each); Mission Center (Aurora's build told from the distribution's, snapshots newest first and read back, the recipe's version and package name, the command a rollback runs, settings checked against recorded `gsettings range` output, every value the menu offers allowed by the schema); contract tests against `tools.js`, `install.sh`, `release.sh`, `root-steps.sh` (the tuning's files), `install.py` (the icon theme), `build.sh` (the versions each part is stamped with) and the Mission Center recipe | `cargo test --locked --manifest-path cli/Cargo.toml` | 97 + 4 + 12 pass |
+| Mission Center's own code with Aurora's patches: the glass blur region (one rectangle for square corners, about r²(4 − π) cut for rounded ones, no overlap, clamped radius) and GDK told once to leave the blur protocol to it (`GDK_WAYLAND_DISABLE` kept, the name added once, only a whole name counting), the heat tint (no tint when idle, each step from its bound, units read in their own scale, never cooler as a value rises, processor shares in blue and the rest in amber) and the Performance tiles (a caption over a value is a reading, also inside a row of labels, a box of readings is not; the facts card covers every fact and no more; lone tiles pair once, one after the other), the undecorated window's edges (a 6 px band inside each edge resizes, both ways at a corner, nothing farther in or outside), KWin's shadow for the window, menus and tooltips alike (clear under the body, darker below than above, faded out at the image's corner; eight tiles, one line per edge, every byte placed) and a partition's capacity bar (plain to 90 % used, amber to 95 %, red past it, File Explorer's thresholds), with upstream's tests | `meson test cargo-test` in `build/mission-center` | 57 pass |
 | Plasma patches | each `<part>.patch` on a fresh copy of `upstream/` (plus the `.qsb`) reproduces `vendor/` ([../docs/update.md](../docs/update.md)) | 3 reproduce |
 
 ## Sandbox scenarios
@@ -1008,7 +1144,7 @@ others capture `tests/sandbox/shots/` to compare by eye.
 | `quick-menu-rail.sh` | the rail: the account's picture and name; Restart, Shut Down, Log Out and Lock each reach Plasma's session services, stood in for by `tests/helpers/fake_session.py` so no real call can restart or lock the machine (5 PASS) |
 | `cli.sh` | the `aurora` command in Konsole with Aurora's profile on Dawn Bird: its menu under the banner and the credit, then `aurora status` (captures) |
 | `quick-menu-app-menu.sh` | the app menu: right-click, Pin to Top and the Pinned section, the Menu key (not the field's text menu), Unpin from Dock, an opened app in Suggestions and Remove from Suggestions, no QML warnings (8 PASS); labels found with `tests/helpers/find_text.py` |
-| `readme.sh` | the README's pictures (run with `SANDBOX_SCALE=2`, then `assets/screenshots/make.py`) |
+| `readme.sh` | the README's pictures, the notifications popover among them (run with `SANDBOX_SCALE=2`, then `assets/screenshots/make.py`, which also crops Mission Center's two from its own sandbox) |
 | `kali-menu.sh` | the Kali menu with PC labels |
 | `explorer.sh`, `explorer-menus.sh`, `explorer-drives.sh`, `explorer-sidebar-order.sh`, `show-in-folder.sh`, `open-save.sh` | File Explorer, its menus (X11 client), its drives, dragging sidebar rows into a new order, "Show in folder", Open and Save |
 | `notifications.sh` | banners in the bottom-right corner, hover buttons |
@@ -1040,7 +1176,7 @@ KWin runs SCENARIO as its session and exits with it. Nothing touches the real se
 
 ```bash
 tests/sandbox/run.sh "$PWD/tests/sandbox/scenarios/quick-menu.sh" 200 > tests/sandbox/logs/run-quick-menu.log 2>&1
-SANDBOX_SCALE=2 tests/sandbox/run.sh "$PWD/tests/sandbox/scenarios/readme.sh" 160   # the README's pictures, sharp
+SANDBOX_SCALE=2 tests/sandbox/run.sh "$PWD/tests/sandbox/scenarios/readme.sh" 240   # the README's pictures, sharp
 python3 -I assets/screenshots/make.py                                                # crops them into assets/
 ```
 
@@ -1225,6 +1361,59 @@ it changes. A change that needs a fresh install, or that an earlier backup canno
 
 ## [Unreleased]
 
+### Changed
+
+- The notifications popover in the menu bar looks like macOS Tahoe's Notification Center. Each notification sits on
+  its own rounded glass card with the app's icon large at the left, a bold title with its time and the message below,
+  and a picture in rounded corners at the right. Clear appears over a card's top-right corner on hover. The app's
+  settings and Minimize moved to the menu of a right-click or the Menu key. Do not disturb reads as a settings row
+  with its switch at the right, and the label also turns it on. An empty popover shows a bell with "No Notifications".
+  A long message shows its first four lines and opens in full with a click or Show More, and older notifications
+  show their date.
+- Aurora's Mission Center is one sheet of dark glass like File Explorer: KWin blurs what is behind it, the device
+  sidebar floats as the clearer glass, the pages switch in one glass capsule, the window buttons sit in another, and a
+  window that is not in front turns opaque. The graphs are tinted cards, the Performance details sit on a glass card,
+  and the Services filters are chips. The device sidebar now stays on Apps and Services too, when the window is wide
+  enough for every column, and a click on a device opens its Performance view. The search field is always in the
+  header bar, and typing on the Performance page searches the apps. Busy values in Apps and Services are tinted
+  warmer as they rise, as in the Windows 11 Task Manager; Preferences and `aurora mission-center settings` turn the
+  tint off.
+- Mission Center's Apps and Services pages sit on a glass card with the column headings inside, the Apps and
+  Processes headings no longer show as a grey selected bar, Stop, Force Stop and Details are separate glass pills, and
+  busy cells get a rounded tint, blue for CPU and GPU and amber for memory. The device sidebar now fits beside every
+  column from a 1220 px wide window. On Performance, each reading is a glass tile, two to a row, with the details on
+  a card below, lined up with the graphs instead of starting under an empty gap. The selected device in the sidebar is
+  glass instead of solid blue.
+  Its header is File Explorer's toolbar: the window buttons sit in the same capsule with the same glyphs and at the
+  same distance from the window's edges, every control has the same height on one line, and the sidebar and edit
+  buttons sit at the sidebar's top left as in File Explorer, where the sidebar button stays when the sidebar is
+  hidden. In a narrow window, or while the sidebar is being edited, the search field narrows so the page tabs keep
+  their full names. The light style gets the same glass as the dark one instead of the old look.
+  Its glass is now File Explorer's: the same tint over a real blur, the sidebar the clearer glass, and the same soft
+  shadow drawn by KWin; the window resizes from just inside its edges. The devices in the sidebar, the tables and the
+  graphs keep File Explorer's spacing from the edges instead of touching them.
+  Its right-click menus, the main menu and tooltips are File Explorer's blurred glass with its row sizes, blue
+  highlight, check marks and soft shadow, and submenus such as Send Signal open beside the menu instead of replacing
+  it. Dialogs use File Explorer's dialog color, and Preferences is wide enough for its four page names. A drive's
+  partitions sit on a glass card under its details, with File Explorer's capacity bars that turn amber past 90 % used
+  and red past 95 %, and a network's addresses join the rest of its details on their card.
+- The menu bar stays see-through over a maximized window, so its popups (notifications, sound, network) stay glass
+  like File Explorer instead of turning solid gray.
+
+### Fixed
+
+- The menu bar's status icons drawn by Aurora (volume, network, media, the bell and the magnifier) show correctly in
+  GTK apps. GTK drew their outlines filled, so Mission Center's search button showed a solid dot instead of a
+  magnifier.
+- Table headings in GTK apps line up with their columns again. Aurora's GTK theme padded them like list
+  headers, which moved each heading to the right of its values and cut off the last one, such as Mission Center's
+  GPU Memory.
+- The window buttons of GTK apps are as sharp as File Explorer's. Their glyphs sat between two rows of pixels, so
+  they looked dimmer and thicker.
+- Mission Center's Performance details no longer run past the window's right edge in a narrow window.
+
+## [1.2.0] - 2026-11-07
+
 ### Added
 
 - Mission Center is part of Aurora. `aurora mission-center on` puts Aurora's build in place of the distribution's:
@@ -1366,7 +1555,8 @@ question, and removed with one command.
 - After a Plasma, KWin or Qt update, the parts built for the old version step aside on their own until the package
   brings them built for the new one; `aurora rebuild` builds them right away.
 
-[Unreleased]: https://github.com/xt0n1-t3ch/Aurora-CachyOS-Theme/compare/v1.1.1...HEAD
+[Unreleased]: https://github.com/xt0n1-t3ch/Aurora-CachyOS-Theme/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/xt0n1-t3ch/Aurora-CachyOS-Theme/compare/v1.1.1...v1.2.0
 [1.1.1]: https://github.com/xt0n1-t3ch/Aurora-CachyOS-Theme/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/xt0n1-t3ch/Aurora-CachyOS-Theme/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/xt0n1-t3ch/Aurora-CachyOS-Theme/releases/tag/v1.0.0

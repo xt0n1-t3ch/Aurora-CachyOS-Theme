@@ -3,9 +3,12 @@
 # Additional terms (GPL-3.0 section 7, author attribution): see NOTICE.md.
 """Makes the README's pictures from the sandbox captures of tests/sandbox/scenarios/readme.sh.
 
-Run the scenario with SANDBOX_SCALE=2 (5120x2880 captures of the 2560x1440 screen), then this script:
+Run the scenario with SANDBOX_SCALE=2 (5120x2880 captures of the 2560x1440 screen), and Mission Center's own sandbox
+for its two pictures, then this script:
 
-    SANDBOX_SCALE=2 tests/sandbox/run.sh "$PWD/tests/sandbox/scenarios/readme.sh" 160
+    SANDBOX_SCALE=2 tests/sandbox/run.sh "$PWD/tests/sandbox/scenarios/readme.sh" 240
+    PAGES="cpu,performance-page,cpu,, apps,apps-page,cpu,," \
+        components/mission-center/tools/sandbox/run.sh "$PWD/components/mission-center/tools/sandbox/capture.sh" 120
     python3 -I assets/screenshots/make.py
 """
 import os
@@ -22,6 +25,16 @@ CROPS = {
     "control-center": ("readme-control-center", (2200, 0, 2560, 470)),
     "kali-menu": ("readme-menu", (0, 0, 420, 300)),
     "notifications": ("readme-notifications", (2166, 1168, 2560, 1376)),
+    # The notifications popover under the bell, with the tray.
+    "notification-center": ("readme-notification-center", (1940, 0, 2560, 530)),
+}
+# Mission Center's captures (components/mission-center/tools/sandbox/capture.sh): the window placed at 100,100 of the
+# screen at its own scale of 1, with its shadow and the wallpaper around it; each picture keeps the window and the
+# shadow.
+MISSION = os.path.join(ROOT, "components/mission-center/tools/sandbox/shots")
+MISSION_CROPS = {
+    "mission-center": ("-cpu", (10, 10, 1330, 910)),
+    "mission-center-apps": ("-apps", (10, 10, 1330, 910)),
 }
 
 
@@ -39,3 +52,7 @@ for name, (capture, box) in CROPS.items():
     image = Image.open(os.path.join(SHOTS, f"{capture}.png"))
     save(image.crop(tuple(v * scale for v in box)), name)
     print(name, image.crop(tuple(v * scale for v in box)).size)
+for name, (capture, box) in MISSION_CROPS.items():
+    image = Image.open(os.path.join(MISSION, f"{capture}.png")).crop(box)
+    save(image, name)
+    print(name, image.size)
