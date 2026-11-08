@@ -11,6 +11,8 @@ it changes. A change that needs a fresh install, or that an earlier backup canno
 
 ## [Unreleased]
 
+## [1.3.1] - 2026-11-08
+
 ### Fixed
 
 - File Explorer and Quick Menu start on processors without AVX2, such as Intel Pentium, Celeron and Atom chips. The
@@ -215,7 +217,8 @@ question, and removed with one command.
 - After a Plasma, KWin or Qt update, the parts built for the old version step aside on their own until the package
   brings them built for the new one; `aurora rebuild` builds them right away.
 
-[Unreleased]: https://github.com/xt0n1-t3ch/Aurora-CachyOS-Theme/compare/v1.3.0...HEAD
+[Unreleased]: https://github.com/xt0n1-t3ch/Aurora-CachyOS-Theme/compare/v1.3.1...HEAD
+[1.3.1]: https://github.com/xt0n1-t3ch/Aurora-CachyOS-Theme/compare/v1.3.0...v1.3.1
 [1.3.0]: https://github.com/xt0n1-t3ch/Aurora-CachyOS-Theme/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/xt0n1-t3ch/Aurora-CachyOS-Theme/compare/v1.1.1...v1.2.0
 [1.1.1]: https://github.com/xt0n1-t3ch/Aurora-CachyOS-Theme/compare/v1.1.0...v1.1.1
