@@ -66,8 +66,10 @@ run "quick-menu logic" qml components/quick-menu tests/tst_quickmenu.qml
 run "quick-menu launcher" components/quick-menu/tests/test_launch.sh
 run "window motion" bun test components/motion/tests
 run "tag emblems" tests/installer/test_tag_emblems.sh
+run "status icons" tests/installer/test_status_glyphs.sh
 run "plasma patches" tests/release/test_patches.sh
 run "installer" python3 -I tests/installer/test_install.py
+run "GTK theme" python3 -I tests/installer/test_gtk_theme.py
 run "install.sh options" tests/installer/test_cli.sh
 run "one-command install" tests/installer/test_get.sh
 run "root steps" tests/installer/test_root_steps.sh

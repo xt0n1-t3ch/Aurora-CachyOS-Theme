@@ -1,8 +1,260 @@
+diff --git a/Cargo.lock b/Cargo.lock
+index fb8f244..8b80c9d 100644
+--- a/Cargo.lock
++++ b/Cargo.lock
+@@ -171,6 +171,15 @@ version = "0.2.4"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "460fbee9c2c2f33933d720630a6a0bac33ba7053db5344fac858d4b8952d77d5"
+ 
++[[package]]
++name = "dlib"
++version = "0.5.3"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "ab8ecd87370524b461f8557c119c405552c396ed91fc0a8eec68679eab26f94a"
++dependencies = [
++ "libloading",
++]
++
+ [[package]]
+ name = "dlv-list"
+ version = "0.5.2"
+@@ -180,6 +189,12 @@ dependencies = [
+  "const-random",
+ ]
+ 
++[[package]]
++name = "downcast-rs"
++version = "1.2.1"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "75b325c5dbd37f80359721ad39aca5a29fb04c89279657cffdda8736d0c0b9d2"
++
+ [[package]]
+ name = "either"
+ version = "1.19.0"
+@@ -367,6 +382,33 @@ dependencies = [
+  "system-deps 9.0.1",
+ ]
+ 
++[[package]]
++name = "gdk4-wayland"
++version = "0.11.5"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "99cc5266dc4e8745a4c4683b26a0c54977a452809d572c940e39c6844663c0ec"
++dependencies = [
++ "gdk4",
++ "gdk4-wayland-sys",
++ "gio",
++ "glib",
++ "libc",
++ "wayland-backend",
++ "wayland-client",
++ "wayland-protocols",
++]
++
++[[package]]
++name = "gdk4-wayland-sys"
++version = "0.11.5"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "bb55bc5225519d34fdf1412db3755af88d1388a1c2a053d92e6751db13d96e68"
++dependencies = [
++ "glib-sys",
++ "libc",
++ "system-deps 9.0.1",
++]
++
+ [[package]]
+ name = "getrandom"
+ version = "0.2.17"
+@@ -686,6 +728,16 @@ version = "0.2.191"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "65cd87c9a6d60536580b316ad985726104730a5151c99845f2490428ef91240a"
+ 
++[[package]]
++name = "libloading"
++version = "0.8.9"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "d7c4b02199fee7c5d21a5ae7d8cfa79a6ef5bb2fc834d6e9058e89c825efdc55"
++dependencies = [
++ "cfg-if",
++ "windows-link",
++]
++
+ [[package]]
+ name = "linux-raw-sys"
+ version = "0.12.1"
+@@ -819,6 +871,7 @@ version = "1.2.0"
+ dependencies = [
+  "arrayvec",
+  "bitfield",
++ "gdk4-wayland",
+  "gettext-rs",
+  "gtk4",
+  "libadwaita",
+@@ -831,6 +884,9 @@ dependencies = [
+  "regex",
+  "rust-ini",
+  "textdistance",
++ "wayland-client",
++ "wayland-protocols",
++ "wayland-protocols-plasma",
+ ]
+ 
+ [[package]]
+@@ -1073,6 +1129,15 @@ dependencies = [
+  "thiserror",
+ ]
+ 
++[[package]]
++name = "quick-xml"
++version = "0.41.0"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "e660451e55124f798a69a5af3f49ccfbefbd41910eefd25caf2393e1f3473ec1"
++dependencies = [
++ "memchr",
++]
++
+ [[package]]
+ name = "quote"
+ version = "1.0.47"
+@@ -1166,6 +1231,12 @@ dependencies = [
+  "windows-sys",
+ ]
+ 
++[[package]]
++name = "scoped-tls"
++version = "1.0.1"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "e1cf6437eb19a8f4a6cc0f7dca544973b0b78843adbfeb3683d1a94a0024a294"
++
+ [[package]]
+ name = "semver"
+ version = "1.0.28"
+@@ -1432,6 +1503,79 @@ version = "0.11.1+wasi-snapshot-preview1"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "ccf3ec651a847eb01de73ccad15eb7d99f80485de043efb2f370cd654f4ea44b"
+ 
++[[package]]
++name = "wayland-backend"
++version = "0.3.17"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "38a91b4eaddff87b1cd1074985e3713da4af2c49742d1b356b2c01670a67a078"
++dependencies = [
++ "cc",
++ "downcast-rs",
++ "rustix",
++ "scoped-tls",
++ "smallvec",
++ "wayland-sys",
++]
++
++[[package]]
++name = "wayland-client"
++version = "0.31.15"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "e3c36a0f861ad76d0901f2800b46321410d9f73f2ea88aac0650d86c32688073"
++dependencies = [
++ "bitflags",
++ "rustix",
++ "wayland-backend",
++ "wayland-scanner",
++]
++
++[[package]]
++name = "wayland-protocols"
++version = "0.32.13"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "23d0c813de3daa2ed6520af85a3bd49b0e722a3078506899aa9686fea58dc4b6"
++dependencies = [
++ "bitflags",
++ "wayland-backend",
++ "wayland-client",
++ "wayland-scanner",
++]
++
++[[package]]
++name = "wayland-protocols-plasma"
++version = "0.3.12"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "2b6d8cf1eb2c1c31ed1f5643c88a6e53538129d4af80030c8cabd1f9fa884d91"
++dependencies = [
++ "bitflags",
++ "wayland-backend",
++ "wayland-client",
++ "wayland-protocols",
++ "wayland-scanner",
++]
++
++[[package]]
++name = "wayland-scanner"
++version = "0.31.11"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "338e30461b3a2b67d70eb30a6d89f8e0c93a833e07d2ae89085cd070c4a00ac0"
++dependencies = [
++ "proc-macro2",
++ "quick-xml",
++ "quote",
++]
++
++[[package]]
++name = "wayland-sys"
++version = "0.31.11"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "d8eab23fefc9e41f8e841df4a9c707e8a8c4ed26e944ef69297184de2785e3be"
++dependencies = [
++ "dlib",
++ "log",
++ "pkg-config",
++]
++
+ [[package]]
+ name = "winapi"
+ version = "0.3.9"
+diff --git a/Cargo.toml b/Cargo.toml
+index fb93953..d4ba9be 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -23,6 +23,23 @@ package = "libadwaita"
+ version = "0.9"
+ features = ["v1_9"]
+ 
++# Aurora: KWin's blur behind the glass window (src/glass.rs), through GTK's own Wayland connection.
++[dependencies.gdk-wayland]
++package = "gdk4-wayland"
++version = "0.11"
++features = ["wayland_crate"]
++
++[dependencies.wayland-client]
++version = "0.31"
++
++[dependencies.wayland-protocols]
++version = "0.32"
++features = ["client", "staging"]
++
++[dependencies.wayland-protocols-plasma]
++version = "0.3"
++features = ["client"]
++
+ [dependencies.gettext-rs]
+ version = "0.8"
+ features = ["gettext-system"]
 diff --git a/data/io.missioncenter.MissionCenter.gschema.xml b/data/io.missioncenter.MissionCenter.gschema.xml
-index 0c29a0d..ea7dbeb 100644
+index 0c29a0d..8f52b5b 100644
 --- a/data/io.missioncenter.MissionCenter.gschema.xml
 +++ b/data/io.missioncenter.MissionCenter.gschema.xml
-@@ -302,6 +302,11 @@
+@@ -135,6 +135,12 @@
+             <summary>Gray out values that equal zero in the Apps view</summary>
+         </key>
+ 
++        <key name="apps-page-heat-tint" type="b">
++            <default>true</default>
++            <summary>Tint busy cells in the Apps and Services views</summary>
++            <description>Shades a cell warmer as its value rises, as the Windows 11 Task Manager does (Aurora)</description>
++        </key>
++
+         <key name="apps-services-tree-view" type="b">
+             <default>true</default>
+             <summary>Show apps, processes and services as a tree, nesting child processes under their parents</summary>
+@@ -302,6 +308,11 @@
              <summary>Per-device visibility overrides (semicolon-separated name:show or name:hide entries)</summary>
          </key>
  
@@ -14,6 +266,18 @@ index 0c29a0d..ea7dbeb 100644
          <key name="first-time-running" type="b">
              <default>true</default>
              <summary>If it's your first time running Mission Center</summary>
+diff --git a/resources/missioncenter.gresource.xml b/resources/missioncenter.gresource.xml
+index 97ed0cc..555f3ca 100644
+--- a/resources/missioncenter.gresource.xml
++++ b/resources/missioncenter.gresource.xml
+@@ -3,6 +3,7 @@
+     <gresource prefix="/io/missioncenter/MissionCenter/icons/scalable/actions/">
+         <file preprocess="xml-stripblanks">application-x-executable.svg</file>
+         <file preprocess="xml-stripblanks">arrow-circular-top-right-symbolic.svg</file>
++        <file preprocess="xml-stripblanks">aurora-sidebar-symbolic.svg</file>
+         <file preprocess="xml-stripblanks">check-plain-symbolic.svg</file>
+         <file preprocess="xml-stripblanks">cross-small-circle-filled-symbolic.svg</file>
+         <file preprocess="xml-stripblanks">details-symbolic.svg</file>
 diff --git a/resources/ui/apps_page/page.blp b/resources/ui/apps_page/page.blp
 index c6ae8db..e687e95 100644
 --- a/resources/ui/apps_page/page.blp
@@ -43,6 +307,348 @@ index c6ae8db..e687e95 100644
  
              Box {
                orientation: vertical;
+diff --git a/resources/ui/performance_page/battery.blp b/resources/ui/performance_page/battery.blp
+index 680201f..8acf154 100644
+--- a/resources/ui/performance_page/battery.blp
++++ b/resources/ui/performance_page/battery.blp
+@@ -159,6 +159,8 @@ template $PerformancePageBattery: Box {
+ 
+   PopoverMenu context_menu {
+     has-arrow: false;
++    // Aurora: submenus open beside the menu, as File Explorer's and every desktop menu's do.
++    flags: nested;
+     menu-model: context_menu_model;
+   }
+ }
+diff --git a/resources/ui/performance_page/cpu.blp b/resources/ui/performance_page/cpu.blp
+index 5db865d..af5daba 100644
+--- a/resources/ui/performance_page/cpu.blp
++++ b/resources/ui/performance_page/cpu.blp
+@@ -157,6 +157,8 @@ template $PerformancePageCpu : Box {
+ 
+   PopoverMenu context_menu {
+     has-arrow: false;
++    // Aurora: submenus open beside the menu, as File Explorer's and every desktop menu's do.
++    flags: nested;
+     menu-model: context_menu_model;
+   }
+ }
+diff --git a/resources/ui/performance_page/disk.blp b/resources/ui/performance_page/disk.blp
+index fd94fef..a65c905 100644
+--- a/resources/ui/performance_page/disk.blp
++++ b/resources/ui/performance_page/disk.blp
+@@ -170,6 +170,8 @@ template $PerformancePageDisk: Box {
+ 
+   PopoverMenu context_menu {
+     has-arrow: false;
++    // Aurora: submenus open beside the menu, as File Explorer's and every desktop menu's do.
++    flags: nested;
+     menu-model: context_menu_model;
+   }
+ }
+diff --git a/resources/ui/performance_page/disk_details.blp b/resources/ui/performance_page/disk_details.blp
+index 272cb29..3f24e3d 100644
+--- a/resources/ui/performance_page/disk_details.blp
++++ b/resources/ui/performance_page/disk_details.blp
+@@ -487,23 +487,32 @@ template $DiskDetails: Box {
+ 
+       selectable: true;
+     }
+-  }
+ 
+-  Box partitions_section {
+-    orientation: vertical;
++    // Aurora: the partitions sit in the grid under the facts, as wide as their card (src/performance_page/tiles.rs),
++    // instead of under the grid and across the legends' column too; aurora-pages.css draws them on a card of their own.
++    Box partitions_section {
++      layout {
++        column: '1';
++        row: '10';
++        column-span: '3';
++      }
+ 
+-    Label {
+-      label: _("Partitions");
+-      styles ["heading"]
+-      halign: start;
+-      margin-top: 24;
+-    }
++      orientation: vertical;
+ 
+-    ListBox partitions_stack {
+-      styles [
+-        "rich-list",
+-        "transparent"
+-      ]
++      Label {
++        label: _("Partitions");
++        styles ["heading", "aurora-section-title"]
++        halign: start;
++        margin-top: 24;
++      }
++
++      ListBox partitions_stack {
++        styles [
++          "rich-list",
++          "transparent",
++          "aurora-partitions"
++        ]
++      }
+     }
+   }
+ }
+diff --git a/resources/ui/performance_page/disk_partition_usage_item.blp b/resources/ui/performance_page/disk_partition_usage_item.blp
+index cd707d7..d28578e 100644
+--- a/resources/ui/performance_page/disk_partition_usage_item.blp
++++ b/resources/ui/performance_page/disk_partition_usage_item.blp
+@@ -39,9 +39,12 @@ template $PartitionUsageItem: ListBoxRow {
+         ellipsize: start;
+       }
+ 
++      // Aurora: the file system, the share used and the amounts are secondary text, as File Explorer writes a
++      // drive's capacity (aurora-pages.css).
+       Label filesystem_type {
+         hexpand: true;
+         halign: end;
++        styles ["dim-label"]
+       }
+     }
+ 
+@@ -57,6 +60,7 @@ template $PartitionUsageItem: ListBoxRow {
+       Label usage_pct {
+         hexpand: true;
+         halign: end;
++        styles ["dim-label"]
+       }
+     }
+ 
+@@ -67,11 +71,13 @@ template $PartitionUsageItem: ListBoxRow {
+     Box {
+       Label used_amount {
+         halign: start;
++        styles ["dim-label"]
+       }
+ 
+       Label total_amount {
+         hexpand: true;
+         halign: end;
++        styles ["dim-label"]
+       }
+     }
+   }
+diff --git a/resources/ui/performance_page/fan.blp b/resources/ui/performance_page/fan.blp
+index 4a5cc2a..d86322f 100644
+--- a/resources/ui/performance_page/fan.blp
++++ b/resources/ui/performance_page/fan.blp
+@@ -141,6 +141,8 @@ template $PerformancePageFan: Box {
+ 
+   PopoverMenu context_menu {
+     has-arrow: false;
++    // Aurora: submenus open beside the menu, as File Explorer's and every desktop menu's do.
++    flags: nested;
+     menu-model: context_menu_model;
+   }
+ }
+diff --git a/resources/ui/performance_page/gpu.blp b/resources/ui/performance_page/gpu.blp
+index f313965..eef09e6 100644
+--- a/resources/ui/performance_page/gpu.blp
++++ b/resources/ui/performance_page/gpu.blp
+@@ -196,6 +196,8 @@ template $PerformancePageGpu: Box {
+ 
+   PopoverMenu context_menu {
+     has-arrow: false;
++    // Aurora: submenus open beside the menu, as File Explorer's and every desktop menu's do.
++    flags: nested;
+     menu-model: context_menu_model;
+   }
+ }
+diff --git a/resources/ui/performance_page/memory.blp b/resources/ui/performance_page/memory.blp
+index c22cafd..5198f7f 100644
+--- a/resources/ui/performance_page/memory.blp
++++ b/resources/ui/performance_page/memory.blp
+@@ -185,6 +185,8 @@ template $PerformancePageMemory: Box {
+ 
+   PopoverMenu context_menu {
+     has-arrow: false;
++    // Aurora: submenus open beside the menu, as File Explorer's and every desktop menu's do.
++    flags: nested;
+     menu-model: context_menu_model;
+   }
+ }
+diff --git a/resources/ui/performance_page/network.blp b/resources/ui/performance_page/network.blp
+index 29b407e..44d35d2 100644
+--- a/resources/ui/performance_page/network.blp
++++ b/resources/ui/performance_page/network.blp
+@@ -94,6 +94,8 @@ template $PerformancePageNetwork: Box {
+ 
+   PopoverMenu context_menu {
+     has-arrow: false;
++    // Aurora: submenus open beside the menu, as File Explorer's and every desktop menu's do.
++    flags: nested;
+     menu-model: context_menu_model;
+   }
+ }
+diff --git a/resources/ui/performance_page/network_details.blp b/resources/ui/performance_page/network_details.blp
+index 7f54a55..9b200f9 100644
+--- a/resources/ui/performance_page/network_details.blp
++++ b/resources/ui/performance_page/network_details.blp
+@@ -484,67 +484,73 @@ Box root {
+ 
+       selectable: true;
+     }
+-  }
+ 
+-  Box {
+-    orientation: vertical;
+-    spacing: 5;
+-    margin-start: 10;
++    // Aurora: the addresses are facts like the rest, so they sit on the same card (src/performance_page/tiles.rs)
++    // instead of in a box of their own under it.
++    Label {
++      layout {
++        column: '1';
++        row: '11';
++      }
+ 
+-    Box {
+-      orientation: horizontal;
+-      spacing: 2;
++      styles [
++        "caption",
++      ]
+ 
+-      Label {
+-        styles [
+-          "caption",
+-        ]
++      halign: start;
++      margin-end: 5;
++      label: _("IPv4 address:");
+ 
+-        halign: start;
+-        margin-end: 5;
+-        label: _("IPv4 address:");
++      ellipsize: end;
++    }
+ 
+-        ellipsize: end;
++    Label ipv4_address {
++      layout {
++        column: '3';
++        row: '11';
+       }
+ 
+-      Label ipv4_address {
+-        styles [
+-          "caption",
+-        ]
++      styles [
++        "caption",
++      ]
+ 
+-        halign: start;
++      halign: start;
+ 
+-        ellipsize: middle;
+-        selectable: true;
+-      }
++      ellipsize: middle;
++      selectable: true;
+     }
+ 
+-    Box {
+-      orientation: horizontal;
+-      spacing: 2;
++    Label {
++      layout {
++        column: '1';
++        row: '12';
++      }
+ 
+-      Label {
+-        styles [
+-          "caption",
+-        ]
++      styles [
++        "caption",
++      ]
+ 
+-        halign: start;
+-        margin-end: 5;
++      halign: start;
++      margin-end: 5;
+ 
+-        label: _("IPv6 address:");
+-        ellipsize: end;
++      label: _("IPv6 address:");
++      ellipsize: end;
++    }
++
++    Label ipv6_address {
++      layout {
++        column: '3';
++        row: '12';
+       }
+ 
+-      Label ipv6_address {
+-        styles [
+-          "caption",
+-        ]
++      styles [
++        "caption",
++      ]
+ 
+-        halign: start;
++      halign: start;
+ 
+-        ellipsize: middle;
+-        selectable: true;
+-      }
++      ellipsize: middle;
++      selectable: true;
+     }
+   }
+ }
+diff --git a/resources/ui/performance_page/page.blp b/resources/ui/performance_page/page.blp
+index a47d16d..9d730bf 100644
+--- a/resources/ui/performance_page/page.blp
++++ b/resources/ui/performance_page/page.blp
+@@ -30,12 +30,22 @@ template $PerformancePage : Adw.BreakpointBin {
+   Adw.OverlaySplitView page_content {
+     sidebar-position: end;
+     min-sidebar-width: 240;
+-    max-sidebar-width: 270;
++    max-sidebar-width: 340;
++    // Aurora: about a third of the page, as in Windows 11's Task Manager, so two reading tiles fit side by side and
++    // a network card's hardware address fits beside its name.
++    sidebar-width-fraction: 0.34;
+ 
+     sidebar: ScrolledWindow {
++      styles [
++        "aurora-card",
++      ]
++
+       width-request: 270;
+       margin-start: 5;
+       margin-end: 5;
++      // Aurora: the column is never narrower than its tiles, so the split view gives it their width and narrows the
++      // graphs instead; scrolling sideways cut the tiles at the window's edge.
++      hscrollbar-policy: never;
+ 
+       Stack info_stack {
+         transition-type: crossfade;
+@@ -71,7 +81,10 @@ template $PerformancePage : Adw.BreakpointBin {
+         name: "content";
+         child: Stack page_stack {
+           margin-top: 10;
+-          margin-start: 10;
++          // Aurora: the graphs start and end where the Apps and Services table cards do, 24 px from the device
++          // sidebar and 16 px above the window's bottom edge (the device pages keep 10 of those).
++          margin-start: 24;
++          margin-bottom: 6;
+           margin-end: 10;
+ 
+           transition-type: crossfade;
 diff --git a/resources/ui/performance_page/summary_graph.blp b/resources/ui/performance_page/summary_graph.blp
 index c7d9f5f..3519447 100644
 --- a/resources/ui/performance_page/summary_graph.blp
@@ -81,8 +687,36 @@ index c7d9f5f..3519447 100644
      Switch enabled_switch {
        visible: false;
  
+diff --git a/resources/ui/preferences/apps_services_page.blp b/resources/ui/preferences/apps_services_page.blp
+index e8105c3..8558503 100644
+--- a/resources/ui/preferences/apps_services_page.blp
++++ b/resources/ui/preferences/apps_services_page.blp
+@@ -60,5 +60,10 @@ template $PreferencesAppsServicesPage: Adw.PreferencesPage {
+       title: _("Grey Out Zeroes");
+       subtitle: _("Gray out values that equal zero");
+     }
++
++    Adw.SwitchRow heat_tint {
++      title: _("Heat Tint");
++      subtitle: _("Shade busy values warmer as they rise");
++    }
+   }
+ }
+diff --git a/resources/ui/preferences/window.blp b/resources/ui/preferences/window.blp
+index 1ac43cc..cb4a34d 100644
+--- a/resources/ui/preferences/window.blp
++++ b/resources/ui/preferences/window.blp
+@@ -22,4 +22,8 @@ using Gtk 4.0;
+ using Adw 1;
+ 
+ template $PreferencesDialog : Adw.PreferencesDialog {
++  // Aurora: room for the page switcher's four labels beside the close button. The switcher gives every page the
++  // width of the longest label, Performance Page (116 px in SF Pro Text 10), so at libadwaita's 640 px the longer
++  // labels were cut short; 820 px fits them with the glass header's pills.
++  content-width: 820;
+ }
 diff --git a/resources/ui/services_page/page.blp b/resources/ui/services_page/page.blp
-index 5f7775f..9a7980a 100644
+index 5f7775f..088f54a 100644
 --- a/resources/ui/services_page/page.blp
 +++ b/resources/ui/services_page/page.blp
 @@ -24,11 +24,8 @@ using Adw 1;
@@ -108,7 +742,24 @@ index 5f7775f..9a7980a 100644
  
              Box {
                orientation: vertical;
-@@ -233,7 +233,7 @@ template $ServicesPage : Box {
+@@ -122,13 +122,14 @@ template $ServicesPage : Box {
+                 spacing: 5;
+                 halign: end;
+ 
++                // Aurora: the state filters are separate glass chips, the active ones lit.
+                 Box {
+                   styles [
+-                    "linked"
++                    "aurora-chips"
+                   ]
+ 
+                   halign: end;
+-                  homogeneous: true;
++                  spacing: 6;
+ 
+                   ToggleButton toggle_running {
+                     name: "toggle_running";
+@@ -233,7 +234,7 @@ template $ServicesPage : Box {
            }
  
            $TableView table_view {
@@ -141,7 +792,7 @@ index 7db3f2b..75f7360 100644
 +    background: transparent;
 +}
 diff --git a/resources/ui/table_view/table_view.blp b/resources/ui/table_view/table_view.blp
-index 5e28240..d3225bc 100644
+index 5e28240..18b917b 100644
 --- a/resources/ui/table_view/table_view.blp
 +++ b/resources/ui/table_view/table_view.blp
 @@ -21,8 +21,11 @@
@@ -158,7 +809,7 @@ index 5e28240..d3225bc 100644
        hexpand: true;
        vexpand: true;
  
-@@ -105,7 +108,6 @@ template $TableView: Box {
+@@ -105,10 +108,12 @@ template $TableView: Box {
            }
          }
        }
@@ -166,8 +817,242 @@ index 5e28240..d3225bc 100644
    }
  
    PopoverMenu context_menu {
++    // Aurora: no tail, and submenus open beside the menu, as File Explorer's and every desktop menu's do.
++    has-arrow: false;
++    flags: nested;
+   }
+ }
+ 
+diff --git a/resources/ui/window.blp b/resources/ui/window.blp
+index 7cf52cf..4ae3563 100644
+--- a/resources/ui/window.blp
++++ b/resources/ui/window.blp
+@@ -26,6 +26,11 @@ template $MissionCenterWindow: Adw.ApplicationWindow {
+     default-width: 800;
+     default-height: 480;
+     title: "Mission Center";
++    // Aurora: without GTK's decorations, so its shadow does not make the surface reach past the window. KWin 6.8 places
++    // the blur GTK asks for from the window's edge, not the surface's, which put it off by the shadow's reach. KWin
++    // draws the shadow instead (src/shadow.rs) and the window resizes from inside its edges (src/edges.rs), as File
++    // Explorer's window does.
++    decorated: false;
+     summary-mode: bind performance_page.summary-mode;
+     collapse-threshold: 1000;
+ 
+@@ -34,39 +39,68 @@ template $MissionCenterWindow: Adw.ApplicationWindow {
+     content: Adw.OverlaySplitView split_view {
+         show-sidebar: bind toggle_sidebar_button.active bidirectional;
+ 
+-        sidebar: Adw.ToolbarView {
++        sidebar: Adw.ToolbarView sidebar_card {
+             [top]
+             Adw.HeaderBar {
++                // Aurora: File Explorer's sidebar header: the button that hides the sidebar, then the sidebar's own
++                // Edit button, and while editing, its tools at the other end. The header bar's button takes the
++                // sidebar button's place while the sidebar is hidden.
++                show-title: false;
++
++                [start]
++                Button {
++                    styles [
++                        "aurora-plain",
++                    ]
++
++                    action-name: "win.toggle-sidebar";
++                    icon-name: "aurora-sidebar-symbolic";
++                    tooltip-text: _("Hide Sidebar");
++                }
++
+                 [start]
++                ToggleButton toggle_sidebar_edit_mode_button {
++                    styles [
++                        "aurora-plain",
++                    ]
++
++                    icon-name: "edit-symbolic";
++                    tooltip-text: _("Edit Sidebar");
++                    active: false;
++                }
++
++                [end]
+                 Box {
++                    spacing: 6;
+                     visible: bind toggle_sidebar_edit_mode_button.active;
+ 
+                     Button sidebar_edit_mode_enable_all {
++                        styles [
++                            "aurora-plain",
++                        ]
++
+                         icon-name: "list-enable-all-symbolic";
+                         tooltip-text: _("Enable All");
+                     }
+ 
+                     Button sidebar_edit_mode_disable_all {
++                        styles [
++                            "aurora-plain",
++                        ]
++
+                         icon-name: "list-disable-all-symbolic";
+                         tooltip-text: _("Disable All");
+                     }
+ 
+                     Button sidebar_edit_mode_reset {
++                        styles [
++                            "aurora-plain",
++                        ]
++
+                         icon-name: "arrow-circular-top-right-symbolic";
+                         tooltip-text: _("Reset to Default");
+                     }
+                 }
+-
+-                title-widget: Adw.WindowTitle {
+-                    title: _("Devices");
+-                };
+-
+-                [end]
+-                ToggleButton toggle_sidebar_edit_mode_button {
+-                    icon-name: "edit-symbolic";
+-                    tooltip-text: _("Edit Sidebar");
+-                    active: false;
+-                }
+             }
+ 
+             Stack sidebar_stack {
+@@ -103,11 +137,18 @@ template $MissionCenterWindow: Adw.ApplicationWindow {
+         content: Adw.ToolbarView window_content {
+             [top]
+             Adw.HeaderBar header_bar {
++                // Aurora: shown only while the sidebar is hidden, as File Explorer's sidebar button moves to its toolbar.
+                 [start]
+                 ToggleButton toggle_sidebar_button {
++                    styles [
++                        "aurora-plain",
++                        "aurora-show-sidebar",
++                    ]
++
+                     action-name: "win.toggle-sidebar";
+-                    icon-name: "sidebar-toggle-left-symbolic";
+-                    tooltip-text: _("Toggle Sidebar");
++                    icon-name: "aurora-sidebar-symbolic";
++                    tooltip-text: _("Show Sidebar");
++                    visible: bind split_view.show-sidebar inverted;
+                 }
+ 
+                 title-widget: Stack header_stack {
+@@ -124,30 +165,36 @@ template $MissionCenterWindow: Adw.ApplicationWindow {
+                         };
+                     }
+ 
+-                    StackPage {
+-                        name: "search-entry";
+-
+-                        child: Adw.Clamp {
+-                            orientation: horizontal;
+-                            hexpand: true;
+-                            maximum-size: 400;
+-
+-                            child: SearchEntry header_search_entry {
+-                                placeholder-text: _("Type a name or PID to search");
+-                            };
+-                        };
+-                    }
+                 };
+ 
+                 [end]
+                 Box {
++                    // Aurora: File Explorer's gap between toolbar items.
++                    spacing: 8;
++
++                    // Aurora: the search field stays in the header bar on every page.
++                    SearchEntry header_search_entry {
++                        styles [
++                            "aurora-search",
++                        ]
++
++                        // Aurora: File Explorer's search field (components/file-explorer/src/style.h, toolbar.cpp):
++                        // about 230 px, and 150 in narrow windows (src/window.rs, the tables breakpoint).
++                        width-chars: 1;
++                        max-width-chars: 18;
++                        width-request: 150;
++                        valign: center;
++                        placeholder-text: _("Search");
++                        tooltip-text: _("Type a name or PID to search");
++                    }
++
+                     ToggleButton info_button {
+                         styles [
+                             "flat",
+                             "flipped",
+                         ]
+ 
+-                        icon-name: "sidebar-toggle-left-symbolic";
++                        icon-name: "aurora-sidebar-symbolic";
+                         visible: bind template.info-button-visible;
+                         active: false;
+                         tooltip-text: _("Toggle Device Information");
+@@ -160,7 +207,7 @@ template $MissionCenterWindow: Adw.ApplicationWindow {
+ 
+                         action-name: "win.toggle-search";
+                         icon-name: "system-search-symbolic";
+-                        visible: bind template.search-button-visible;
++                        visible: false;
+                         tooltip-text: _("Search");
+                     }
+ 
+diff --git a/src/application.rs b/src/application.rs
+index 49ae639..ef85cde 100644
+--- a/src/application.rs
++++ b/src/application.rs
+@@ -201,11 +201,13 @@ mod imp {
+                     "../resources/ui/style.css"
+                 )));
+ 
++                let display = gtk::gdk::Display::default().expect("Could not connect to a display.");
+                 gtk::style_context_add_provider_for_display(
+-                    &gtk::gdk::Display::default().expect("Could not connect to a display."),
++                    &display,
+                     &provider,
+                     gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
+                 );
++                crate::glass::load_style(&display);
+ 
+                 window.upcast()
+             };
+diff --git a/src/main.rs b/src/main.rs
+index 9559394..a8123b0 100644
+--- a/src/main.rs
++++ b/src/main.rs
+@@ -40,12 +40,16 @@ use crate::i18n::ni18n_f;
+ mod about_system_dialog;
+ mod application;
+ mod apps_page;
++mod edges;
+ mod first_run_dialog;
++mod glass;
+ mod i18n;
+ mod magpie_client;
+ mod performance_page;
++mod popups;
+ mod preferences;
+ mod services_page;
++mod shadow;
+ mod table_view;
+ mod widgets;
+ mod window;
+@@ -492,6 +496,9 @@ fn app_id(fallback: String) -> String {
+ }
+ 
+ fn main() {
++    // Aurora: before GTK opens the display, so the glass can ask KWin for its blur itself (src/glass.rs).
++    glass::claim_blur_protocol();
++
+     bindtextdomain(GETTEXT_PACKAGE, LOCALEDIR).expect("Unable to bind the text domain");
+     bind_textdomain_codeset(GETTEXT_PACKAGE, "UTF-8")
+         .expect("Unable to set the text domain encoding");
 diff --git a/src/performance_page/mod.rs b/src/performance_page/mod.rs
-index 105622a..0ce30a8 100644
+index 105622a..8dd89cd 100644
 --- a/src/performance_page/mod.rs
 +++ b/src/performance_page/mod.rs
 @@ -54,6 +54,7 @@ use summary_graph::{
@@ -178,7 +1063,15 @@ index 105622a..0ce30a8 100644
  mod disk;
  mod disk_details;
  mod fan;
-@@ -83,6 +84,33 @@ const MK_TO_0_C: i32 = -273150;
+@@ -62,6 +63,7 @@ mod gpu_details;
+ mod memory;
+ mod network;
+ mod summary_graph;
++mod tiles;
+ pub mod widgets;
+ 
+ type SummaryGraph = summary_graph::SummaryGraph;
+@@ -83,6 +85,33 @@ const MK_TO_0_C: i32 = -273150;
  
  const MAX_REMEMBERED_DEVICES: usize = 256;
  
@@ -212,7 +1105,7 @@ index 105622a..0ce30a8 100644
  fn prune_sidebar_order(order: &mut Vec<String>, present: &HashSet<String>, max: usize) {
      let mut excess = order.len().saturating_sub(max);
      let mut index = order.len();
-@@ -201,7 +229,7 @@ mod imp {
+@@ -201,7 +230,7 @@ mod imp {
              self.sidebar.borrow().clone()
          }
  
@@ -221,7 +1114,7 @@ index 105622a..0ce30a8 100644
              const CATEGORIES: [&str; 7] = ["cpu", "memory", "disk", "net", "gpu", "fan", "battery"];
  
              let category = CATEGORIES
-@@ -209,7 +237,7 @@ mod imp {
+@@ -209,7 +238,7 @@ mod imp {
                  .position(|prefix| name.starts_with(prefix))
                  .unwrap_or(CATEGORIES.len()) as u8;
  
@@ -230,7 +1123,7 @@ index 105622a..0ce30a8 100644
          }
  
          fn view_action_name(page_name: &str) -> Option<&'static str> {
-@@ -1071,12 +1099,11 @@ mod imp {
+@@ -1071,12 +1100,11 @@ mod imp {
              summary.graph_widget().connect_to_settings(&settings!());
  
              let page = CpuPage::new(&settings);
@@ -248,7 +1141,7 @@ index 105622a..0ce30a8 100644
              page.set_static_information(readings);
  
              self.configure_page(&page);
-@@ -1131,12 +1158,11 @@ mod imp {
+@@ -1131,12 +1159,11 @@ mod imp {
              ));
  
              let page = MemoryPage::new(&settings);
@@ -266,7 +1159,7 @@ index 105622a..0ce30a8 100644
              page.set_memory_color(gdk::RGBA::new(
                  DISK_BASE_COLOR[0] as f32 / 255.,
                  DISK_BASE_COLOR[1] as f32 / 255.,
-@@ -1254,12 +1280,11 @@ mod imp {
+@@ -1254,12 +1281,11 @@ mod imp {
              summary.graph_widget().connect_to_settings(&settings);
  
              let page = DiskPage::new(&page_name, &settings);
@@ -284,7 +1177,7 @@ index 105622a..0ce30a8 100644
              page.set_static_information(disk_id, disk);
  
              self.configure_page(&page);
-@@ -1323,12 +1348,6 @@ mod imp {
+@@ -1323,12 +1349,6 @@ mod imp {
                  graph_widget.connect_datasets(0, 1);
                  graph_widget.connect_datasets(1, 0);
  
@@ -297,7 +1190,7 @@ index 105622a..0ce30a8 100644
  
                  graph_widget.connect_to_settings(&settings);
              }
-@@ -1363,14 +1382,20 @@ mod imp {
+@@ -1363,14 +1383,20 @@ mod imp {
                  });
              }
  
@@ -320,7 +1213,7 @@ index 105622a..0ce30a8 100644
              page.set_static_information(connection);
              self.configure_page(&page);
  
-@@ -1432,12 +1457,11 @@ mod imp {
+@@ -1432,12 +1458,11 @@ mod imp {
                  1.,
              ));
  
@@ -338,7 +1231,7 @@ index 105622a..0ce30a8 100644
              page.set_static_information(index, gpu);
  
              self.configure_page(&page);
-@@ -1498,8 +1522,12 @@ mod imp {
+@@ -1498,8 +1523,12 @@ mod imp {
              let summary = SummaryGraph::new(DeviceType::Fan);
              summary.set_widget_name(&page_name);
  
@@ -353,7 +1246,7 @@ index 105622a..0ce30a8 100644
              } else {
                  summary.set_heading(i18n("Fan"));
              }
-@@ -1520,12 +1548,11 @@ mod imp {
+@@ -1520,12 +1549,11 @@ mod imp {
              summary.graph_widget().add_dataset(speed_dataset);
  
              let page = FanPage::new(&page_name, &settings);
@@ -371,7 +1264,7 @@ index 105622a..0ce30a8 100644
              page.set_static_information(fan_static_info);
  
              self.configure_page(&page);
-@@ -1593,12 +1620,11 @@ mod imp {
+@@ -1593,12 +1621,11 @@ mod imp {
              summary.graph_widget().add_dataset(speed_dataset);
  
              let page = BatteryPage::new(&page_name, &settings);
@@ -389,7 +1282,7 @@ index 105622a..0ce30a8 100644
              page.set_static_information(battery_static_info);
  
              self.configure_page(&page);
-@@ -2085,14 +2111,12 @@ mod imp {
+@@ -2085,14 +2112,12 @@ mod imp {
                              if let Some((summary, page)) = pages.get(&Self::fan_page_name(&fan)) {
                                  let graph_widget = summary.graph_widget();
                                  graph_widget.add_data_point(vec![vec![fan.rpm as f32]]);
@@ -409,7 +1302,7 @@ index 105622a..0ce30a8 100644
                                  } else {
                                      summary.set_heading(i18n("Fan"));
                                  }
-@@ -2106,12 +2130,25 @@ mod imp {
+@@ -2106,12 +2131,25 @@ mod imp {
                                      String::new()
                                  };
  
@@ -441,7 +1334,25 @@ index 105622a..0ce30a8 100644
                              } else {
                                  new_devices.push(index);
                              }
-@@ -2588,6 +2625,33 @@ mod imp {
+@@ -2374,7 +2412,7 @@ mod imp {
+ 
+             if let Some(child) = self.page_stack.visible_child() {
+                 let infobar_content = child.property::<Option<gtk::Widget>>("infobar-content");
+-                self.info_bar.set_child(infobar_content.as_ref());
++                tiles::show(&self.info_bar, infobar_content.as_ref());
+             }
+             self.page_stack.connect_visible_child_notify({
+                 let this = self.obj().downgrade();
+@@ -2387,7 +2425,7 @@ mod imp {
+                     if let Some(child) = page_stack.visible_child() {
+                         let infobar_content =
+                             child.property::<Option<gtk::Widget>>("infobar-content");
+-                        this.imp().info_bar.set_child(infobar_content.as_ref());
++                        tiles::show(&this.imp().info_bar, infobar_content.as_ref());
+                     }
+                 }
+             });
+@@ -2588,6 +2626,33 @@ mod imp {
              }
          }
  
@@ -475,7 +1386,7 @@ index 105622a..0ce30a8 100644
          #[test]
          fn canonical_key_puts_unknown_names_last() {
              let unknown = PerformancePage::canonical_key("something-else");
-@@ -2770,6 +2834,7 @@ impl PerformancePage {
+@@ -2770,6 +2835,7 @@ impl PerformancePage {
                      "Failed to set performance-sidebar-device-overrides setting"
                  );
              });
@@ -649,6 +1560,261 @@ index 10a463f..5016c2a 100644
  
          self.set_switch_active(switch_enabled);
      }
+diff --git a/src/performance_page/widgets/partition_usage_item.rs b/src/performance_page/widgets/partition_usage_item.rs
+index 6613aec..c2da007 100644
+--- a/src/performance_page/widgets/partition_usage_item.rs
++++ b/src/performance_page/widgets/partition_usage_item.rs
+@@ -140,7 +140,9 @@ impl PartitionUsageItem {
+                     continue;
+                 }
+ 
+-                let icon = gtk::Image::from_icon_name("mount-point");
++                // Aurora: a mount point is a folder, drawn as File Explorer draws folders in its sidebar.
++                let icon = gtk::Image::from_icon_name("folder-symbolic");
++                icon.add_css_class("dim-label");
+                 let label = gtk::Label::new(Some(mount_point));
+                 label.set_halign(gtk::Align::Start);
+                 label.set_ellipsize(pango::EllipsizeMode::Middle);
+@@ -216,6 +218,8 @@ impl PartitionUsageItem {
+ 
+                     imp.usage_bar.set_fraction(pct);
+                     imp.usage_pct.set_text(&format!("{:.0}%", pct * 100.));
++                    // Aurora: the bar warns as the partition fills.
++                    show_capacity(&imp.usage_bar, pct);
+                 }
+                 _ => {}
+             }
+@@ -226,3 +230,45 @@ impl PartitionUsageItem {
+         self.imp().cache.borrow().part_size
+     }
+ }
++
++/// Aurora: the usage bar's style class over 90 % used.
++const CAPACITY_LOW: &str = "aurora-capacity-low";
++/// Aurora: the usage bar's style class over 95 % used.
++const CAPACITY_CRITICAL: &str = "aurora-capacity-critical";
++
++/// Aurora: turns `bar` amber, then red, as File Explorer turns a nearly full drive's bar; aurora-pages.css colors it.
++fn show_capacity(bar: &gtk::ProgressBar, used: f64) {
++    for class in [CAPACITY_LOW, CAPACITY_CRITICAL] {
++        bar.remove_css_class(class);
++    }
++    if let Some(class) = capacity_class(used) {
++        bar.add_css_class(class);
++    }
++}
++
++/// Aurora: the style class of a usage bar `used` full (0 to 1), at File Explorer's thresholds
++/// (components/file-explorer/src/core/drives.cpp, `capacityFor`), or none while there is room.
++fn capacity_class(used: f64) -> Option<&'static str> {
++    if used > 0.95 {
++        Some(CAPACITY_CRITICAL)
++    } else if used > 0.90 {
++        Some(CAPACITY_LOW)
++    } else {
++        None
++    }
++}
++
++#[cfg(test)]
++mod tests {
++    use super::{capacity_class, CAPACITY_CRITICAL, CAPACITY_LOW};
++
++    #[test]
++    fn a_partition_turns_amber_past_90_percent_and_red_past_95() {
++        assert_eq!(capacity_class(0.0), None);
++        assert_eq!(capacity_class(0.90), None, "90 % used still has room");
++        assert_eq!(capacity_class(0.91), Some(CAPACITY_LOW));
++        assert_eq!(capacity_class(0.95), Some(CAPACITY_LOW), "95 % used is not yet critical");
++        assert_eq!(capacity_class(0.96), Some(CAPACITY_CRITICAL));
++        assert_eq!(capacity_class(1.0), Some(CAPACITY_CRITICAL));
++    }
++}
+diff --git a/src/preferences/apps_services_page.rs b/src/preferences/apps_services_page.rs
+index 7049c09..9303d96 100644
+--- a/src/preferences/apps_services_page.rs
++++ b/src/preferences/apps_services_page.rs
+@@ -46,6 +46,8 @@ mod imp {
+         pub show_column_separators: TemplateChild<SwitchRow>,
+         #[template_child]
+         pub hide_is_zero: TemplateChild<SwitchRow>,
++        #[template_child]
++        pub heat_tint: TemplateChild<SwitchRow>,
+     }
+ 
+     #[glib::object_subclass]
+@@ -104,6 +106,7 @@ mod imp {
+                 "apps-page-show-column-separators"
+             );
+             connect_switch_to_setting!(self.hide_is_zero, "apps-page-hide-is-zero");
++            connect_switch_to_setting!(self.heat_tint, "apps-page-heat-tint");
+         }
+     }
+ 
+@@ -137,6 +140,8 @@ impl PreferencesAppsServicesPage {
+             .set_active(settings.boolean("apps-page-show-column-separators"));
+         imp.hide_is_zero
+             .set_active(settings.boolean("apps-page-hide-is-zero"));
++        imp.heat_tint
++            .set_active(settings.boolean("apps-page-heat-tint"));
+ 
+         this
+     }
+diff --git a/src/table_view/columns/cpu.rs b/src/table_view/columns/cpu.rs
+index e1772b9..245133f 100644
+--- a/src/table_view/columns/cpu.rs
++++ b/src/table_view/columns/cpu.rs
+@@ -25,7 +25,7 @@ use gtk::glib;
+ use gtk::prelude::*;
+ use std::fmt::Write;
+ 
+-use super::{compare_column_entries_by, set_label_zero, sort_order, LabelCell};
++use super::{compare_column_entries_by, set_label_heat, set_label_zero, sort_order, LabelCell, Load};
+ use crate::label_cell_factory;
+ 
+ pub fn list_item_factory() -> gtk::SignalListItemFactory {
+@@ -55,4 +55,5 @@ pub fn label_formatter(label: &LabelCell, value: glib::Value) {
+     let _ = write!(&mut buffer, "{}%", cpu_usage.round() as u32);
+     label.set_label(buffer.as_str());
+     set_label_zero(label, cpu_usage);
++    set_label_heat(label, Load::Percent(cpu_usage));
+ }
+diff --git a/src/table_view/columns/drive.rs b/src/table_view/columns/drive.rs
+index a3b627f..1d3d118 100644
+--- a/src/table_view/columns/drive.rs
++++ b/src/table_view/columns/drive.rs
+@@ -23,7 +23,7 @@ use std::cmp::Ordering;
+ use gtk::glib;
+ use gtk::prelude::*;
+ 
+-use super::{compare_column_entries_by, set_label_zero, sort_order, LabelCell};
++use super::{compare_column_entries_by, set_label_heat, set_label_zero, sort_order, LabelCell, Load};
+ use crate::{label_cell_factory, DataType};
+ 
+ pub fn list_item_factory() -> gtk::SignalListItemFactory {
+@@ -54,4 +54,5 @@ pub fn label_formatter(label: &LabelCell, value: glib::Value) {
+         &DataType::DriveBytesPerSecond,
+     ));
+     set_label_zero(label, disk_usage);
++    set_label_heat(label, Load::DriveRate(disk_usage));
+ }
+diff --git a/src/table_view/columns/memory.rs b/src/table_view/columns/memory.rs
+index 246caa7..5d409b6 100644
+--- a/src/table_view/columns/memory.rs
++++ b/src/table_view/columns/memory.rs
+@@ -23,7 +23,7 @@ use std::cmp::Ordering;
+ use gtk::glib;
+ use gtk::prelude::*;
+ 
+-use super::{compare_column_entries_by, set_label_zero, sort_order, LabelCell};
++use super::{compare_column_entries_by, set_label_heat, set_label_zero, sort_order, LabelCell, Load};
+ use crate::{label_cell_factory, DataType};
+ 
+ pub fn list_item_factory() -> gtk::SignalListItemFactory {
+@@ -51,4 +51,5 @@ pub fn label_formatter(label: &LabelCell, value: glib::Value) {
+     let memory_usage = value.get::<u64>().unwrap() as f32;
+     label.set_label(crate::to_human_readable_nice(memory_usage, &DataType::MemoryBytes).as_str());
+     set_label_zero(label, memory_usage);
++    set_label_heat(label, Load::Bytes(memory_usage));
+ }
+diff --git a/src/table_view/columns/mod.rs b/src/table_view/columns/mod.rs
+index 141220e..281377e 100644
+--- a/src/table_view/columns/mod.rs
++++ b/src/table_view/columns/mod.rs
+@@ -37,6 +37,7 @@ pub use gpu::sorter as gpu_sorter;
+ pub use gpu_memory::label_formatter as gpu_memory_label_formatter;
+ pub use gpu_memory::list_item_factory as gpu_memory_list_item_factory;
+ pub use gpu_memory::sorter as gpu_memory_sorter;
++pub use heat::{set_label_heat, Load};
+ pub use label_cell::LabelCell;
+ pub use memory::label_formatter as memory_label_formatter;
+ pub use memory::list_item_factory as memory_list_item_factory;
+@@ -57,6 +58,7 @@ mod cpu;
+ mod drive;
+ mod gpu;
+ mod gpu_memory;
++mod heat;
+ mod label_cell;
+ mod memory;
+ mod name;
+@@ -214,7 +216,9 @@ pub fn adjust_view_header_alignment(column_view_titlebar: Option<gtk::Widget>) {
+         }
+ 
+         container.set_hexpand(true);
+-        container.set_width_request(75);
++        // Aurora: 64 px, down from 75, still holds the widest reading ("999.9 MiB") with the cell's padding, and the
++        // eight reading columns then leave room for the device sidebar beside the table (src/window.rs).
++        container.set_width_request(64);
+         label.set_halign(gtk::Align::End);
+         label.set_justify(gtk::Justification::Right);
+ 
+diff --git a/src/table_view/columns/name_cell.rs b/src/table_view/columns/name_cell.rs
+index 3d3007f..ed86ec8 100644
+--- a/src/table_view/columns/name_cell.rs
++++ b/src/table_view/columns/name_cell.rs
+@@ -141,10 +141,12 @@ mod imp {
+                     };
+                     let this = this.imp();
+                     this.set_content_type(model.content_type());
++                    this.mark_row(model.content_type());
+                 }
+             });
+             self.sig_content_type.set(Some(sig_content_type));
+             self.set_content_type(model.content_type());
++            self.mark_row(model.content_type());
+ 
+             let sig_children_changed = model.children().connect_items_changed({
+                 let expander = expander.downgrade();
+@@ -214,6 +216,30 @@ mod imp {
+             }
+         }
+ 
++        /// Aurora: marks the table row that holds this cell as a section heading or not, so aurora-pages.css keeps
++        /// a heading free of the hover and selection fills. Rows are recycled, so each bind and each map set it
++        /// again; before the cell is in a row there is nothing to mark.
++        fn mark_row(&self, content_type: ContentType) {
++            let this = self.obj().downgrade();
++            glib::idle_add_local_once(move || {
++                let Some(this) = this.upgrade() else {
++                    return;
++                };
++                let mut ancestor = this.parent();
++                while let Some(widget) = ancestor {
++                    if widget.css_name() == "row" {
++                        if content_type == ContentType::SectionHeader {
++                            widget.add_css_class("aurora-section");
++                        } else {
++                            widget.remove_css_class("aurora-section");
++                        }
++                        return;
++                    }
++                    ancestor = widget.parent();
++                }
++            });
++        }
++
+         fn set_content_type(&self, content_type: ContentType) {
+             match content_type {
+                 ContentType::SectionHeader => {
+diff --git a/src/table_view/columns/network.rs b/src/table_view/columns/network.rs
+index 50c7a38..cee3daa 100644
+--- a/src/table_view/columns/network.rs
++++ b/src/table_view/columns/network.rs
+@@ -23,7 +23,7 @@ use std::cmp::Ordering;
+ use gtk::glib;
+ use gtk::prelude::*;
+ 
+-use super::{compare_column_entries_by, set_label_zero, sort_order, LabelCell};
++use super::{compare_column_entries_by, set_label_heat, set_label_zero, sort_order, LabelCell, Load};
+ use crate::{label_cell_factory, DataType};
+ 
+ pub fn list_item_factory() -> gtk::SignalListItemFactory {
+@@ -53,4 +53,5 @@ pub fn label_formatter(label: &LabelCell, value: glib::Value) {
+         crate::to_human_readable_nice(network_usage, &DataType::NetworkBytesPerSecond).as_str(),
+     );
+     set_label_zero(label, network_usage);
++    set_label_heat(label, Load::NetworkRate(network_usage));
+ }
 diff --git a/src/table_view/models.rs b/src/table_view/models.rs
 index c6408e1..b3875e8 100644
 --- a/src/table_view/models.rs
@@ -677,11 +1843,78 @@ index c6408e1..b3875e8 100644
  
      let list = row_model.children();
  
+diff --git a/src/table_view/settings.rs b/src/table_view/settings.rs
+index f7bcafe..09ad449 100644
+--- a/src/table_view/settings.rs
++++ b/src/table_view/settings.rs
+@@ -29,6 +29,8 @@ use crate::table_view::TableView;
+ use std::sync::atomic::{AtomicBool, Ordering};
+ 
+ static HIDE_ZEROES: AtomicBool = AtomicBool::new(false);
++/// Aurora: whether busy cells are tinted (columns/heat.rs).
++static HEAT_TINT: AtomicBool = AtomicBool::new(true);
+ static TREE_VIEW: AtomicBool = AtomicBool::new(true);
+ 
+ pub fn configure(table_view: &TableView) {
+@@ -83,6 +85,11 @@ pub fn configure(table_view: &TableView) {
+         );
+     });
+ 
++    HEAT_TINT.store(settings.boolean("apps-page-heat-tint"), Ordering::Relaxed);
++    settings.connect_changed(Some("apps-page-heat-tint"), move |settings, _| {
++        HEAT_TINT.store(settings.boolean("apps-page-heat-tint"), Ordering::Relaxed);
++    });
++
+     configure_sorting(table_view, &settings);
+ }
+ 
+@@ -90,6 +97,11 @@ pub fn is_hide_zeroes_active() -> bool {
+     HIDE_ZEROES.load(Ordering::Relaxed)
+ }
+ 
++/// Aurora: whether the Apps and Services tables tint their busy cells.
++pub fn is_heat_tint_active() -> bool {
++    HEAT_TINT.load(Ordering::Relaxed)
++}
++
+ pub fn is_tree_view() -> bool {
+     TREE_VIEW.load(Ordering::Relaxed)
+ }
 diff --git a/src/window.rs b/src/window.rs
-index 754a74c..fe9c0be 100644
+index 754a74c..2f596c2 100644
 --- a/src/window.rs
 +++ b/src/window.rs
-@@ -328,6 +328,8 @@ mod imp {
+@@ -83,7 +83,7 @@ fn special_shortcuts(
+ 
+     fn toggle_search(window: &MissionCenterWindow) -> bool {
+         let imp = window.imp();
+-        let result = imp.search_button.is_visible() && !imp.search_button.is_active();
++        let result = !imp.search_button.is_active();
+         if result {
+             let _ = WidgetExt::activate_action(window, "win.toggle-search", None);
+         }
+@@ -257,6 +257,11 @@ fn special_shortcuts(
+     })
+ }
+ 
++/// Aurora: the narrowest window, in scaled pixels, that shows the device sidebar beside the Apps and Services tables
++/// with every column in view. Measured at a 1258 px window with a process tree ten levels deep: the Apps table needs
++/// at least 871 px, and the sidebar with the table card's margins takes 328.
++const TABLE_SIDEBAR_MIN_WIDTH: f64 = 1220.;
++
+ mod imp {
+     use super::*;
+ 
+@@ -270,6 +275,8 @@ mod imp {
+         #[template_child]
+         pub split_view: TemplateChild<adw::OverlaySplitView>,
+         #[template_child]
++        pub sidebar_card: TemplateChild<adw::ToolbarView>,
++        #[template_child]
+         pub menu_button: TemplateChild<gtk::MenuButton>,
+         #[template_child]
+         pub window_content: TemplateChild<adw::ToolbarView>,
+@@ -328,12 +335,18 @@ mod imp {
          collapse_threshold: Cell<i32>,
  
          pub last_refresh: Cell<u128>,
@@ -690,7 +1923,25 @@ index 754a74c..fe9c0be 100644
          pub cached_refresh_ticks: Cell<u64>,
          pub global_scroll_ticks: Cell<u32>,
  
-@@ -372,6 +374,7 @@ mod imp {
+         pub stored_readings: RefCell<Option<Readings>>,
+         pub is_refreshing_paused: Cell<bool>,
+         pub(super) services_refresh_counter: Cell<u8>,
++        /// Aurora: KWin's blur behind the window, set up once the window has a surface.
++        pub glass: RefCell<Option<crate::glass::Glass>>,
++        /// Aurora: the shadow KWin draws around the window, set up once the window has a surface.
++        pub shadow: RefCell<Option<crate::shadow::Shadow>>,
+     }
+ 
+     impl Default for MissionCenterWindow {
+@@ -341,6 +354,7 @@ mod imp {
+             Self {
+                 breakpoint: TemplateChild::default(),
+                 split_view: TemplateChild::default(),
++                sidebar_card: TemplateChild::default(),
+                 window_content: TemplateChild::default(),
+                 menu_button: TemplateChild::default(),
+                 bottom_bar: TemplateChild::default(),
+@@ -372,17 +386,91 @@ mod imp {
                  summary_mode: Cell::new(false),
                  collapse_threshold: Cell::new(0),
                  last_refresh: Cell::new(0),
@@ -698,7 +1949,310 @@ index 754a74c..fe9c0be 100644
                  cached_refresh_ticks: Cell::new(1),
                  global_scroll_ticks: Cell::new(1),
  
-@@ -1114,7 +1117,9 @@ impl MissionCenterWindow {
+                 stored_readings: RefCell::new(None),
+                 is_refreshing_paused: Cell::new(false),
+                 services_refresh_counter: Cell::new(0),
++                glass: RefCell::new(None),
++                shadow: RefCell::new(None),
+             }
+         }
+     }
+ 
+     impl MissionCenterWindow {
++        /// Aurora: dresses the window in the glass in every style, blurs behind it and gives it KWin's shadow, keeping
++        /// both fitted to the window through resizes and state changes, and gives the popovers and tooltips that open
++        /// over it theirs. The glass is dark in light style too, as Aurora's GTK theme is (themes/gtk/gtk_theme.py
++        /// loads its dark sheet for both), so the two styles no longer look like two apps.
++        fn attach_glass(&self) {
++            let window = self.obj();
++            window.add_css_class("aurora-glass");
++            crate::popups::dress_popups();
++
++            self.glass.replace(crate::glass::Glass::attach(window.as_ref()));
++            self.shadow.replace(crate::shadow::Shadow::attach(window.as_ref(), crate::shadow::WINDOW));
++            let Some(surface) = window.surface() else {
++                return;
++            };
++            let refit = {
++                let window = window.downgrade();
++                move || {
++                    if let Some(window) = window.upgrade() {
++                        Self::fit_glass(&window);
++                    }
++                }
++            };
++            refit();
++            surface.connect_layout({
++                let refit = refit.clone();
++                move |_, _, _| refit()
++            });
++            window.connect_is_active_notify({
++                let refit = refit.clone();
++                move |_| refit()
++            });
++            if let Ok(toplevel) = surface.downcast::<gdk::Toplevel>() {
++                toplevel.connect_state_notify(move |_| refit());
++            }
++        }
++
++        /// Aurora: fits KWin's blur and shadow to the window's size and state: no blur while it is not in front, as it
++        /// is opaque then, and square corners and no shadow while it is maximized, tiled or full screen.
++        fn fit_glass(window: &super::MissionCenterWindow) {
++            let square = crate::glass::is_square(window.upcast_ref());
++            if let Some(glass) = window.imp().glass.borrow().as_ref() {
++                let radius = if square { 0 } else { crate::glass::WINDOW_RADIUS };
++                glass.fit(window.is_active().then(|| crate::glass::Body::of(window, radius)));
++            }
++            if let Some(shadow) = window.imp().shadow.borrow().as_ref() {
++                shadow.show(window, !square);
++            }
++        }
++
++        /// Aurora: narrows the search field to its 150 px floor (window.blp) while the header bar is short of room, as
++        /// File Explorer narrows its search before anything else (components/file-explorer/src/toolbar.cpp), so the
++        /// page switcher keeps its labels: below TABLE_SIDEBAR_MIN_WIDTH, the only widths with a breakpoint applied,
++        /// where the Performance page keeps the sidebar, and while editing widens the sidebar.
++        fn narrow_search_when_short_of_room(&self) {
++            let wide_chars = self.header_search_entry.max_width_chars();
++            let fit = {
++                let this = self.obj().downgrade();
++                move || {
++                    let Some(this) = this.upgrade() else { return };
++                    let imp = this.imp();
++                    let short = this.current_breakpoint().is_some() || imp.performance_page.sidebar_edit_mode();
++                    imp.header_search_entry.set_max_width_chars(if short { 1 } else { wide_chars });
++                }
++            };
++            self.obj().connect_current_breakpoint_notify({
++                let fit = fit.clone();
++                move |_| fit()
++            });
++            self.performance_page.connect_sidebar_edit_mode_notify(move |_| fit());
++        }
++
+         fn info_button_visible(&self) -> bool {
+             if self.performance_page.is_bound() {
+                 self.performance_page_active.get() && self.performance_page.info_button_visible()
+@@ -500,19 +588,12 @@ mod imp {
+                     action.set_state(&new_state.to_variant());
+                     this.search_button.set_active(new_state);
+ 
++                    // Aurora: the search field is always in the header bar; the action focuses or clears it.
+                     if new_state {
+-                        this.header_stack.set_visible_child_name("search-entry");
+                         this.header_search_entry.grab_focus();
+                         this.header_search_entry.select_region(-1, -1);
+-
+-                        this.header_stack.set_visible(true);
+                     } else {
+-                        if this.window_width_below_threshold() {
+-                            this.header_stack.set_visible(false);
+-                        }
+-
+                         this.header_search_entry.set_text("");
+-                        this.header_stack.set_visible_child_name("view-switcher");
+                     }
+                 }
+             });
+@@ -627,14 +708,9 @@ mod imp {
+                     imp.toggle_sidebar_button.set_active(new_state);
+ 
+                     if old_state != imp.user_hid_sidebar.get() {
+-                        if imp.performance_page_active.get() {
+-                            if !imp.window_width_below_threshold() {
+-                                imp.split_view.set_collapsed(false);
+-                            }
+-                        } else if new_state == false {
+-                            // If the use dismisses the siderbar using the keyboard shortcut, while
+-                            // not in the performance page, don't treat it as an intentional action.
+-                            return;
++                        // Aurora: the sidebar is on every page, so hiding it is intentional on every page.
++                        if !imp.window_width_below_threshold() {
++                            imp.split_view.set_collapsed(false);
+                         }
+ 
+                         imp.user_hid_sidebar.set(old_state);
+@@ -714,10 +790,17 @@ mod imp {
+                 .and_then(|p| p.downcast::<gtk::PopoverMenu>().ok())
+             {
+                 popover.add_child(&ThemeSelector::new("win.interface-style"), "theme-selector");
++                // Aurora: the main menu opens without a tail, as File Explorer's menus do.
++                popover.set_has_arrow(false);
+             }
+         }
+ 
+         #[inline]
++        /// Whether the window is narrower than `width` in scaled pixels.
++        fn window_width_below(&self, width: f64) -> bool {
++            adw::LengthUnit::from_px(adw::LengthUnit::Sp, self.obj().width() as _, None) < width
++        }
++
+         fn window_width_below_threshold(&self) -> bool {
+             let window_width =
+                 adw::LengthUnit::from_px(adw::LengthUnit::Sp, self.obj().width() as _, None);
+@@ -732,10 +815,12 @@ mod imp {
+             let summary_mode = self.summary_mode.get();
+             let user_hid_sidebar = self.user_hid_sidebar.get();
+ 
+-            !performance_page_active
+-                || user_hid_sidebar
++            // Aurora: the device sidebar stays on every page, so Apps and Services keep the live readings in view,
++            // as long as the window is wide enough for the sidebar and every column of their tables.
++            user_hid_sidebar
+                 || summary_mode
+                 || self.window_width_below_threshold()
++                || (!performance_page_active && self.window_width_below(TABLE_SIDEBAR_MIN_WIDTH))
+         }
+     }
+ 
+@@ -780,6 +865,8 @@ mod imp {
+ 
+         fn constructed(&self) {
+             self.parent_constructed();
++            // Aurora: GTK's decorations are off (window.blp), and with them its resizing from the edges.
++            crate::edges::resize_from_edges(self.obj().upcast_ref());
+ 
+             self.configure_actions();
+             self.configure_theme_selection();
+@@ -837,6 +924,19 @@ mod imp {
+                 }
+             });
+ 
++            // Aurora: a device picked in the sidebar from Apps or Services opens its Performance view.
++            self.sidebar.connect_row_activated({
++                let this = self.obj().downgrade();
++                move |_, _| {
++                    if let Some(this) = this.upgrade() {
++                        let imp = this.imp();
++                        if !imp.performance_page_active.get() {
++                            imp.stack.set_visible_child_name("performance-page");
++                        }
++                    }
++                }
++            });
++
+             self.stack.connect_visible_child_notify({
+                 let this = self.obj().downgrade();
+                 move |_| {
+@@ -846,13 +946,6 @@ mod imp {
+                     };
+                     let this = this.imp();
+ 
+-                    if this.search_button.is_active() {
+-                        let _ = WidgetExt::activate_action(
+-                            this.obj().as_ref(),
+-                            "win.toggle-search",
+-                            None,
+-                        );
+-                    }
+                     this.update_active_page();
+                 }
+             });
+@@ -913,7 +1006,11 @@ mod imp {
+                     if let Some(this) = this.upgrade() {
+                         let this = this.imp();
+ 
+-                        if this.apps_page_active.get() || this.services_page_active.get() {
++                        // Aurora: a search typed on the Performance page looks through the apps.
++                        if this.performance_page_active.get() {
++                            this.stack.set_visible_child_name("apps-page");
++                        }
++                        if !this.search_button.is_active() {
+                             let _ = WidgetExt::activate_action(
+                                 this.obj().as_ref(),
+                                 "win.toggle-search",
+@@ -940,6 +1037,32 @@ mod imp {
+                 }
+             });
+ 
++            // Aurora: crossing TABLE_SIDEBAR_MIN_WIDTH shows or hides the sidebar on Apps and Services. libadwaita
++            // applies one breakpoint at a time, the last added of those that match, so this one stops above the
++            // collapse threshold: covering it too kept the window's own breakpoint, the narrow layout with the page
++            // switcher at the bottom, from ever applying.
++            let tables_breakpoint = adw::Breakpoint::new(
++                adw::BreakpointCondition::parse(&format!(
++                    "max-width: {TABLE_SIDEBAR_MIN_WIDTH}sp and min-width: {}sp",
++                    self.collapse_threshold.get() + 1
++                ))
++                .expect("the breakpoint condition is a valid width range"),
++            );
++            let refit_sidebar = {
++                let this = self.obj().downgrade();
++                move |_: &adw::Breakpoint| {
++                    let Some(this) = this.upgrade() else { return };
++                    let imp = this.imp();
++                    let hide = imp.should_hide_sidebar();
++                    imp.split_view.set_collapsed(hide);
++                    imp.split_view.set_show_sidebar(!hide);
++                }
++            };
++            tables_breakpoint.connect_apply(refit_sidebar.clone());
++            tables_breakpoint.connect_unapply(refit_sidebar);
++            self.obj().add_breakpoint(tables_breakpoint);
++            self.narrow_search_when_short_of_room();
++
+             self.breakpoint.set_condition(Some(
+                 &adw::BreakpointCondition::parse(&format!(
+                     "max-width: {}sp",
+@@ -957,16 +1080,12 @@ mod imp {
+                     let this = this.imp();
+ 
+                     this.bottom_bar.set_reveal(true);
+-                    if !this.search_button.is_active() {
+-                        this.header_stack.set_visible(false);
+-                    }
++                    this.header_stack.set_visible(false);
+ 
+                     this.apps_page.collapse();
+                     this.services_page.collapse();
+ 
+-                    if this.performance_page_active.get() {
+-                        this.split_view.set_collapsed(this.should_hide_sidebar());
+-                    }
++                    this.split_view.set_collapsed(this.should_hide_sidebar());
+                 }
+             });
+             self.breakpoint.connect_unapply({
+@@ -997,14 +1116,9 @@ mod imp {
+                     };
+                     let this = this.imp();
+ 
+-                    if this.performance_page_active.get() {
+-                        let should_hide_sidebar = this.should_hide_sidebar();
+-                        this.split_view.set_collapsed(should_hide_sidebar);
+-                        this.split_view.set_show_sidebar(!should_hide_sidebar);
+-                    } else {
+-                        this.split_view.set_collapsed(true);
+-                        this.split_view.set_show_sidebar(false);
+-                    }
++                    let should_hide_sidebar = this.should_hide_sidebar();
++                    this.split_view.set_collapsed(should_hide_sidebar);
++                    this.split_view.set_show_sidebar(!should_hide_sidebar);
+                 }
+             });
+ 
+@@ -1039,8 +1153,20 @@ mod imp {
+     }
+ 
+     impl WidgetImpl for MissionCenterWindow {
++        /// Aurora: the glass tint goes under everything the window draws, with the sidebar's card left out of it
++        /// while the card sits beside the pages; over them, when the window is narrow, the card is glass on glass.
++        fn snapshot(&self, snapshot: &gtk::Snapshot) {
++            let window = self.obj();
++            let card = (self.split_view.shows_sidebar() && !self.split_view.is_collapsed())
++                .then(|| self.sidebar_card.compute_bounds(&*window))
++                .flatten();
++            crate::glass::paint_tint(snapshot, window.upcast_ref(), card);
++            self.parent_snapshot(snapshot);
++        }
++
+         fn realize(&self) {
+             self.parent_realize();
++            self.attach_glass();
+ 
+             self.stack
+                 .set_visible_child_name(settings!().string("window-selected-page").as_str());
+@@ -1114,7 +1240,9 @@ impl MissionCenterWindow {
  
          this.connect_suspended_notify(|window| {
              window.sync_reduced_activity();
@@ -708,7 +2262,7 @@ index 754a74c..fe9c0be 100644
  
          this
      }
-@@ -1130,12 +1135,30 @@ impl MissionCenterWindow {
+@@ -1130,12 +1258,30 @@ impl MissionCenterWindow {
      }
  
      pub fn setup_animations(&self) {
@@ -741,7 +2295,7 @@ index 754a74c..fe9c0be 100644
                  };
  
                  this.update_animations(AnimationFrame {
-@@ -1151,6 +1174,7 @@ impl MissionCenterWindow {
+@@ -1151,6 +1297,7 @@ impl MissionCenterWindow {
                  ControlFlow::Continue
              }
          });
@@ -749,6 +2303,1449 @@ index 754a74c..fe9c0be 100644
      }
  
      pub fn set_initial_readings(&self, mut readings: Readings) {
+diff --git a/resources/aurora-sidebar-symbolic.svg b/resources/aurora-sidebar-symbolic.svg
+new file mode 100644
+index 0000000..867eca4
+--- /dev/null
++++ b/resources/aurora-sidebar-symbolic.svg
+@@ -0,0 +1,12 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<!-- Aurora: File Explorer's sidebar symbol (components/file-explorer/resources/icons/sidebar.svg), its strokes drawn as
++     filled shapes so GTK can recolor it like any symbolic icon. -->
++<svg xmlns="http://www.w3.org/2000/svg" width="16px" height="16px" viewBox="0 0 16 16">
++    <g fill="#222222">
++        <path fill-rule="evenodd" d="M4.2 1.975H11.8A3.225 3.225 0 0 1 15.025 5.2V10.8A3.225 3.225 0 0 1 11.8 14.025H4.2A3.225 3.225 0 0 1 0.975 10.8V5.2A3.225 3.225 0 0 1 4.2 1.975ZM4.2 3.225A1.975 1.975 0 0 0 2.225 5.2V10.8A1.975 1.975 0 0 0 4.2 12.775H11.8A1.975 1.975 0 0 0 13.775 10.8V5.2A1.975 1.975 0 0 0 11.8 3.225Z"/>
++        <rect x="5.475" y="2.6" width="1.25" height="10.8"/>
++        <rect x="2.75" y="4.75" width="2.4" height="1.1" rx="0.55"/>
++        <rect x="2.75" y="6.55" width="2.4" height="1.1" rx="0.55"/>
++        <rect x="2.75" y="8.35" width="2.4" height="1.1" rx="0.55"/>
++    </g>
++</svg>
+diff --git a/resources/ui/aurora-header.css b/resources/ui/aurora-header.css
+new file mode 100644
+index 0000000..a177821
+--- /dev/null
++++ b/resources/ui/aurora-header.css
+@@ -0,0 +1,254 @@
++/* aurora-header.css
++ *
++ * Copyright 2026 xt0n1-t3ch
++ *
++ * This program is free software: you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation, either version 3 of the License, or
++ * (at your option) any later version.
++ *
++ * SPDX-License-Identifier: GPL-3.0-or-later
++ */
++
++/* Aurora: the header bars of Mission Center's glass window, which hold File Explorer's toolbar row: its round and plain
++ * buttons, the page switcher, the search field and the window buttons. src/glass.rs loads it after aurora.css, whose
++ * colors (`--aurora-fill` and the rest) it uses, so its rules win where a rule there reaches a header bar widget too
++ * (the page switcher's segments sit in a stack, as the page buttons do). */
++/* Header bars: transparent over the glass. */
++window.aurora-glass headerbar {
++    background: none;
++    box-shadow: none;
++}
++
++/* A window that is not in front keeps its header bars as they are, as File Explorer keeps its toolbar; only the window
++ * buttons dim. libadwaita would halve the opacity of everything in them. */
++window.aurora-glass headerbar:backdrop > windowhandle {
++    filter: none;
++}
++
++/* The two header bars hold File Explorer's toolbar row (components/file-explorer/src/style.h, toolbar.cpp): 34 px
++ * capsules 15 px below the window's top edge, 9 px of bar below them, the window buttons 22 px in from the right edge,
++ * and at least 10 px between the sidebar's card and the first capsule, as File Explorer's 6 and 4 px margins. */
++window.aurora-glass overlay-split-view headerbar {
++    min-height: 0;
++}
++
++window.aurora-glass overlay-split-view headerbar > windowhandle > box {
++    padding: 15px 22px 9px 4px;
++}
++
++/* The header bar's sidebar button, shown while the sidebar is hidden, takes the exact place of the sidebar's own: 6 px
++ * of window and 12 px of card in, plus its 2 px margin. Its margin, not the bar's padding, keeps that room, so the
++ * page switcher has it while the sidebar shows. */
++window.aurora-glass headerbar button.aurora-plain.aurora-show-sidebar {
++    margin-left: 16px;
++}
++
++/* The sidebar's card starts 6 px down, so 9 px above its row put its buttons on the header bar's line; 3 px below it
++ * start the devices where File Explorer starts its sidebar's items. */
++window.aurora-glass overlay-split-view .sidebar-pane headerbar > windowhandle > box {
++    padding: 9px 10px 3px 12px;
++}
++
++/* Buttons with glass of their own, File Explorer's round toolbar buttons: 34 px circles. Under the pointer, pressed
++ * or checked, a fill lies over the glass, as File Explorer paints them. */
++window.aurora-glass headerbar button:not(.text-button):not(.aurora-plain),
++window.aurora-glass headerbar menubutton > button {
++    min-width: 34px;
++    min-height: 34px;
++    padding: 0;
++    border-radius: 9999px;
++    background-color: var(--aurora-fill);
++    background-image: none;
++    box-shadow: inset 0 1px var(--aurora-rim-top), inset 0 0 0 1px var(--aurora-rim);
++    opacity: 1;
++}
++
++window.aurora-glass headerbar button:not(.text-button):not(.aurora-plain):hover,
++window.aurora-glass headerbar menubutton > button:hover {
++    background-image: image(var(--aurora-fill-hover));
++}
++
++window.aurora-glass headerbar button:not(.text-button):not(.aurora-plain):checked,
++window.aurora-glass headerbar menubutton > button:checked {
++    background-image: image(var(--aurora-fill-checked));
++}
++
++window.aurora-glass headerbar button:not(.text-button):not(.aurora-plain):active,
++window.aurora-glass headerbar menubutton > button:active {
++    background-image: image(var(--aurora-fill-active));
++}
++
++/* Buttons without glass of their own, as File Explorer draws the buttons of its sidebar header and the sidebar button
++ * in its toolbar: a symbol in a 38 x 34 px place, and a 34 x 28 px pill under the pointer. */
++window.aurora-glass headerbar button.aurora-plain {
++    min-width: 34px;
++    min-height: 28px;
++    margin: 3px 2px;
++    padding: 0;
++    border-radius: 9999px;
++    background: none;
++    box-shadow: none;
++    opacity: 1;
++    transition: background-color 150ms ease-out;
++}
++
++window.aurora-glass headerbar button.aurora-plain:hover {
++    background-color: var(--aurora-fill-hover);
++}
++
++window.aurora-glass headerbar button.aurora-plain:checked {
++    background-color: var(--aurora-fill-checked);
++}
++
++window.aurora-glass headerbar button.aurora-plain:active {
++    background-color: var(--aurora-fill-active);
++}
++
++/* File Explorer draws its toolbar symbols at 18 px. */
++window.aurora-glass headerbar button:not(.text-button) > image,
++window.aurora-glass headerbar menubutton > button > image {
++    -gtk-icon-size: 18px;
++}
++
++/* The details button shows the sidebar symbol mirrored, for the panel at the other side; turning the whole button, as
++ * the stock `.flipped` class does, would turn its glass upside down with it. */
++window.aurora-glass headerbar button.flipped {
++    transform: none;
++}
++
++window.aurora-glass headerbar button.flipped > image {
++    transform: scaleX(-1);
++}
++
++/* The page switcher is a segmented capsule, as File Explorer's view buttons: each page is a pill inset 5 px from the
++ * capsule's ends and 3 px from its edges, and the page shown is the lighter one. libadwaita's 34 px minimum counts
++ * without the padding, so the capsule's 34 px leave 28 for the pills. */
++window.aurora-glass headerbar viewswitcher {
++    min-height: 28px;
++    padding: 3px;
++    border-radius: 9999px;
++    background-color: var(--aurora-fill);
++    box-shadow: inset 0 1px var(--aurora-rim-top), inset 0 0 0 1px var(--aurora-rim);
++}
++
++/* Each segment keeps the theme's own inset: the switcher pads the label box inside it by 12 px, and more padding on
++ * the button made the switcher wider than the header bar has room for, which cut its labels short. */
++window.aurora-glass headerbar viewswitcher button.toggle:not(.text-button):not(.aurora-plain) {
++    min-height: 28px;
++    margin: 0 2px;
++    padding: 0;
++    border-radius: 9999px;
++    background: none;
++    box-shadow: none;
++    opacity: 1;
++    transition: background-color 150ms ease-out;
++}
++
++window.aurora-glass headerbar viewswitcher > separator {
++    opacity: 0;
++}
++
++window.aurora-glass headerbar viewswitcher button.toggle:not(.text-button):not(.aurora-plain):hover {
++    background-color: var(--aurora-fill-hover);
++}
++
++window.aurora-glass headerbar viewswitcher button.toggle:not(.text-button):not(.aurora-plain):checked {
++    background-color: var(--aurora-fill-checked);
++}
++
++/* The search field is File Explorer's: a glass capsule that turns a step lighter, with the accent ring, while typing.
++ * It drops the GTK theme's vertical padding, which made it, and the whole row with it, 40 px tall. */
++window.aurora-glass entry.aurora-search {
++    min-height: 34px;
++    padding-top: 0;
++    padding-bottom: 0;
++    border-radius: 9999px;
++    background-color: var(--aurora-fill);
++    background-image: none;
++    box-shadow: inset 0 1px var(--aurora-rim-top), inset 0 0 0 1px var(--aurora-rim);
++    opacity: 1;
++}
++
++window.aurora-glass entry.aurora-search:focus-within {
++    background-color: var(--aurora-fill-hover);
++    box-shadow: inset 0 0 0 2px var(--accent-bg-color);
++}
++
++window.aurora-glass entry.aurora-search > image,
++window.aurora-glass entry.aurora-search > text > placeholder {
++    color: rgba(235, 235, 245, 0.59);
++}
++
++/* Window buttons: File Explorer's capsule (components/file-explorer/src/windowcontrols.cpp), minimize, maximize and
++ * close in 38 x 34 px places with a 3 px pad at each end, so 120 x 34 px, 12 px from the search field. Aurora's GTK
++ * theme draws the same one for every GTK 4 app (themes/gtk/gtk_theme.py) and installs the glyphs, File Explorer's
++ * 9.6 px strokes. Each button repeats the header bar's own selector and adds the capsule's, so it outranks the round
++ * header bar buttons above, which made each window button its own circle and piled them up. */
++window.aurora-glass headerbar windowcontrols:not(.empty) {
++    padding: 0 3px;
++    border-spacing: 0;
++    border-radius: 9999px;
++    background-color: var(--aurora-fill);
++    box-shadow: inset 0 1px var(--aurora-rim-top), inset 0 0 0 1px var(--aurora-rim);
++}
++
++window.aurora-glass headerbar windowcontrols.end:not(.empty) {
++    margin-left: 6px;
++}
++
++window.aurora-glass headerbar windowcontrols.start:not(.empty) {
++    margin-right: 6px;
++}
++
++window.aurora-glass headerbar windowcontrols > button:not(.text-button):not(.aurora-plain) {
++    min-width: 34px;
++    min-height: 28px;
++    margin: 3px 2px;
++    padding: 0;
++    border: none;
++    border-radius: 9999px;
++    background: none;
++    box-shadow: none;
++    color: rgba(255, 255, 255, 0.925);
++    transition: background-color 150ms ease-out;
++}
++
++window.aurora-glass headerbar windowcontrols > button:not(.text-button):not(.aurora-plain) > image {
++    -gtk-icon-size: 16px;
++    margin: 0;
++    padding: 0;
++    background: none;
++    box-shadow: none;
++}
++
++/* While the window is not in front, the glyphs dim to File Explorer's tertiary text (TEXT_TERTIARY) until the pointer
++ * comes over them: the hover rules below come later, so they win. */
++window.aurora-glass headerbar windowcontrols > button:not(.text-button):not(.aurora-plain):backdrop {
++    color: rgba(235, 235, 245, 0.32);
++}
++
++window.aurora-glass headerbar windowcontrols > button:not(.text-button):not(.aurora-plain):hover {
++    background-color: var(--aurora-fill-hover);
++    color: rgba(255, 255, 255, 0.925);
++}
++
++window.aurora-glass headerbar windowcontrols > button:not(.text-button):not(.aurora-plain):active {
++    background-color: var(--aurora-fill-active);
++}
++
++window.aurora-glass headerbar windowcontrols > button.close:not(.text-button):not(.aurora-plain):hover {
++    background-color: #ff453a;
++    color: white;
++}
++
++window.aurora-glass headerbar windowcontrols > button.close:not(.text-button):not(.aurora-plain):active {
++    background-color: #d6342c;
++    color: white;
++}
++
++/* Keyboard focus on a header bar button is a soft white ring, not the theme's accent ring around a round button. */
++window.aurora-glass headerbar button:focus-visible {
++    outline: 2px solid rgba(255, 255, 255, 0.35);
++    outline-offset: 1px;
++}
+diff --git a/resources/ui/aurora-pages.css b/resources/ui/aurora-pages.css
+new file mode 100644
+index 0000000..ee5c591
+--- /dev/null
++++ b/resources/ui/aurora-pages.css
+@@ -0,0 +1,279 @@
++/* aurora-pages.css
++ *
++ * Copyright 2026 xt0n1-t3ch
++ *
++ * This program is free software: you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation, either version 3 of the License, or
++ * (at your option) any later version.
++ *
++ * SPDX-License-Identifier: GPL-3.0-or-later
++ */
++
++/* Aurora: the glass look of what Mission Center's pages hold (tables, heat tint, filter chips, the Performance
++ * details), loaded with aurora.css above the user's sheet. Its rules apply only to a window with the `aurora-glass`
++ * class and use the colors aurora.css defines there. */
++
++/* Apps and Services: the table sits on a glass card under the page's heading, its column headings on the card's top
++ * edge. The card clips its rows to its corners. Its right edge lines up with the window buttons' capsule, 22 px from
++ * the window's edge, where the page itself keeps 8. */
++window.aurora-glass scrolledwindow.mc-table {
++    margin: 0 14px 16px 16px;
++    border-top: none;
++    border-radius: 14px;
++    background-color: var(--aurora-card);
++    box-shadow: inset 0 1px rgba(255, 255, 255, 0.12), inset 0 0 0 1px rgba(255, 255, 255, 0.05);
++}
++
++window.aurora-glass columnview {
++    background: none;
++}
++
++window.aurora-glass columnview > header {
++    padding-top: 4px;
++    padding-bottom: 2px;
++    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
++}
++
++/* Column headings are buttons inside the page's stack too, so they undo the page pills' size: libadwaita's own
++ * 3 px by 6 px padding keeps each column as narrow as its heading. */
++window.aurora-glass columnview > header > button:not(.flat):not(.circular):not(.toggle-pane-button) {
++    min-height: 0;
++    padding: 3px 6px;
++    border: none;
++    border-image: none;
++    border-radius: 0;
++    background: none;
++    box-shadow: none;
++}
++
++window.aurora-glass columnview > header > button > box {
++    color: rgba(255, 255, 255, 0.62);
++    font-weight: 600;
++    border-spacing: 0;
++}
++
++window.aurora-glass columnview > header > button:hover > box {
++    color: rgba(255, 255, 255, 0.86);
++}
++
++/* A heading keeps no room for the sort arrow until its column is sorted: the empty 16 px slot made every reading
++ * column wider than its values and pushed the table past the window's width. */
++window.aurora-glass columnview > header > button sort-indicator:not(.ascending):not(.descending) {
++    min-width: 0;
++    min-height: 0;
++}
++
++window.aurora-glass columnview > header > button sort-indicator.ascending,
++window.aurora-glass columnview > header > button sort-indicator.descending {
++    margin: 0 4px;
++}
++
++/* Rows are capsules; the selected one is lit in the accent. Horizontal margins stay as the stock 2 px at the start:
++ * any more widens the table's minimum width. */
++window.aurora-glass columnview > listview > row {
++    border-radius: 10px;
++    margin: 1px 0 1px 2px;
++    background-color: transparent;
++    box-shadow: none;
++}
++
++window.aurora-glass columnview > listview > row:hover {
++    background-color: rgba(255, 255, 255, 0.05);
++}
++
++window.aurora-glass columnview > listview > row:selected {
++    background-color: rgba(10, 132, 255, 0.26);
++    box-shadow: inset 0 0 0 1px rgba(10, 132, 255, 0.55);
++    color: inherit;
++}
++
++/* Each level of the process tree steps in by 16 px instead of the theme's 22, so a tree ten levels deep (a terminal's
++ * shells and tools are often that deep) still leaves the table narrow enough for the device sidebar beside it. */
++window.aurora-glass columnview treeexpander {
++    border-spacing: 4px;
++}
++
++window.aurora-glass columnview treeexpander > indent {
++    -gtk-icon-size: 12px;
++}
++
++/* The section headings (Apps, Processes, User Services, System Services) read as headings, never as a selection:
++ * the table selects the first one when it opens (src/table_view/columns/name_cell.rs marks their rows). */
++window.aurora-glass columnview > listview > row.aurora-section,
++window.aurora-glass columnview > listview > row.aurora-section:hover,
++window.aurora-glass columnview > listview > row.aurora-section:selected {
++    background-color: transparent;
++    box-shadow: none;
++}
++
++window.aurora-glass columnview > listview > row.aurora-section label.heading {
++    font-size: 1.07em;
++}
++
++/* Heat tint (src/table_view/columns/heat.rs): a busy cell gets a rounded tint inset from its neighbours, as Windows
++ * 11's Task Manager shades a busy column. Shares of the CPU and the GPU are tinted in the accent blue, memory and
++ * throughput in amber; each deepens with its step. The borders take the inset out of the stock 8 px by 6 px padding,
++ * so a tinted cell is exactly as large as a clear one and no column moves. The 1 px start border stays the stock
++ * column separator. */
++window.aurora-glass columnview > listview > row > cell.heat-low,
++window.aurora-glass columnview > listview > row > cell.heat-medium,
++window.aurora-glass columnview > listview > row > cell.heat-high,
++window.aurora-glass columnview > listview > row > cell.heat-peak {
++    border-top: 2px solid transparent;
++    border-right: 2px solid transparent;
++    border-bottom: 2px solid transparent;
++    padding: 6px 4px 6px 6px;
++    border-radius: 8px;
++    background-clip: padding-box;
++}
++
++window.aurora-glass columnview cell.heat-low {
++    background-color: rgba(255, 176, 64, 0.10);
++}
++
++window.aurora-glass columnview cell.heat-medium {
++    background-color: rgba(255, 160, 52, 0.19);
++}
++
++window.aurora-glass columnview cell.heat-high {
++    background-color: rgba(255, 140, 44, 0.30);
++}
++
++window.aurora-glass columnview cell.heat-peak {
++    background-color: rgba(255, 96, 64, 0.40);
++}
++
++window.aurora-glass columnview cell.heat-share.heat-low {
++    background-color: rgba(10, 132, 255, 0.12);
++}
++
++window.aurora-glass columnview cell.heat-share.heat-medium {
++    background-color: rgba(10, 132, 255, 0.22);
++}
++
++window.aurora-glass columnview cell.heat-share.heat-high {
++    background-color: rgba(10, 132, 255, 0.34);
++}
++
++window.aurora-glass columnview cell.heat-share.heat-peak {
++    background-color: rgba(64, 120, 255, 0.48);
++}
++
++/* Services' state filters: one glass chip each; a chip that filters is lit in the accent. */
++window.aurora-glass .aurora-chips > button.toggle:not(.flat):not(.circular):not(.toggle-pane-button) {
++    border-radius: 9999px;
++    padding: 3px 12px;
++}
++
++window.aurora-glass .aurora-chips > button.toggle:checked {
++    background-color: rgba(10, 132, 255, 0.30);
++    box-shadow: inset 0 0 0 1px rgba(10, 132, 255, 0.60);
++}
++
++/* The Performance page's details column (src/performance_page/tiles.rs): each reading is a glass tile, and the facts
++ * below them sit on one card. The column itself is clear; its 4 px top margin lines the first tiles up with the top
++ * of the graphs, which sit 65 px below the column's top in every device's layout file (the `root` margin). Its right
++ * edge lines up with the window buttons' capsule, 22 px from the window's edge. */
++window.aurora-glass scrolledwindow.aurora-card {
++    margin: 4px 12px 10px 2px;
++    background: none;
++    box-shadow: none;
++}
++
++window.aurora-glass .aurora-stat {
++    padding: 8px 12px 10px 12px;
++    border-radius: 12px;
++    background-color: var(--aurora-tile);
++    box-shadow: inset 0 1px rgba(255, 255, 255, 0.12), inset 0 0 0 1px rgba(255, 255, 255, 0.05);
++}
++
++window.aurora-glass .aurora-stat label.caption {
++    color: rgba(255, 255, 255, 0.66);
++}
++
++window.aurora-glass .aurora-stat label.title-4 {
++    font-size: 1.15em;
++}
++
++/* The facts card spans the facts' rows and reaches 10 px past their first and last line; its start and end
++ * labels keep the tiles' 12 px inset. Its minimum height offsets the negative margins, as GTK refuses a negative
++ * size. */
++window.aurora-glass .aurora-facts {
++    margin: -10px 0;
++    min-height: 20px;
++    border-radius: 12px;
++    background-color: var(--aurora-card);
++    box-shadow: inset 0 1px rgba(255, 255, 255, 0.10), inset 0 0 0 1px rgba(255, 255, 255, 0.05);
++}
++
++window.aurora-glass label.aurora-fact-start {
++    padding-left: 12px;
++}
++
++window.aurora-glass label.aurora-fact-end {
++    padding-right: 12px;
++}
++
++/* A drive's partitions (disk_details.blp, src/performance_page/widgets/partition_usage_item.rs) sit on one card under
++ * the facts and as wide as theirs, a row each with a hairline between rows (style.h, HAIRLINE). Their heading is
++ * File Explorer's sidebar section title, 11 px semibold secondary text (sidebar.cpp), lined up with the card's text. */
++window.aurora-glass label.aurora-section-title {
++    margin-left: 12px;
++    font-size: 11px;
++    font-weight: 600;
++    color: rgba(235, 235, 245, 0.59);
++}
++
++window.aurora-glass list.aurora-partitions {
++    margin-top: 6px;
++    border-radius: 12px;
++    background-color: var(--aurora-card);
++    box-shadow: inset 0 1px rgba(255, 255, 255, 0.10), inset 0 0 0 1px rgba(255, 255, 255, 0.05);
++}
++
++window.aurora-glass list.aurora-partitions > row {
++    padding: 5px 12px;
++    border-bottom: 1px solid rgba(255, 255, 255, 0.078);
++    background: none;
++}
++
++window.aurora-glass list.aurora-partitions > row:last-child {
++    border-bottom: none;
++}
++
++window.aurora-glass list.aurora-partitions .dim-label {
++    opacity: 1;
++    color: rgba(235, 235, 245, 0.59);
++}
++
++/* The usage bar is File Explorer's capacity bar (sidebar.cpp): a round track, a fill that brightens toward its end in
++ * the accent, amber past 90 % used and red past 95 % (core/drives.h, `Capacity`). */
++window.aurora-glass list.aurora-partitions progressbar {
++    margin: 7px 0 5px 0;
++}
++
++window.aurora-glass list.aurora-partitions progressbar > trough,
++window.aurora-glass list.aurora-partitions progressbar > trough > progress {
++    min-height: 4px;
++    border: none;
++    border-radius: 9999px;
++    box-shadow: none;
++}
++
++window.aurora-glass list.aurora-partitions progressbar > trough {
++    background-color: rgba(255, 255, 255, 0.14);
++}
++
++window.aurora-glass list.aurora-partitions progressbar > trough > progress {
++    background-color: transparent;
++    background-image: linear-gradient(to right, #0a84ff, rgb(100, 182, 255));
++}
++
++window.aurora-glass list.aurora-partitions progressbar.aurora-capacity-low > trough > progress {
++    background-image: linear-gradient(to right, rgb(255, 159, 10), rgb(255, 196, 92));
++}
++
++window.aurora-glass list.aurora-partitions progressbar.aurora-capacity-critical > trough > progress {
++    background-image: linear-gradient(to right, rgb(255, 69, 58), rgb(255, 128, 112));
++}
+diff --git a/resources/ui/aurora-popups.css b/resources/ui/aurora-popups.css
+new file mode 100644
+index 0000000..d33d18c
+--- /dev/null
++++ b/resources/ui/aurora-popups.css
+@@ -0,0 +1,195 @@
++/* aurora-popups.css
++ *
++ * Copyright 2026 xt0n1-t3ch
++ *
++ * This program is free software: you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation, either version 3 of the License, or
++ * (at your option) any later version.
++ *
++ * SPDX-License-Identifier: GPL-3.0-or-later
++ */
++
++/* Aurora: what opens over Mission Center's glass window, as File Explorer draws it: menus, popovers and tooltips are
++ * glass that KWin blurs (components/file-explorer/src/finderstyle.cpp), dialogs are opaque in File Explorer's dialog
++ * colors (style.cpp, darkPalette). src/glass.rs loads it last; its rules apply only inside a window with the
++ * `aurora-glass` class. KWin blurs behind every popover and tooltip and draws its shadow (src/popups.rs): a shadow
++ * drawn here would widen the popup's surface past its body, and KWin 6.8 would put the blur off by as much. */
++
++/* Menus: one sheet of glass 11 px round, at least 180 px wide, with 5 px above the first row and below the last
++ * (style.h, MENU_RADIUS and MENU_FILL; finderstyle.cpp, MENU_MIN_WIDTH and PM_MenuVMargin). Its rim is lighter along
++ * the top, as style.cpp's paintGlass draws it. */
++window.aurora-glass popover.menu > contents {
++    min-width: 180px;
++    padding: 5px 0;
++    border: none;
++    border-radius: 11px;
++    background-color: rgba(36, 36, 40, 0.81);
++    box-shadow: inset 0 1px rgba(255, 255, 255, 0.13), inset 0 0 0 1px rgba(255, 255, 255, 0.09);
++}
++
++/* A row is 24 px tall with its text 14 px in from the menu's sides. The row under the pointer or the keyboard is an
++ * accent pill 6 px round and 5 px in from them (finderstyle.cpp, drawMenuItem; MENU_ITEM_HEIGHT). GTK marks a row
++ * `:selected` and focuses it, and as a menu opens it does so to the first row: that one alone, focused but neither
++ * under the pointer nor reached with the keys, gets no pill, so a menu opened with the mouse shows none, as File
++ * Explorer's. A row whose submenu is open keeps it, having handed the focus to the submenu (measured in the
++ * sandbox). The pill alone shows where the keyboard is, so the rows draw no focus ring. */
++window.aurora-glass popover.menu modelbutton {
++    min-height: 24px;
++    min-width: 0;
++    margin: 0 5px;
++    padding: 0 9px;
++    border-radius: 6px;
++    outline: none;
++    background: none;
++    box-shadow: none;
++    color: rgba(255, 255, 255, 0.925);
++    transition: none;
++}
++
++window.aurora-glass popover.menu modelbutton:selected:hover,
++window.aurora-glass popover.menu modelbutton:selected:focus-visible,
++window.aurora-glass popover.menu modelbutton:selected:not(:focus) {
++    background-color: #0a84ff;
++    color: white;
++}
++
++window.aurora-glass popover.menu modelbutton:disabled {
++    color: rgba(235, 235, 245, 0.32);
++}
++
++/* Shortcuts stand 28 px past their label and, with the submenu chevron, are secondary text, lighter on the pill
++ * (MENU_SHORTCUT_GAP, TEXT_SECONDARY). */
++window.aurora-glass popover.menu modelbutton accelerator {
++    margin-left: 28px;
++    color: rgba(235, 235, 245, 0.59);
++}
++
++window.aurora-glass popover.menu modelbutton arrow {
++    min-width: 12px;
++    min-height: 12px;
++    margin: 0 -3px 0 8px;
++    -gtk-icon-size: 12px;
++    background: none;
++    box-shadow: none;
++    color: rgba(235, 235, 245, 0.59);
++}
++
++window.aurora-glass popover.menu modelbutton:selected:hover accelerator,
++window.aurora-glass popover.menu modelbutton:selected:hover arrow,
++window.aurora-glass popover.menu modelbutton:selected:focus-visible accelerator,
++window.aurora-glass popover.menu modelbutton:selected:focus-visible arrow,
++window.aurora-glass popover.menu modelbutton:selected:not(:focus) accelerator,
++window.aurora-glass popover.menu modelbutton:selected:not(:focus) arrow {
++    color: rgba(255, 255, 255, 0.82);
++}
++
++/* A menu of choices keeps an 18 px column for the check mark, which only the chosen row shows (MENU_CHECK_WIDTH). */
++window.aurora-glass popover.menu modelbutton check,
++window.aurora-glass popover.menu modelbutton radio {
++    min-width: 12px;
++    min-height: 12px;
++    margin: 0 6px 0 0;
++    padding: 0;
++    border: none;
++    border-radius: 0;
++    background: none;
++    box-shadow: none;
++    -gtk-icon-source: none;
++    -gtk-icon-size: 12px;
++    color: inherit;
++}
++
++window.aurora-glass popover.menu modelbutton check:checked,
++window.aurora-glass popover.menu modelbutton radio:checked {
++    -gtk-icon-source: -gtk-icontheme("object-select-symbolic");
++}
++
++/* Sections part with a hairline 12 px in from the left side and 11 from the right, in an 11 px gap
++ * (MENU_SEPARATOR_HEIGHT, MENU_SEPARATOR). */
++window.aurora-glass popover.menu separator {
++    min-height: 1px;
++    margin: 5px 11px 5px 12px;
++    background-color: rgba(255, 255, 255, 0.10);
++}
++
++/* A drop-down's choices read as menu rows: the one under the pointer is the pill, the chosen one keeps its check
++ * mark only. */
++window.aurora-glass popover.menu listview > row {
++    min-height: 24px;
++    margin: 0 5px;
++    padding: 0 9px;
++    border-radius: 6px;
++    background: none;
++    color: rgba(255, 255, 255, 0.925);
++}
++
++window.aurora-glass popover.menu listview > row:hover {
++    background-color: #0a84ff;
++    color: white;
++}
++
++/* Other popovers are the same glass around what they hold. Popovers that keep their tail get it in the glass's
++ * color. */
++window.aurora-glass popover:not(.menu) > contents {
++    padding: 6px;
++    border: none;
++    border-radius: 11px;
++    background-color: rgba(36, 36, 40, 0.81);
++    box-shadow: inset 0 1px rgba(255, 255, 255, 0.13), inset 0 0 0 1px rgba(255, 255, 255, 0.09);
++}
++
++window.aurora-glass popover > arrow {
++    border: none;
++    background-color: rgba(36, 36, 40, 0.81);
++    box-shadow: none;
++}
++
++/* Tooltips: smaller glass, 8 px round and a step lighter (finderstyle.cpp, TOOLTIP_RADIUS and TOOLTIP_FILL). */
++window.aurora-glass tooltip {
++    padding: 4px 8px;
++    border: none;
++    border-radius: 8px;
++    background-color: rgba(44, 44, 48, 0.88);
++    box-shadow: inset 0 1px rgba(255, 255, 255, 0.13), inset 0 0 0 1px rgba(255, 255, 255, 0.09);
++    color: rgba(255, 255, 255, 0.925);
++}
++
++window.aurora-glass tooltip label {
++    padding: 0;
++}
++
++/* Dialogs are opaque in File Explorer's dialog window color, with the window's rim and corners. What they hold reads
++ * the same color, so no page or list inside paints the GTK theme's grey over it. */
++window.aurora-glass floating-sheet > sheet,
++window.aurora-glass bottom-sheet > sheet {
++    --window-bg-color: rgb(30, 30, 32);
++    --view-bg-color: rgb(30, 30, 32);
++    --dialog-bg-color: rgb(30, 30, 32);
++    background-color: rgb(30, 30, 32);
++}
++
++window.aurora-glass floating-sheet > sheet {
++    border-radius: 14px;
++    outline: none;
++    box-shadow: inset 0 1px var(--aurora-rim-top), inset 0 0 0 1px var(--aurora-rim), 0 14px 40px rgba(0, 0, 0, 0.45),
++                0 0 0 1px rgba(0, 0, 0, 0.35);
++}
++
++/* Grouped rows (a dialog's facts, Preferences' settings) sit on one card, as the pages' facts do (aurora-pages.css),
++ * with a hairline between rows (style.h, HAIRLINE). */
++window.aurora-glass list.boxed-list {
++    border: none;
++    border-radius: 12px;
++    background-color: rgba(255, 255, 255, 0.05);
++    box-shadow: inset 0 1px rgba(255, 255, 255, 0.10), inset 0 0 0 1px rgba(255, 255, 255, 0.05);
++}
++
++window.aurora-glass list.boxed-list > row {
++    border-bottom: 1px solid rgba(255, 255, 255, 0.078);
++    background-color: transparent;
++}
++
++window.aurora-glass list.boxed-list > row:last-child {
++    border-bottom: none;
++}
+diff --git a/resources/ui/aurora.css b/resources/ui/aurora.css
+new file mode 100644
+index 0000000..5d92d37
+--- /dev/null
++++ b/resources/ui/aurora.css
+@@ -0,0 +1,167 @@
++/* aurora.css
++ *
++ * Copyright 2026 xt0n1-t3ch
++ *
++ * This program is free software: you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation, either version 3 of the License, or
++ * (at your option) any later version.
++ *
++ * SPDX-License-Identifier: GPL-3.0-or-later
++ */
++
++/* Aurora: Mission Center's glass look, the window's shell; aurora-header.css styles the header bars, aurora-pages.css
++ * what the pages hold and aurora-popups.css what opens over them. src/glass.rs loads the four sheets, in that order,
++ * above the user's sheet (~/.config/gtk-4.0/gtk.css), because a user sheet outranks every app's own: a desktop theme's
++ * generic rules for rows and buttons would otherwise win over these.
++ * Every rule applies only to a window with the `aurora-glass` class, which src/window.rs sets in every style.
++ *
++ * The window is one sheet of dark glass, as File Explorer's (components/file-explorer/src/style.h): KWin blurs
++ * behind it and src/glass.rs paints File Explorer's tint over the blur. A window that is not in front turns opaque,
++ * as macOS materials do when their window is not key, so nothing behind shows through it. */
++window.aurora-glass {
++    /* libadwaita's own surfaces inside the window, such as a dialog's sheet; the window itself is clear below. */
++    --window-bg-color: rgba(24, 24, 27, 0.63);
++    --view-bg-color: transparent;
++    --headerbar-bg-color: transparent;
++    --headerbar-backdrop-color: transparent;
++    --headerbar-shade-color: transparent;
++    --headerbar-darker-shade-color: transparent;
++    --sidebar-bg-color: transparent;
++    --sidebar-backdrop-color: transparent;
++    --sidebar-shade-color: transparent;
++    --card-bg-color: rgba(255, 255, 255, 0.055);
++    --card-shade-color: rgba(0, 0, 0, 0.25);
++    --popover-bg-color: rgba(36, 36, 40, 0.81);
++    --dialog-bg-color: rgb(30, 30, 32);
++    --accent-bg-color: #0a84ff;
++    --accent-color: #4aa3ff;
++    /* File Explorer's capsules (style.h): the glass fill and its rim, lighter along the top edge, and the fills a
++     * button lays over it under the pointer, pressed and checked (CAPSULE_FILL, GLASS_RIM_TOP, CAPSULE_HOVER,
++     * CAPSULE_PRESSED, SEGMENT_CHECKED). */
++    --aurora-fill: rgba(255, 255, 255, 0.086);
++    --aurora-rim-top: rgba(255, 255, 255, 0.2);
++    --aurora-rim: rgba(255, 255, 255, 0.07);
++    --aurora-fill-hover: rgba(255, 255, 255, 0.118);
++    --aurora-fill-active: rgba(255, 255, 255, 0.196);
++    --aurora-fill-checked: rgba(255, 255, 255, 0.18);
++    --aurora-sidebar: rgba(56, 56, 62, 0.46);
++    /* The glass is dark in every style, so its text is light in every style too. */
++    --window-fg-color: rgba(255, 255, 255, 0.92);
++    --view-fg-color: rgba(255, 255, 255, 0.92);
++    --headerbar-fg-color: rgba(255, 255, 255, 0.92);
++    --sidebar-fg-color: rgba(255, 255, 255, 0.92);
++    --card-fg-color: rgba(255, 255, 255, 0.92);
++    --popover-fg-color: rgba(255, 255, 255, 0.92);
++    --dialog-fg-color: rgba(255, 255, 255, 0.92);
++    /* Cards on the pages (the table, the reading tiles, the facts): a step lighter than the window's glass. */
++    --aurora-card: rgba(255, 255, 255, 0.045);
++    --aurora-tile: rgba(255, 255, 255, 0.06);
++}
++
++/* src/glass.rs (`paint_tint`) paints the window's tint and leaves the sidebar's card out of it, as File Explorer does,
++ * so GTK's own window background stays clear: the GTK theme fills it at 96 % (`.background`), which hid the blur.
++ * src/glass.rs also asks KWin for the blur (`request_blur`) while the window is in front. `backdrop-filter` here asked
++ * for the same blur, but made GTK walk everything the window draws on every frame. */
++window.aurora-glass {
++    background: none;
++}
++
++window.aurora-glass:backdrop {
++    --window-bg-color: rgb(30, 30, 33);
++    --aurora-sidebar: rgb(42, 42, 46);
++}
++
++/* The rim of the glass, lighter along the top edge. KWin draws the shadow outside the window (src/shadow.rs): a shadow
++ * here would make GTK's surface reach past the window and put KWin's blur off by as much. */
++window.aurora-glass {
++    border-radius: 14px;
++    box-shadow: inset 0 1px var(--aurora-rim-top), inset 0 0 0 1px var(--aurora-rim);
++}
++
++window.aurora-glass.maximized,
++window.aurora-glass.fullscreen,
++window.aurora-glass.tiled,
++window.aurora-glass.tiled-top,
++window.aurora-glass.tiled-bottom,
++window.aurora-glass.tiled-left,
++window.aurora-glass.tiled-right {
++    border-radius: 0;
++}
++
++/* The device sidebar floats as the clearer glass, inset 6 px from the window's edges as File Explorer's sidebar
++ * (SIDEBAR_INSET). The card's own margin does it; the GTK theme's margin around the whole pane would double it. */
++window.aurora-glass .sidebar-pane {
++    margin: 0;
++    background: none;
++    box-shadow: none;
++    border: none;
++}
++
++window.aurora-glass .sidebar-pane > toolbarview {
++    margin: 6px 0 6px 6px;
++    border-radius: 12px;
++    background-color: var(--aurora-sidebar);
++    box-shadow: inset 0 1px var(--aurora-rim-top), inset 0 0 0 1px rgba(255, 255, 255, 0.06);
++}
++
++/* Each device's pill keeps 8 px from the card's sides and its graph 10 px from the pill's edge, as File Explorer's
++ * selection keeps 8 px from its sidebar's sides and its icons sit 11 px in. The device row (summary_graph.blp) keeps
++ * 10 px at its other end and above and below. */
++window.aurora-glass list.navigation-sidebar {
++    background: none;
++    padding: 2px 6px 8px 6px;
++}
++
++window.aurora-glass list.navigation-sidebar > row {
++    border-radius: 11px;
++    margin: 3px 2px;
++    padding: 2px 0 2px 10px;
++    background-color: transparent;
++    box-shadow: none;
++    transition: background-color 150ms ease-out;
++}
++
++window.aurora-glass list.navigation-sidebar > row:hover {
++    background-color: rgba(255, 255, 255, 0.06);
++}
++
++window.aurora-glass list.navigation-sidebar > row:selected {
++    background-color: rgba(255, 255, 255, 0.13);
++    box-shadow: inset 0 1px rgba(255, 255, 255, 0.10);
++    color: inherit;
++}
++
++/* Buttons on the pages (Collapse All, Stop, Force Stop, Details, Start, Restart): one glass pill each, also while
++ * they wait for a selection, only dimmer. Linked groups come apart into separate pills. Under the pointer and pressed,
++ * a fill lies over the glass, as on the header bar's round buttons. */
++window.aurora-glass .view button:not(.flat):not(.circular),
++window.aurora-glass stack button:not(.flat):not(.circular):not(.toggle-pane-button) {
++    min-height: 30px;
++    padding: 0 14px;
++    border: none;
++    border-radius: 9999px;
++    background-image: none;
++    background-color: var(--aurora-fill);
++    box-shadow: inset 0 1px var(--aurora-rim-top), inset 0 0 0 1px var(--aurora-rim);
++    color: inherit;
++}
++
++/* The page switcher's segments sit in a stack too; :not(.toggle) keeps these fills off them. */
++window.aurora-glass .view button:not(.flat):not(.circular):not(.toggle):hover,
++window.aurora-glass stack button:not(.flat):not(.circular):not(.toggle):hover {
++    background-image: image(var(--aurora-fill-hover));
++}
++
++window.aurora-glass .view button:not(.flat):not(.circular):not(.toggle):active,
++window.aurora-glass stack button:not(.flat):not(.circular):not(.toggle):active {
++    background-image: image(var(--aurora-fill-active));
++}
++
++window.aurora-glass stack button:disabled {
++    opacity: 0.55;
++}
++
++window.aurora-glass stack .linked > button:not(:first-child) {
++    margin-left: 6px;
++}
+diff --git a/src/edges.rs b/src/edges.rs
+new file mode 100644
+index 0000000..b29a2ac
+--- /dev/null
++++ b/src/edges.rs
+@@ -0,0 +1,146 @@
++/* edges.rs
++ *
++ * Copyright 2026 xt0n1-t3ch
++ *
++ * This program is free software: you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation, either version 3 of the License, or
++ * (at your option) any later version.
++ *
++ * SPDX-License-Identifier: GPL-3.0-or-later
++ */
++
++//! Aurora: resizing from the window's edges. window.blp turns GTK's decorations off, because GTK's client-side
++//! shadow makes the surface reach past the window, and KWin 6.8 places the blur region GTK asks for
++//! (ext-background-effect-v1, in surface coordinates) from the window's edge instead, so the blur sat as far off as
++//! the shadow reached, 68 by 50 pixels. GTK resized the window from that shadow; as File Explorer's window does
++//! (components/file-explorer/src/glasswindow.cpp), it now resizes from a band inside its edges, and KWin draws the
++//! shadow (src/shadow.rs).
++
++use gtk::{gdk, prelude::*};
++
++use crate::glass::is_square;
++
++/// The band inside the window's edges that resizes it, in logical pixels (File Explorer's style.h, RESIZE_BORDER).
++const RESIZE_BORDER: f64 = 6.0;
++
++/// The edge or corner of a `width` by `height` window that a press at `x`, `y` resizes: within RESIZE_BORDER of one
++/// edge, or of two at a corner. `None` farther in, and outside the window.
++pub fn resize_edge(x: f64, y: f64, width: f64, height: f64) -> Option<gdk::SurfaceEdge> {
++    if x < 0.0 || y < 0.0 || x >= width || y >= height {
++        return None;
++    }
++    let left = x < RESIZE_BORDER;
++    let right = !left && x >= width - RESIZE_BORDER;
++    let top = y < RESIZE_BORDER;
++    let bottom = !top && y >= height - RESIZE_BORDER;
++    match (left, right, top, bottom) {
++        (true, _, true, _) => Some(gdk::SurfaceEdge::NorthWest),
++        (_, true, true, _) => Some(gdk::SurfaceEdge::NorthEast),
++        (true, _, _, true) => Some(gdk::SurfaceEdge::SouthWest),
++        (_, true, _, true) => Some(gdk::SurfaceEdge::SouthEast),
++        (true, _, _, _) => Some(gdk::SurfaceEdge::West),
++        (_, true, _, _) => Some(gdk::SurfaceEdge::East),
++        (_, _, true, _) => Some(gdk::SurfaceEdge::North),
++        (_, _, _, true) => Some(gdk::SurfaceEdge::South),
++        _ => None,
++    }
++}
++
++/// The pointer's shape over an edge or corner, by its CSS name.
++fn cursor_name(edge: gdk::SurfaceEdge) -> &'static str {
++    match edge {
++        gdk::SurfaceEdge::NorthWest | gdk::SurfaceEdge::SouthEast => "nwse-resize",
++        gdk::SurfaceEdge::NorthEast | gdk::SurfaceEdge::SouthWest => "nesw-resize",
++        gdk::SurfaceEdge::West | gdk::SurfaceEdge::East => "ew-resize",
++        _ => "ns-resize",
++    }
++}
++
++/// The edge a pointer at `x`, `y` in `window` would resize, unless the window is maximized, tiled, full screen or
++/// fixed in size.
++fn edge_under(window: &gtk::Window, x: f64, y: f64) -> Option<gdk::SurfaceEdge> {
++    if is_square(window) || !window.is_resizable() {
++        return None;
++    }
++    resize_edge(x, y, f64::from(window.width()), f64::from(window.height()))
++}
++
++/// Lets `window` be resized from the band inside its edges, as GTK's decorations let it from the band outside them:
++/// the pointer takes the resize shape there, and a press there starts the compositor's resize.
++pub fn resize_from_edges(window: &gtk::Window) {
++    let motion = gtk::EventControllerMotion::new();
++    motion.set_propagation_phase(gtk::PropagationPhase::Capture);
++    motion.connect_motion(|controller, x, y| {
++        if let Some(window) = controller.widget().and_downcast::<gtk::Window>() {
++            window.set_cursor_from_name(edge_under(&window, x, y).map(cursor_name));
++        }
++    });
++    motion.connect_leave(|controller| {
++        if let Some(window) = controller.widget() {
++            window.set_cursor(None);
++        }
++    });
++    window.add_controller(motion);
++
++    let press = gtk::GestureClick::new();
++    press.set_button(gdk::BUTTON_PRIMARY);
++    press.set_propagation_phase(gtk::PropagationPhase::Capture);
++    press.connect_pressed(|gesture, _, x, y| {
++        let Some(window) = gesture.widget().and_downcast::<gtk::Window>() else {
++            return;
++        };
++        let (Some(edge), Some(toplevel), Some(device)) = (
++            edge_under(&window, x, y),
++            window.surface().and_downcast::<gdk::Toplevel>(),
++            gesture.device(),
++        ) else {
++            gesture.set_state(gtk::EventSequenceState::Denied);
++            return;
++        };
++        gesture.set_state(gtk::EventSequenceState::Claimed);
++        let (dx, dy) = window.surface_transform();
++        toplevel.begin_resize(
++            edge,
++            Some(&device),
++            gesture.current_button() as i32,
++            x + dx,
++            y + dy,
++            gesture.current_event_time(),
++        );
++    });
++    window.add_controller(press);
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++    use gdk::SurfaceEdge;
++
++    #[test]
++    fn the_band_inside_each_edge_resizes_and_the_inside_does_not() {
++        let (w, h) = (800.0, 600.0);
++        assert_eq!(resize_edge(2.0, 300.0, w, h), Some(SurfaceEdge::West));
++        assert_eq!(resize_edge(797.0, 300.0, w, h), Some(SurfaceEdge::East));
++        assert_eq!(resize_edge(400.0, 0.0, w, h), Some(SurfaceEdge::North));
++        assert_eq!(resize_edge(400.0, 599.0, w, h), Some(SurfaceEdge::South));
++        assert_eq!(resize_edge(6.0, 300.0, w, h), None, "the band is 6 px wide");
++        assert_eq!(resize_edge(400.0, 300.0, w, h), None);
++    }
++
++    #[test]
++    fn corners_resize_both_ways_and_outside_resizes_nothing() {
++        let (w, h) = (800.0, 600.0);
++        assert_eq!(resize_edge(1.0, 1.0, w, h), Some(SurfaceEdge::NorthWest));
++        assert_eq!(resize_edge(799.0, 1.0, w, h), Some(SurfaceEdge::NorthEast));
++        assert_eq!(resize_edge(1.0, 599.0, w, h), Some(SurfaceEdge::SouthWest));
++        assert_eq!(resize_edge(799.0, 599.0, w, h), Some(SurfaceEdge::SouthEast));
++        assert_eq!(resize_edge(-1.0, 300.0, w, h), None);
++        assert_eq!(resize_edge(800.0, 300.0, w, h), None);
++    }
++
++    #[test]
++    fn a_window_narrower_than_two_bands_resizes_from_its_left_and_top() {
++        assert_eq!(resize_edge(5.0, 5.0, 8.0, 8.0), Some(SurfaceEdge::NorthWest));
++    }
++}
+diff --git a/src/glass.rs b/src/glass.rs
+new file mode 100644
+index 0000000..a87801a
+--- /dev/null
++++ b/src/glass.rs
+@@ -0,0 +1,348 @@
++/* glass.rs
++ *
++ * Copyright 2026 xt0n1-t3ch
++ *
++ * This program is free software: you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation, either version 3 of the License, or
++ * (at your option) any later version.
++ *
++ * SPDX-License-Identifier: GPL-3.0-or-later
++ */
++
++//! Aurora: KWin's blur behind the window and its popups, so their translucent tint reads as glass, as File Explorer's
++//! does. Mission Center asks for it itself, on GTK's own Wayland connection: through ext-background-effect-v1, the
++//! only blur protocol KWin 6.8 offers apps, or Plasma's `org_kde_kwin_blur` on compositors from before it. It also
++//! paints the window's tint and loads the glass stylesheets.
++
++use gdk_wayland::prelude::*;
++use gtk::{gdk, glib, graphene, gsk, prelude::*};
++use wayland_client::{
++    delegate_noop,
++    globals::{registry_queue_init, GlobalListContents},
++    protocol::{wl_compositor::WlCompositor, wl_region::WlRegion, wl_registry::WlRegistry},
++    Connection, Dispatch, EventQueue, Proxy, QueueHandle,
++};
++use wayland_protocols::ext::background_effect::v1::client::{
++    ext_background_effect_manager_v1::ExtBackgroundEffectManagerV1,
++    ext_background_effect_surface_v1::ExtBackgroundEffectSurfaceV1,
++};
++use wayland_protocols_plasma::blur::client::{
++    org_kde_kwin_blur::OrgKdeKwinBlur, org_kde_kwin_blur_manager::OrgKdeKwinBlurManager,
++};
++
++/// The corner radius of the window body in logical pixels; aurora.css rounds `window.aurora-glass` the same.
++pub const WINDOW_RADIUS: i32 = 14;
++
++/// The corner radius of the sidebar's card in logical pixels; aurora.css rounds `.sidebar-pane > toolbarview` the same.
++pub const SIDEBAR_RADIUS: f32 = 12.0;
++
++/// File Explorer's window tint (components/file-explorer/src/style.h, WINDOW_TINT and WINDOW_TINT_INACTIVE): the
++/// denser glass over KWin's blur while the window is in front, and opaque while it is not, as macOS materials are
++/// while their window is not key.
++const TINT: gdk::RGBA = gdk::RGBA::new(24.0 / 255.0, 24.0 / 255.0, 27.0 / 255.0, 160.0 / 255.0);
++const TINT_INACTIVE: gdk::RGBA = gdk::RGBA::new(30.0 / 255.0, 30.0 / 255.0, 33.0 / 255.0, 1.0);
++
++/// The variable GDK reads, as it opens the display, for the Wayland globals it must not use (GTK's documented
++/// `GDK_WAYLAND_DISABLE`), and the blur protocol's global.
++const GDK_SKIPPED_GLOBALS: &str = "GDK_WAYLAND_DISABLE";
++const STANDARD_BLUR: &str = "ext_background_effect_manager_v1";
++
++/// Keeps GDK off ext-background-effect-v1, so the window and its popups can ask KWin for their blur themselves
++/// (`Glass`): a surface may hold only one effect object, and GTK 4.24 makes one for every surface. GTK asks for the
++/// blur from what each frame draws (CSS `backdrop-filter`), which costs every frame: with animated graphs the window
++/// used three times the CPU (docs/performance.md). Call it first thing in `main`, before any thread starts.
++pub fn claim_blur_protocol() {
++    let skipped = std::env::var(GDK_SKIPPED_GLOBALS).unwrap_or_default();
++    if let Some(skipped) = with_global(&skipped, STANDARD_BLUR) {
++        std::env::set_var(GDK_SKIPPED_GLOBALS, skipped);
++    }
++}
++
++/// `skipped`, a list in GDK_WAYLAND_DISABLE's form (names parted by `:`, `;`, `,`, spaces or tabs), with `global`
++/// added, or `None` when it is there already.
++fn with_global(skipped: &str, global: &str) -> Option<String> {
++    let mut names = skipped.split([':', ';', ',', ' ', '\t']).filter(|name| !name.is_empty());
++    if names.any(|name| name == global) {
++        return None;
++    }
++    Some(if skipped.is_empty() { global.to_owned() } else { format!("{skipped},{global}") })
++}
++
++/// Whether `window` shows square corners: maximized, tiled or full screen.
++pub fn is_square(window: &gtk::Window) -> bool {
++    window
++        .surface()
++        .and_then(|surface| surface.downcast::<gdk::Toplevel>().ok())
++        .is_some_and(|toplevel| {
++            toplevel.state().intersects(
++                gdk::ToplevelState::MAXIMIZED | gdk::ToplevelState::FULLSCREEN | gdk::ToplevelState::TILED,
++            )
++        })
++}
++
++/// Paints the window's tint as File Explorer's window does (components/file-explorer/src/glasswindow.cpp,
++/// `paintEvent`, and mainwindow.cpp, `glassCutout`): over the rounded body but for `card`, the sidebar's own clearer
++/// sheet of glass, which the tint must not darken twice. The window's CSS background stays clear for it (aurora.css).
++/// Around the card, the tint is the card's shadow with no blur and a spread past the window's far corner, which GTK
++/// draws on the GPU, where a path around the card had to be rasterized.
++pub fn paint_tint(snapshot: &gtk::Snapshot, window: &gtk::Window, card: Option<graphene::Rect>) {
++    let (width, height) = (window.width() as f32, window.height() as f32);
++    let bounds = graphene::Rect::new(0.0, 0.0, width, height);
++    let radius = if is_square(window) { 0.0 } else { WINDOW_RADIUS as f32 };
++    let tint = if window.is_active() { &TINT } else { &TINT_INACTIVE };
++    snapshot.push_rounded_clip(&gsk::RoundedRect::from_rect(bounds, radius));
++    match card {
++        Some(card) => {
++            let outline = gsk::RoundedRect::from_rect(card, SIDEBAR_RADIUS);
++            snapshot.append_outset_shadow(&outline, tint, 0.0, 0.0, width.max(height), 0.0);
++        }
++        None => snapshot.append_color(tint, &bounds),
++    }
++    snapshot.pop();
++}
++
++/// The glass stylesheets: the window's shell, its header bars, what the pages hold, then what opens over them. Of
++/// providers at the same priority, GTK lets the one added last win, so each sheet overrides the ones before it where
++/// their rules meet.
++const SHEETS: [&[u8]; 4] = [
++    include_bytes!("../resources/ui/aurora.css"),
++    include_bytes!("../resources/ui/aurora-header.css"),
++    include_bytes!("../resources/ui/aurora-pages.css"),
++    include_bytes!("../resources/ui/aurora-popups.css"),
++];
++
++/// Loads the glass stylesheets for every window on `display`, one step above the user's sheet
++/// (`~/.config/gtk-4.0/gtk.css`). A desktop theme loaded there outranks every app's own sheet, so its generic row and
++/// button rules would otherwise override the glass. The sheets style only windows with the `aurora-glass` class.
++pub fn load_style(display: &gdk::Display) {
++    for sheet in SHEETS {
++        let provider = gtk::CssProvider::new();
++        provider.load_from_bytes(&glib::Bytes::from_static(sheet));
++        gtk::style_context_add_provider_for_display(display, &provider, gtk::STYLE_PROVIDER_PRIORITY_USER + 1);
++    }
++}
++
++/// Holds no state: none of the objects used here sends events the code reads.
++pub struct Events;
++
++impl Dispatch<WlRegistry, GlobalListContents> for Events {
++    fn event(
++        _: &mut Self,
++        _: &WlRegistry,
++        _: <WlRegistry as Proxy>::Event,
++        _: &GlobalListContents,
++        _: &Connection,
++        _: &QueueHandle<Self>,
++    ) {
++    }
++}
++
++delegate_noop!(Events: ignore WlCompositor);
++delegate_noop!(Events: ignore WlRegion);
++delegate_noop!(Events: ignore ExtBackgroundEffectManagerV1);
++delegate_noop!(Events: ignore ExtBackgroundEffectSurfaceV1);
++delegate_noop!(Events: ignore OrgKdeKwinBlurManager);
++delegate_noop!(Events: ignore OrgKdeKwinBlur);
++
++/// The blur behind one surface, through the protocol the compositor offers.
++enum Blur {
++    /// ext-background-effect-v1: one effect object per surface, its region applied with the surface's next commit.
++    Standard(ExtBackgroundEffectSurfaceV1),
++    /// Plasma's own protocol, which KWin offered apps before 6.8.
++    Plasma(OrgKdeKwinBlurManager, OrgKdeKwinBlur),
++}
++
++/// Where KWin blurs behind a surface: a rounded rectangle in the surface's coordinates, in logical pixels.
++#[derive(Clone, Copy, Debug, PartialEq, Eq)]
++pub struct Body {
++    pub left: i32,
++    pub top: i32,
++    pub width: i32,
++    pub height: i32,
++    pub radius: i32,
++}
++
++impl Body {
++    /// The body of `native`: all of it, its corners rounded by `radius`, past the margins GTK keeps around it.
++    pub fn of(native: &impl IsA<gtk::Native>, radius: i32) -> Self {
++        let (x, y) = native.surface_transform();
++        let widget = native.as_ref().upcast_ref::<gtk::Widget>();
++        Self {
++            left: x as i32,
++            top: y as i32,
++            width: widget.width(),
++            height: widget.height(),
++            radius,
++        }
++    }
++}
++
++/// The blur behind one window's or popup's surface.
++pub struct Glass {
++    connection: Connection,
++    queue: EventQueue<Events>,
++    compositor: WlCompositor,
++    surface: gdk::Surface,
++    blur: Blur,
++}
++
++impl Glass {
++    /// Gets KWin's blur ready for `native`'s surface; [`Glass::fit`] says where. Returns `None` outside Wayland,
++    /// before `native` is realized, or where the compositor offers no blur protocol (another desktop, KWin's blur
++    /// effect off). GDK must leave the standard protocol to it ([`claim_blur_protocol`]): a second effect object for a
++    /// surface is a protocol error that closes the app.
++    pub fn attach(native: &impl IsA<gtk::Native>) -> Option<Self> {
++        let surface = native.surface()?;
++        let wayland = surface.downcast_ref::<gdk_wayland::WaylandSurface>()?;
++        let display = wayland.display().downcast::<gdk_wayland::WaylandDisplay>().ok()?;
++        let backend = display.wl_display()?.backend().upgrade()?;
++        let connection = Connection::from_backend(backend);
++        let (globals, queue) = registry_queue_init::<Events>(&connection).ok()?;
++        let handle = queue.handle();
++        let compositor: WlCompositor = globals.bind(&handle, 1..=4, ()).ok()?;
++        let wl_surface = wayland.wl_surface()?;
++        let blur = match globals.bind::<ExtBackgroundEffectManagerV1, _, _>(&handle, 1..=1, ()) {
++            Ok(manager) => Blur::Standard(manager.get_background_effect(&wl_surface, &handle, ())),
++            Err(_) => {
++                let manager: OrgKdeKwinBlurManager = globals.bind(&handle, 1..=1, ()).ok()?;
++                let blur = manager.create(&wl_surface, &handle, ());
++                Blur::Plasma(manager, blur)
++            }
++        };
++        Some(Self {
++            connection,
++            queue,
++            compositor,
++            surface,
++            blur,
++        })
++    }
++
++    /// Blurs behind `body`, or nowhere, as File Explorer turns its window's blur off while the window is not in front
++    /// (glasswindow.cpp, `updateBlurRegion`). KWin takes it with the surface's next commit, which this asks for.
++    pub fn fit(&self, body: Option<Body>) {
++        let region = body.map(|body| {
++            let region = self.compositor.create_region(&self.queue.handle(), ());
++            for (left, top, width, height) in rounded_rect(body.width, body.height, body.radius) {
++                region.add(body.left + left, body.top + top, width, height);
++            }
++            region
++        });
++        match &self.blur {
++            Blur::Standard(effect) => effect.set_blur_region(region.as_ref()),
++            Blur::Plasma(manager, blur) => match &region {
++                Some(region) => {
++                    blur.set_region(Some(region));
++                    blur.commit();
++                }
++                None => {
++                    if let Some(wl_surface) = self
++                        .surface
++                        .downcast_ref::<gdk_wayland::WaylandSurface>()
++                        .and_then(|surface| surface.wl_surface())
++                    {
++                        manager.unset(&wl_surface);
++                    }
++                }
++            },
++        }
++        if let Some(region) = region {
++            region.destroy();
++        }
++        let _ = self.connection.flush();
++        self.surface.queue_render();
++    }
++}
++
++impl Drop for Glass {
++    fn drop(&mut self) {
++        match &self.blur {
++            Blur::Standard(effect) => effect.destroy(),
++            Blur::Plasma(_, blur) => blur.release(),
++        }
++        let _ = self.connection.flush();
++    }
++}
++
++/// A rounded rectangle of `width` by `height` with corners of `radius`, as rectangles: one row per pixel in each
++/// corner band, inset to the arc, and one block between the bands.
++pub fn rounded_rect(width: i32, height: i32, radius: i32) -> Vec<(i32, i32, i32, i32)> {
++    let radius = radius.clamp(0, width.min(height) / 2);
++    let mut rects = Vec::with_capacity(radius as usize * 2 + 1);
++    for row in 0..radius {
++        // The arc's inset at the middle of this pixel row, measured from the corner's centre.
++        let dy = f64::from(radius - row) - 0.5;
++        let inset = radius - (f64::from(radius * radius) - dy * dy).max(0.0).sqrt().round() as i32;
++        rects.push((inset, row, width - 2 * inset, 1));
++        rects.push((inset, height - 1 - row, width - 2 * inset, 1));
++    }
++    rects.push((0, radius, width, height - 2 * radius));
++    rects
++}
++
++#[cfg(test)]
++mod tests {
++    use super::{rounded_rect, with_global};
++
++    /// The area the rectangles cover, counting a pixel covered twice twice.
++    fn area(rects: &[(i32, i32, i32, i32)]) -> i64 {
++        rects.iter().map(|&(_, _, w, h)| i64::from(w) * i64::from(h)).sum()
++    }
++
++    #[test]
++    fn square_corners_are_one_rectangle() {
++        assert_eq!(rounded_rect(800, 600, 0), vec![(0, 0, 800, 600)]);
++    }
++
++    #[test]
++    fn rounded_corners_cut_about_what_a_circle_leaves_out() {
++        let (w, h, r) = (800, 600, 14);
++        let rects = rounded_rect(w, h, r);
++        // Four corners together leave out r^2 * (4 - pi) of the full rectangle.
++        let missing = i64::from(w * h) - area(&rects);
++        let expected = f64::from(r * r) * (4.0 - std::f64::consts::PI);
++        assert!((missing as f64 - expected).abs() < expected * 0.15, "missing {missing}, expected about {expected}");
++    }
++
++    #[test]
++    fn rows_never_overlap_and_stay_inside() {
++        let (w, h) = (400, 300);
++        let rects = rounded_rect(w, h, 14);
++        let mut covered = vec![0u8; (w * h) as usize];
++        for (x, y, rw, rh) in rects {
++            assert!(x >= 0 && y >= 0 && x + rw <= w && y + rh <= h, "({x}, {y}, {rw}, {rh}) leaves the window");
++            for py in y..y + rh {
++                for px in x..x + rw {
++                    covered[(py * w + px) as usize] += 1;
++                }
++            }
++        }
++        assert!(covered.iter().all(|&c| c <= 1), "a pixel is covered twice");
++        assert_eq!(covered[(150 * w + 0) as usize], 1, "the middle of the left edge is covered");
++        assert_eq!(covered[0], 0, "the very corner is left out");
++    }
++
++    #[test]
++    fn a_radius_larger_than_the_window_is_clamped() {
++        let rects = rounded_rect(20, 10, 40);
++        assert!(rects.iter().all(|&(_, _, w, h)| w >= 0 && h >= 0));
++    }
++
++    #[test]
++    fn gdk_is_told_to_leave_the_blur_protocol_once() {
++        let global = "ext_background_effect_manager_v1";
++        assert_eq!(with_global("", global).as_deref(), Some(global));
++        assert_eq!(
++            with_global("wp_fractional_scale_manager_v1", global).as_deref(),
++            Some("wp_fractional_scale_manager_v1,ext_background_effect_manager_v1")
++        );
++        assert_eq!(with_global("xdg_activation_v1 ext_background_effect_manager_v1", global), None);
++        assert_eq!(with_global("ext_background_effect_manager_v1;", global), None);
++        assert_eq!(
++            with_global("ext_background_effect_manager_v1_x", global).as_deref(),
++            Some("ext_background_effect_manager_v1_x,ext_background_effect_manager_v1"),
++            "only the whole name counts"
++        );
++    }
++}
 diff --git a/src/performance_page/device_colors.rs b/src/performance_page/device_colors.rs
 new file mode 100644
 index 0000000..165a707
@@ -906,6 +3903,1027 @@ index 0000000..165a707
 +    fn a_color_survives_the_trip_through_gdk() {
 +        for color in [Rgb([0, 0, 0]), Rgb([0x81, 0x3d, 0x9c]), Rgb([255, 255, 255])] {
 +            assert_eq!(Rgb::from_rgba(&color.to_rgba()), color);
++        }
++    }
++}
+diff --git a/src/performance_page/tiles.rs b/src/performance_page/tiles.rs
+new file mode 100644
+index 0000000..e246283
+--- /dev/null
++++ b/src/performance_page/tiles.rs
+@@ -0,0 +1,335 @@
++/* performance_page/tiles.rs
++ *
++ * Copyright 2026 xt0n1-t3ch
++ *
++ * This program is free software: you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation, either version 3 of the License, or
++ * (at your option) any later version.
++ *
++ * SPDX-License-Identifier: GPL-3.0-or-later
++ */
++
++//! Aurora: the Performance page's details column as glass tiles, as in Windows 11's Task Manager. Each reading (a
++//! caption over a value) becomes a tile, readings side by side share their row equally, and the facts below them
++//! (name and value labels laid out in a grid) sit together on one card. Every device's pane keeps its own layout
++//! file; this reads the panes' shape, so they all get the same look. aurora-pages.css draws the tiles and the card
++//! while the glass is on; without it the classes do nothing.
++
++use adw::prelude::*;
++
++/// Marks a pane already arranged: the page shows the same pane again each time its device is picked.
++const ARRANGED: &str = "aurora-arranged";
++/// The space between tiles, in logical pixels.
++const TILE_GAP: i32 = 8;
++
++/// One child of a box in a details pane, as far as its shape matters.
++#[derive(Clone, Debug, PartialEq)]
++pub enum Part {
++    /// A label in the `caption` style: a reading's name.
++    Caption,
++    /// A label in the `title-4` style: a reading's value.
++    Value,
++    /// Any other label, or an image.
++    Text,
++    /// A box that holds only labels and images, such as a caption beside a hint.
++    Group(Vec<Part>),
++    /// Anything else, such as a box of boxes.
++    Other,
++}
++
++/// Whether a vertical box made of `parts` is one reading: a caption and a value, either of them possibly inside a
++/// row of labels, and nothing else.
++pub fn is_reading(parts: &[Part]) -> bool {
++    let has = |wanted: &Part| {
++        parts
++            .iter()
++            .any(|part| part == wanted || matches!(part, Part::Group(inner) if inner.contains(wanted)))
++    };
++    !parts.contains(&Part::Other) && has(&Part::Caption) && has(&Part::Value)
++}
++
++/// Where a child sits in a grid, in grid lines.
++#[derive(Clone, Copy, Debug, PartialEq, Eq)]
++pub struct Place {
++    pub column: i32,
++    pub row: i32,
++    pub width: i32,
++    pub height: i32,
++}
++
++/// The block of grid cells that `places` cover together, or `None` when there are none.
++pub fn span(places: &[Place]) -> Option<Place> {
++    let first = places.first()?;
++    let (mut left, mut top) = (first.column, first.row);
++    let (mut right, mut bottom) = (first.column + first.width, first.row + first.height);
++    for place in places {
++        left = left.min(place.column);
++        top = top.min(place.row);
++        right = right.max(place.column + place.width);
++        bottom = bottom.max(place.row + place.height);
++    }
++    Some(Place {
++        column: left,
++        row: top,
++        width: right - left,
++        height: bottom - top,
++    })
++}
++
++/// Shows the details pane `content` in the details column `column`, arranged into tiles.
++pub fn show(column: &adw::Bin, content: Option<&gtk::Widget>) {
++    if let Some(content) = content {
++        arrange(content);
++    }
++    column.set_child(content);
++}
++
++/// The first index of each pair of tiles to set side by side, given which children of a column are lone tiles: two
++/// lone tiles one after the other share a row, and a tile already paired is not paired again.
++pub fn pairs(lone_tiles: &[bool]) -> Vec<usize> {
++    let mut starts = Vec::new();
++    let mut index = 0;
++    while index + 1 < lone_tiles.len() {
++        if lone_tiles[index] && lone_tiles[index + 1] {
++            starts.push(index);
++            index += 2;
++        } else {
++            index += 1;
++        }
++    }
++    starts
++}
++
++/// Turns the readings of the details pane `root` into tiles and puts its facts on a card. Arranging a pane twice
++/// changes nothing.
++pub fn arrange(root: &gtk::Widget) {
++    if root.has_css_class(ARRANGED) {
++        return;
++    }
++    root.add_css_class(ARRANGED);
++    visit(root);
++}
++
++fn children(widget: &gtk::Widget) -> impl Iterator<Item = gtk::Widget> {
++    std::iter::successors(widget.first_child(), |child| child.next_sibling())
++}
++
++fn part_of(widget: &gtk::Widget) -> Part {
++    if widget.is::<gtk::Label>() {
++        return label_part(widget);
++    }
++    if widget.is::<gtk::Image>() || widget.is::<gtk::Picture>() {
++        return Part::Text;
++    }
++    if !widget.is::<gtk::Box>() {
++        return Part::Other;
++    }
++    let inner: Vec<Part> = children(widget).map(|child| part_of(&child)).collect();
++    if inner.iter().any(|part| matches!(part, Part::Group(_) | Part::Other)) {
++        Part::Other
++    } else {
++        Part::Group(inner)
++    }
++}
++
++fn label_part(label: &gtk::Widget) -> Part {
++    if label.has_css_class("caption") {
++        Part::Caption
++    } else if label.has_css_class("title-4") {
++        Part::Value
++    } else {
++        Part::Text
++    }
++}
++
++fn visit(widget: &gtk::Widget) {
++    if let Some(reading) = widget.downcast_ref::<gtk::Box>() {
++        let parts: Vec<Part> = children(widget).map(|child| part_of(&child)).collect();
++        if reading.orientation() == gtk::Orientation::Vertical && is_reading(&parts) {
++            make_tile(reading);
++            return;
++        }
++    }
++    for child in children(widget).collect::<Vec<_>>() {
++        visit(&child);
++    }
++    if let Some(grid) = widget.downcast_ref::<gtk::Grid>() {
++        space_tile_columns(grid);
++        card_facts(grid);
++    } else if let Some(column) = widget.downcast_ref::<gtk::Box>() {
++        if column.orientation() == gtk::Orientation::Vertical {
++            arrange_column(column);
++        }
++    }
++}
++
++fn is_tile(widget: &gtk::Widget) -> bool {
++    widget.has_css_class("aurora-stat")
++}
++
++/// Whether `widget` is a row of tiles: a horizontal box holding at least one.
++fn is_tile_row(widget: &gtk::Widget) -> bool {
++    widget
++        .downcast_ref::<gtk::Box>()
++        .is_some_and(|row| row.orientation() == gtk::Orientation::Horizontal && children(widget).any(|c| is_tile(&c)))
++}
++
++/// Spaces a column of tiles and rows of tiles by the tile gap, and sets lone tiles side by side in pairs.
++fn arrange_column(column: &gtk::Box) {
++    let rows: Vec<gtk::Widget> = children(column.upcast_ref()).collect();
++    if !rows.iter().any(|row| is_tile(row) || is_tile_row(row)) {
++        return;
++    }
++    column.set_spacing(TILE_GAP);
++
++    let lone: Vec<bool> = rows.iter().map(is_tile).collect();
++    for start in pairs(&lone) {
++        let (first, second) = (&rows[start], &rows[start + 1]);
++        let pair = gtk::Box::new(gtk::Orientation::Horizontal, TILE_GAP);
++        pair.set_homogeneous(true);
++        column.insert_child_after(&pair, Some(first));
++        column.remove(first);
++        column.remove(second);
++        pair.append(first);
++        pair.append(second);
++    }
++}
++
++/// Makes `reading` a tile that fills its place; tiles side by side in a row share it equally, with the tile gap
++/// between them.
++fn make_tile(reading: &gtk::Box) {
++    reading.add_css_class("aurora-stat");
++    reading.set_hexpand(true);
++    reading.set_halign(gtk::Align::Fill);
++    let Some(row) = reading.parent().and_downcast::<gtk::Box>() else {
++        return;
++    };
++    if row.orientation() == gtk::Orientation::Horizontal {
++        row.set_homogeneous(true);
++        row.set_spacing(TILE_GAP);
++    }
++}
++
++/// Puts the tile gap between a grid's columns when its tiles stand in more than one of them. A grid with tiles in one
++/// column keeps its spacing, so a child spanning its empty columns stays as wide as the tiles.
++fn space_tile_columns(grid: &gtk::Grid) {
++    let mut columns: Vec<i32> = children(grid.upcast_ref())
++        .filter(is_tile)
++        .map(|tile| grid.query_child(&tile).0)
++        .collect();
++    columns.sort_unstable();
++    columns.dedup();
++    if columns.len() > 1 {
++        grid.set_column_spacing(grid.column_spacing().max(TILE_GAP.unsigned_abs()));
++    }
++}
++
++/// Lays one card behind the grid's facts: its labels that are not part of a reading. The card is the grid's first
++/// child, so it draws under them, and it starts where their first row's labels start.
++fn card_facts(grid: &gtk::Grid) {
++    let facts: Vec<(gtk::Label, Place)> = children(grid.upcast_ref())
++        .filter_map(|child| child.downcast::<gtk::Label>().ok())
++        .filter(|label| !label.has_css_class("title-4"))
++        .map(|label| {
++            let (column, row, width, height) = grid.query_child(&label);
++            (label, Place { column, row, width, height })
++        })
++        .collect();
++    if facts.len() < 2 {
++        return;
++    }
++    let places: Vec<Place> = facts.iter().map(|(_, place)| *place).collect();
++    let Some(block) = span(&places) else {
++        return;
++    };
++
++    let card = gtk::Box::new(gtk::Orientation::Vertical, 0);
++    card.add_css_class("aurora-facts");
++    card.set_can_target(false);
++    let first_row_margin = facts
++        .iter()
++        .filter(|(_, place)| place.row == block.row)
++        .map(|(label, _)| label.margin_top())
++        .max()
++        .unwrap_or(0);
++    card.set_margin_top(first_row_margin);
++    grid.attach(&card, block.column, block.row, block.width, block.height);
++    card.insert_after(grid, None::<&gtk::Widget>);
++
++    for (label, place) in &facts {
++        if place.column == block.column {
++            label.add_css_class("aurora-fact-start");
++        }
++        if place.column + place.width == block.column + block.width {
++            // The values take the column's spare width, so the card is as wide as the tiles above it.
++            label.add_css_class("aurora-fact-end");
++            label.set_hexpand(true);
++        }
++    }
++}
++
++#[cfg(test)]
++mod tests {
++    use super::{is_reading, pairs, span, Part, Place};
++
++    #[test]
++    fn a_caption_over_a_value_is_a_reading() {
++        assert!(is_reading(&[Part::Caption, Part::Value]));
++    }
++
++    #[test]
++    fn a_reading_may_hold_its_caption_or_value_in_a_row_of_labels() {
++        // The CPU's Speed has a hint beside its caption; a GPU clock shows its value in three labels.
++        assert!(is_reading(&[Part::Group(vec![Part::Caption, Part::Caption]), Part::Value]));
++        assert!(is_reading(&[Part::Caption, Part::Group(vec![Part::Value, Part::Text, Part::Value])]));
++    }
++
++    #[test]
++    fn a_box_of_readings_or_a_lone_label_is_not_a_reading() {
++        // The CPU's rows hold several readings each; the row is not a tile, the readings in it are.
++        assert!(!is_reading(&[Part::Other, Part::Other]));
++        assert!(!is_reading(&[Part::Caption, Part::Value, Part::Other]));
++        assert!(!is_reading(&[Part::Caption]));
++        assert!(!is_reading(&[Part::Value]));
++        assert!(!is_reading(&[]));
++    }
++
++    #[test]
++    fn the_facts_card_covers_every_fact_and_no_more() {
++        // Memory's facts: names in column 1, values in column 3, rows 4 to 7.
++        let facts = [
++            Place { column: 1, row: 4, width: 1, height: 1 },
++            Place { column: 3, row: 4, width: 1, height: 1 },
++            Place { column: 1, row: 7, width: 1, height: 1 },
++            Place { column: 3, row: 7, width: 1, height: 1 },
++        ];
++        assert_eq!(span(&facts), Some(Place { column: 1, row: 4, width: 3, height: 4 }));
++    }
++
++    #[test]
++    fn a_fact_spanning_columns_widens_the_card() {
++        let facts = [Place { column: 0, row: 0, width: 1, height: 1 }, Place { column: 1, row: 2, width: 3, height: 2 }];
++        assert_eq!(span(&facts), Some(Place { column: 0, row: 0, width: 4, height: 4 }));
++    }
++
++    #[test]
++    fn no_facts_means_no_card() {
++        assert_eq!(span(&[]), None);
++    }
++
++    #[test]
++    fn lone_tiles_one_after_the_other_share_a_row() {
++        // The CPU's column: a row of tiles, Power Draw, a row of tiles, Up time, Temperature.
++        assert_eq!(pairs(&[false, true, false, true, true]), vec![3]);
++        assert_eq!(pairs(&[true, true, true, true]), vec![0, 2]);
++    }
++
++    #[test]
++    fn a_tile_pairs_once_and_a_lone_one_stays_full_width() {
++        assert_eq!(pairs(&[true, true, true]), vec![0], "the third tile keeps its own row");
++        assert_eq!(pairs(&[true]), Vec::<usize>::new());
++        assert_eq!(pairs(&[true, false, true]), Vec::<usize>::new());
++        assert_eq!(pairs(&[]), Vec::<usize>::new());
++    }
++}
+diff --git a/src/popups.rs b/src/popups.rs
+new file mode 100644
+index 0000000..473cdb5
+--- /dev/null
++++ b/src/popups.rs
+@@ -0,0 +1,125 @@
++/* popups.rs
++ *
++ * Copyright 2026 xt0n1-t3ch
++ *
++ * This program is free software: you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation, either version 3 of the License, or
++ * (at your option) any later version.
++ *
++ * SPDX-License-Identifier: GPL-3.0-or-later
++ */
++
++//! Aurora: KWin's blur and shadow under every popover and tooltip that opens over a glass window, as File Explorer
++//! gives its menus and tooltips (components/file-explorer/src/finderstyle.cpp, `eventFilter`). aurora-popups.css
++//! draws them as translucent glass. A shadow drawn by GTK would widen their surface past the body, and KWin 6.8 would
++//! put the blur off by as much, as it did for the window (src/shadow.rs).
++
++use std::cell::RefCell;
++use std::sync::Once;
++
++use gtk::glib::translate::{from_glib_borrow, Borrowed, IntoGlib};
++use gtk::{gdk, glib, prelude::*};
++
++use crate::glass::{Body, Glass};
++use crate::shadow::{self, Shadow};
++
++/// The blur and the shadow of one popup surface.
++struct Popup {
++    surface: glib::WeakRef<gdk::Surface>,
++    glass: Option<Glass>,
++    _shadow: Option<Shadow>,
++}
++
++thread_local! {
++    /// The popups that have their blur and shadow. GDK keeps a popover's surface while it is hidden and KWin keeps the
++    /// shadow with the surface, so a popover opened again needs no new ones; a surface that is gone drops its own.
++    static POPUPS: RefCell<Vec<Popup>> = const { RefCell::new(Vec::new()) };
++}
++
++/// Gives every popover and tooltip that opens over a window with the `aurora-glass` class KWin's blur and shadow,
++/// from now on. Calling it again changes nothing.
++pub fn dress_popups() {
++    static HOOK: Once = Once::new();
++    HOOK.call_once(|| {
++        let Some(map) = glib::subclass::signal::SignalId::lookup("map", gtk::Widget::static_type()) else {
++            return;
++        };
++        // glib-rs wraps no emission hook, and only a hook sees the popovers GTK makes on its own: nested submenus, a
++        // text field's menu, tooltips. GtkWidget's `map` allows hooks (gtkwidget.c, G_SIGNAL_RUN_FIRST only).
++        unsafe {
++            glib::gobject_ffi::g_signal_add_emission_hook(map.into_glib(), 0, Some(on_map), std::ptr::null_mut(), None);
++        }
++    });
++}
++
++/// Runs as any widget maps: after GTK realized it, before the widget's own handlers put its surface on screen. Keeps
++/// the hook for the next one.
++unsafe extern "C" fn on_map(
++    _hint: *mut glib::gobject_ffi::GSignalInvocationHint,
++    n_params: u32,
++    params: *const glib::gobject_ffi::GValue,
++    _data: glib::ffi::gpointer,
++) -> glib::ffi::gboolean {
++    if n_params > 0 {
++        // The first value holds the instance that emits the signal, a widget for GtkWidget's `map`.
++        let instance = glib::gobject_ffi::g_value_get_object(params) as *mut gtk::ffi::GtkWidget;
++        if !instance.is_null() {
++            let widget: Borrowed<gtk::Widget> = from_glib_borrow(instance);
++            dress(&widget);
++        }
++    }
++    glib::ffi::GTRUE
++}
++
++/// Hands KWin a blur and a shadow for `widget` when it is a popover or tooltip over a glass window whose surface has
++/// none yet. The blur follows the popup's size as GTK lays it out.
++fn dress(widget: &gtk::Widget) {
++    if widget.is::<gtk::Window>() {
++        return;
++    }
++    let Some(native) = widget.downcast_ref::<gtk::Native>() else {
++        return;
++    };
++    if !widget.root().is_some_and(|root| root.has_css_class("aurora-glass")) {
++        return;
++    }
++    let Some(surface) = native.surface() else {
++        return;
++    };
++    let spec = if widget.css_name() == "tooltip" { shadow::TOOLTIP } else { shadow::MENU };
++    let known = POPUPS.with_borrow_mut(|popups| {
++        popups.retain(|popup| popup.surface.upgrade().is_some());
++        popups.iter().any(|popup| popup.surface.upgrade().as_ref() == Some(&surface))
++    });
++    if known {
++        return;
++    }
++    let shadow = Shadow::attach(native, spec);
++    if let Some(shadow) = &shadow {
++        shadow.show(widget, true);
++    }
++    let glass = Glass::attach(native);
++    // The surface is the popup's body and nothing more: aurora-popups.css gives popups no shadow and menus no tail.
++    surface.connect_layout(move |surface, width, height| {
++        POPUPS.with_borrow(|popups| {
++            let popup = popups.iter().find(|popup| popup.surface.upgrade().as_ref() == Some(surface));
++            if let Some(glass) = popup.and_then(|popup| popup.glass.as_ref()) {
++                glass.fit(Some(Body {
++                    left: 0,
++                    top: 0,
++                    width,
++                    height,
++                    radius: spec.radius,
++                }));
++            }
++        });
++    });
++    POPUPS.with_borrow_mut(|popups| {
++        popups.push(Popup {
++            surface: surface.downgrade(),
++            glass,
++            _shadow: shadow,
++        });
++    });
++}
+diff --git a/src/shadow.rs b/src/shadow.rs
+new file mode 100644
+index 0000000..b9a513a
+--- /dev/null
++++ b/src/shadow.rs
+@@ -0,0 +1,385 @@
++/* shadow.rs
++ *
++ * Copyright 2026 xt0n1-t3ch
++ *
++ * This program is free software: you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation, either version 3 of the License, or
++ * (at your option) any later version.
++ *
++ * SPDX-License-Identifier: GPL-3.0-or-later
++ */
++
++//! Aurora: the shadow KWin draws around the window and its popups, outside their surface, as it draws File Explorer's
++//! (components/file-explorer/src/shadow.cpp). GTK's own client-side shadow made a surface reach past its body, which
++//! put KWin's blur off by as much (src/edges.rs tells why window.blp turns it off for the window; src/popups.rs gives
++//! the popups theirs).
++
++use std::cell::RefCell;
++use std::io::Write;
++use std::os::fd::AsFd;
++use std::os::unix::fs::OpenOptionsExt;
++
++use gdk_wayland::prelude::*;
++use gtk::{cairo, glib, prelude::*};
++use wayland_client::{
++    delegate_noop,
++    globals::{registry_queue_init, GlobalListContents},
++    protocol::{
++        wl_buffer::WlBuffer,
++        wl_registry::WlRegistry,
++        wl_shm::{self, WlShm},
++        wl_shm_pool::WlShmPool,
++        wl_surface::WlSurface,
++    },
++    Connection, Dispatch, EventQueue, Proxy, QueueHandle,
++};
++use wayland_protocols_plasma::shadow::client::{
++    org_kde_kwin_shadow::OrgKdeKwinShadow, org_kde_kwin_shadow_manager::OrgKdeKwinShadowManager,
++};
++
++use crate::glass::WINDOW_RADIUS;
++
++/// A shadow's shape, as File Explorer's shadow.h takes it (`ShadowSpec`): the corner radius of the body that casts it,
++/// how far it reaches past the body, how far down the light pushes it, the radius of the box blur that softens it, and
++/// its darkness right under the body's edge, from 0 to 255. Lengths are in logical pixels.
++#[derive(Clone, Copy, Debug, PartialEq, Eq)]
++pub struct Spec {
++    pub radius: i32,
++    pub extent: i32,
++    pub offset_y: i32,
++    pub blur: usize,
++    pub alpha: u8,
++}
++
++/// File Explorer's window shadow (glasswindow.cpp, WINDOW_SHADOW).
++pub const WINDOW: Spec = Spec {
++    radius: WINDOW_RADIUS,
++    extent: 64,
++    offset_y: 14,
++    blur: 15,
++    alpha: 150,
++};
++
++/// File Explorer's menu shadow (finderstyle.cpp, `eventFilter`), around aurora-popups.css's 11 px menus.
++pub const MENU: Spec = Spec {
++    radius: 11,
++    extent: 28,
++    offset_y: 8,
++    blur: 9,
++    alpha: 115,
++};
++
++/// File Explorer's tooltip shadow: the menu's, around aurora-popups.css's 8 px tooltips.
++pub const TOOLTIP: Spec = Spec { radius: 8, ..MENU };
++
++/// Box blurs in a row, which together come close to a Gaussian blur.
++const BLUR_PASSES: usize = 3;
++
++/// ARGB8888: blue, green, red and alpha, one byte each.
++const BYTES_PER_PIXEL: i32 = 4;
++
++/// Holds no state: none of the objects used here sends events the code reads.
++pub struct ShadowEvents;
++
++impl Dispatch<WlRegistry, GlobalListContents> for ShadowEvents {
++    fn event(
++        _: &mut Self,
++        _: &WlRegistry,
++        _: <WlRegistry as Proxy>::Event,
++        _: &GlobalListContents,
++        _: &Connection,
++        _: &QueueHandle<Self>,
++    ) {
++    }
++}
++
++delegate_noop!(ShadowEvents: ignore WlShm);
++delegate_noop!(ShadowEvents: ignore WlShmPool);
++delegate_noop!(ShadowEvents: ignore WlBuffer);
++delegate_noop!(ShadowEvents: ignore OrgKdeKwinShadowManager);
++delegate_noop!(ShadowEvents: ignore OrgKdeKwinShadow);
++
++/// The shadow KWin draws around a window or popup, outside its surface.
++pub struct Shadow {
++    connection: Connection,
++    queue: EventQueue<ShadowEvents>,
++    manager: OrgKdeKwinShadowManager,
++    surface: WlSurface,
++    /// How far the shadow reaches past the body: KWin takes it as each edge's offset.
++    extent: i32,
++    /// The eight tiles in the protocol's order: top left, top, top right, right, bottom right, bottom, bottom left,
++    /// left. They live in one shared pool and stay as long as the shadow.
++    tiles: Vec<WlBuffer>,
++    pool: WlShmPool,
++    shadow: RefCell<Option<OrgKdeKwinShadow>>,
++}
++
++impl Shadow {
++    /// Gets a shadow of `spec`'s shape ready for `native`'s surface; [`Shadow::show`] hands it to KWin. Returns `None`
++    /// outside Wayland, before `native` is realized, or when the compositor does not draw shadows for windows (another
++    /// desktop).
++    pub fn attach(native: &impl IsA<gtk::Native>, spec: Spec) -> Option<Self> {
++        let surface = native.as_ref().surface()?.downcast::<gdk_wayland::WaylandSurface>().ok()?;
++        let display = surface.display().downcast::<gdk_wayland::WaylandDisplay>().ok()?;
++        let backend = display.wl_display()?.backend().upgrade()?;
++        let connection = Connection::from_backend(backend);
++        let (globals, queue) = registry_queue_init::<ShadowEvents>(&connection).ok()?;
++        let handle = queue.handle();
++        let manager: OrgKdeKwinShadowManager = globals.bind(&handle, 2..=2, ()).ok()?;
++        let shm: WlShm = globals.bind(&handle, 1..=1, ()).ok()?;
++
++        let (pixels, rects) = shadow_tiles(spec);
++        let file = shared_file(&pixels).ok()?;
++        let pool = shm.create_pool(file.as_fd(), pixels.len() as i32, &handle, ());
++        let tiles = rects
++            .iter()
++            .map(|&(offset, width, height)| {
++                pool.create_buffer(offset, width, height, width * BYTES_PER_PIXEL, wl_shm::Format::Argb8888, &handle, ())
++            })
++            .collect();
++        Some(Self {
++            connection,
++            queue,
++            manager,
++            surface: surface.wl_surface()?,
++            extent: spec.extent,
++            tiles,
++            pool,
++            shadow: RefCell::new(None),
++        })
++    }
++
++    /// Shows the shadow around `native` when `wanted`, and takes it away when not, such as from a maximized, tiled or
++    /// full screen window, as File Explorer does (glasswindow.cpp, `updateShadow`). Showing it again changes nothing.
++    pub fn show(&self, native: &impl IsA<gtk::Widget>, wanted: bool) {
++        let mut current = self.shadow.borrow_mut();
++        if wanted == current.is_some() {
++            return;
++        }
++        if let Some(old) = current.take() {
++            self.manager.unset(&self.surface);
++            old.destroy();
++        } else {
++            let shadow = self.manager.create(&self.surface, &self.queue.handle(), ());
++            let [top_left, top, top_right, right, bottom_right, bottom, bottom_left, left] = &self.tiles[..] else {
++                return;
++            };
++            shadow.attach_top_left(top_left);
++            shadow.attach_top(top);
++            shadow.attach_top_right(top_right);
++            shadow.attach_right(right);
++            shadow.attach_bottom_right(bottom_right);
++            shadow.attach_bottom(bottom);
++            shadow.attach_bottom_left(bottom_left);
++            shadow.attach_left(left);
++            let extent = f64::from(self.extent);
++            shadow.set_left_offset(extent);
++            shadow.set_top_offset(extent);
++            shadow.set_right_offset(extent);
++            shadow.set_bottom_offset(extent);
++            shadow.commit();
++            *current = Some(shadow);
++        }
++        let _ = self.connection.flush();
++        // KWin takes the new shadow with the surface's next commit.
++        native.as_ref().queue_draw();
++    }
++}
++
++impl Drop for Shadow {
++    /// Takes the shadow, its tiles and their pool back from KWin. The surface may be gone already, so this sends
++    /// nothing that names it.
++    fn drop(&mut self) {
++        if let Some(shadow) = self.shadow.take() {
++            shadow.destroy();
++        }
++        for tile in &self.tiles {
++            tile.destroy();
++        }
++        self.pool.destroy();
++        let _ = self.connection.flush();
++    }
++}
++
++/// The eight tiles of the shadow image back to back, as premultiplied ARGB8888, and each one's byte offset, width
++/// and height, in the protocol's order. They are cut from the image as File Explorer cuts them (shadow.cpp,
++/// `attachShadow`): square corners, and one row or column for each edge, which KWin repeats along it.
++fn shadow_tiles(spec: Spec) -> (Vec<u8>, [(i32, i32, i32); 8]) {
++    let (alpha, side) = shadow_image(spec);
++    let corner = spec.extent + spec.radius;
++    let extent = spec.extent;
++    let far = side - corner;
++    let cuts = [
++        (0, 0, corner, corner),
++        (corner, 0, 1, extent),
++        (far, 0, corner, corner),
++        (side - extent, corner, extent, 1),
++        (far, far, corner, corner),
++        (corner, side - extent, 1, extent),
++        (0, far, corner, corner),
++        (0, corner, extent, 1),
++    ];
++    let mut pixels = Vec::new();
++    let mut rects = [(0, 0, 0); 8];
++    for (index, &(x, y, width, height)) in cuts.iter().enumerate() {
++        rects[index] = (pixels.len() as i32, width, height);
++        for row in y..y + height {
++            for column in x..x + width {
++                // Premultiplied black: blue, green and red stay 0 and only the alpha byte, the last in memory, counts.
++                pixels.extend_from_slice(&[0, 0, 0, alpha[(row * side + column) as usize]]);
++            }
++        }
++    }
++    (pixels, rects)
++}
++
++/// File Explorer's shadow image (shadow.cpp, `shadowImage`) as an alpha mask, and its side: a body with `spec`'s
++/// corners, darkened, pushed down, blurred, then cut out where the body is, so the shadow never darkens the
++/// translucent glass. The side is odd so a middle row and column are left for the edge tiles.
++fn shadow_image(spec: Spec) -> (Vec<u8>, i32) {
++    let side = 2 * (spec.extent + spec.radius) + 1;
++    let body = f64::from(side - 2 * spec.extent);
++    let inset = f64::from(spec.extent);
++    let radius = f64::from(spec.radius);
++    let Ok(mut surface) = cairo::ImageSurface::create(cairo::Format::A8, side, side) else {
++        return (vec![0; (side * side) as usize], side);
++    };
++    if let Ok(cr) = cairo::Context::new(&surface) {
++        rounded_rect(&cr, inset, inset + f64::from(spec.offset_y), body, body, radius);
++        cr.set_source_rgba(0.0, 0.0, 0.0, f64::from(spec.alpha) / 255.0);
++        let _ = cr.fill();
++    }
++    surface.flush();
++    let stride = surface.stride() as usize;
++    let mut alpha = vec![0u8; (side * side) as usize];
++    if let Ok(data) = surface.data() {
++        for row in 0..side as usize {
++            let start = row * side as usize;
++            alpha[start..start + side as usize].copy_from_slice(&data[row * stride..row * stride + side as usize]);
++        }
++    }
++    box_blur(&mut alpha, side as usize, side as usize, spec.blur);
++    if let Ok(mut data) = surface.data() {
++        for row in 0..side as usize {
++            let start = row * side as usize;
++            data[row * stride..row * stride + side as usize].copy_from_slice(&alpha[start..start + side as usize]);
++        }
++    }
++    if let Ok(cr) = cairo::Context::new(&surface) {
++        cr.set_operator(cairo::Operator::DestOut);
++        rounded_rect(&cr, inset, inset, body, body, radius);
++        let _ = cr.fill();
++    }
++    surface.flush();
++    if let Ok(data) = surface.data() {
++        for row in 0..side as usize {
++            let start = row * side as usize;
++            alpha[start..start + side as usize].copy_from_slice(&data[row * stride..row * stride + side as usize]);
++        }
++    }
++    (alpha, side)
++}
++
++/// Adds a rounded rectangle to `cr`'s path.
++fn rounded_rect(cr: &cairo::Context, x: f64, y: f64, width: f64, height: f64, radius: f64) {
++    use std::f64::consts::{FRAC_PI_2, PI};
++    cr.new_sub_path();
++    cr.arc(x + width - radius, y + radius, radius, -FRAC_PI_2, 0.0);
++    cr.arc(x + width - radius, y + height - radius, radius, 0.0, FRAC_PI_2);
++    cr.arc(x + radius, y + height - radius, radius, FRAC_PI_2, PI);
++    cr.arc(x + radius, y + radius, radius, PI, PI + FRAC_PI_2);
++    cr.close_path();
++}
++
++/// Box-blurs a `width` by `height` alpha mask along its rows, then its columns, BLUR_PASSES times over (File
++/// Explorer's shadow.cpp, `boxBlurAlpha`). Pixels past either end repeat the edge pixel.
++fn box_blur(alpha: &mut [u8], width: usize, height: usize, radius: usize) {
++    let window = 2 * radius + 1;
++    let mut line = vec![0u32; width.max(height)];
++    let blur_line = |read: &dyn Fn(usize) -> u32, length: usize, out: &mut [u32]| {
++        let at = |i: isize| read(i.clamp(0, length as isize - 1) as usize);
++        let mut sum: u32 = (-(radius as isize)..=radius as isize).map(at).sum();
++        for i in 0..length {
++            out[i] = sum / window as u32;
++            sum = sum + at(i as isize + radius as isize + 1) - at(i as isize - radius as isize);
++        }
++    };
++    for _ in 0..BLUR_PASSES {
++        for y in 0..height {
++            let row: Vec<u32> = alpha[y * width..(y + 1) * width].iter().map(|&a| u32::from(a)).collect();
++            blur_line(&|x| row[x], width, &mut line);
++            for x in 0..width {
++                alpha[y * width + x] = line[x] as u8;
++            }
++        }
++        for x in 0..width {
++            let column: Vec<u32> = (0..height).map(|y| u32::from(alpha[y * width + x])).collect();
++            blur_line(&|y| column[y], height, &mut line);
++            for y in 0..height {
++                alpha[y * width + x] = line[y] as u8;
++            }
++        }
++    }
++}
++
++/// A file holding `pixels` that only this process can open, unlinked at once, for KWin to map: wl_shm takes pixels
++/// as a file.
++fn shared_file(pixels: &[u8]) -> std::io::Result<std::fs::File> {
++    let path = glib::user_runtime_dir().join(format!("missioncenter-shadow-{}", std::process::id()));
++    let mut file = std::fs::OpenOptions::new()
++        .read(true)
++        .write(true)
++        .create(true)
++        .truncate(true)
++        .mode(0o600)
++        .open(&path)?;
++    std::fs::remove_file(&path)?;
++    file.write_all(pixels)?;
++    Ok(file)
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++
++    #[test]
++    fn the_blur_spreads_a_point_and_keeps_an_even_field_even() {
++        let mut point = vec![0u8; 31 * 31];
++        point[15 * 31 + 15] = 255;
++        box_blur(&mut point, 31, 31, 2);
++        assert!(point[15 * 31 + 15] < 255, "the middle loses some of its alpha");
++        assert!(point[15 * 31 + 18] > 0, "its neighbours gain some");
++        let mut even = vec![150u8; 20 * 20];
++        box_blur(&mut even, 20, 20, 3);
++        assert!(even.iter().all(|&a| a == 150));
++    }
++
++    #[test]
++    fn the_shadow_is_cut_out_under_the_body_and_darker_below_it_than_above() {
++        for spec in [WINDOW, MENU, TOOLTIP] {
++            let (alpha, side) = shadow_image(spec);
++            let at = |x: i32, y: i32| alpha[(y * side + x) as usize];
++            let middle = side / 2;
++            assert_eq!(at(middle, middle), 0, "the body itself stays clear: {spec:?}");
++            assert!(
++                at(middle, side - spec.extent + 4) > at(middle, spec.extent - 4),
++                "the light pushes it down: {spec:?}"
++            );
++            assert_eq!(at(0, 0), 0, "it fades out before the image's corner: {spec:?}");
++        }
++    }
++
++    #[test]
++    fn the_tiles_cover_the_corners_and_one_line_per_edge() {
++        for spec in [WINDOW, MENU, TOOLTIP] {
++            let (pixels, rects) = shadow_tiles(spec);
++            let corner = spec.extent + spec.radius;
++            assert_eq!(rects[0].1, corner);
++            assert_eq!((rects[1].1, rects[1].2), (1, spec.extent));
++            assert_eq!((rects[3].1, rects[3].2), (spec.extent, 1));
++            let total: i32 = rects.iter().map(|&(_, w, h)| w * h * BYTES_PER_PIXEL).sum();
++            assert_eq!(total as usize, pixels.len());
++        }
++    }
++}
+diff --git a/src/table_view/columns/heat.rs b/src/table_view/columns/heat.rs
+new file mode 100644
+index 0000000..1644618
+--- /dev/null
++++ b/src/table_view/columns/heat.rs
+@@ -0,0 +1,152 @@
++/* table_view/columns/heat.rs
++ *
++ * Copyright 2026 xt0n1-t3ch
++ *
++ * This program is free software: you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation, either version 3 of the License, or
++ * (at your option) any later version.
++ *
++ * SPDX-License-Identifier: GPL-3.0-or-later
++ */
++
++//! Aurora: the heat tint of the Apps and Services tables, as Windows 11's Task Manager shades a busy cell. A value
++//! falls into one of five steps by what it measures; each step but the first gives the cell a CSS class that
++//! aurora-pages.css tints, deeper as the step rises: in the accent blue for a share of the CPU or the GPU, in amber
++//! for memory and throughput. The `apps-page-heat-tint` setting turns it off.
++
++use gtk::prelude::*;
++
++use super::LabelCell;
++use crate::table_view::settings::is_heat_tint_active;
++
++/// What a cell measures, with its value in the unit the table already reads.
++#[derive(Clone, Copy, Debug, PartialEq)]
++pub enum Load {
++    /// A share of the CPU or the GPU, in percent.
++    Percent(f32),
++    /// Memory, swap or GPU memory, in bytes.
++    Bytes(f32),
++    /// Drive throughput, in bytes per second.
++    DriveRate(f32),
++    /// Network throughput, in bytes per second.
++    NetworkRate(f32),
++}
++
++/// How heavily a value weighs, from nothing worth showing to the top step.
++#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
++pub enum Heat {
++    None,
++    Low,
++    Medium,
++    High,
++    Peak,
++}
++
++const MIB: f32 = 1024. * 1024.;
++const MB: f32 = 1_000_000.;
++
++/// The lower bound of Low, Medium, High and Peak for a share in percent.
++const PERCENT_STEPS: [f32; 4] = [5., 20., 50., 80.];
++/// The same for memory: a quarter GiB is already noticeable on a desktop, 4 GiB is one app holding much of it.
++const MEMORY_STEPS: [f32; 4] = [256. * MIB, 1024. * MIB, 2048. * MIB, 4096. * MIB];
++/// The same for drive throughput: a busy desktop app writes a few MB/s, a copy or a build hundreds.
++const DRIVE_STEPS: [f32; 4] = [1. * MB, 10. * MB, 50. * MB, 200. * MB];
++/// The same for network throughput: a stream needs about 1 MB/s, a download runs at tens.
++const NETWORK_STEPS: [f32; 4] = [0.1 * MB, 1. * MB, 10. * MB, 50. * MB];
++
++/// The CSS class of each step above None, in the order of `Heat`.
++const CLASSES: [&str; 4] = ["heat-low", "heat-medium", "heat-high", "heat-peak"];
++/// The CSS class that turns a cell's tint from amber to the accent blue.
++const SHARE_CLASS: &str = "heat-share";
++
++/// Whether `load` is a share of a processor, tinted in the accent blue rather than amber.
++pub fn is_share(load: Load) -> bool {
++    matches!(load, Load::Percent(_))
++}
++
++/// The step `load` falls into.
++pub fn heat_of(load: Load) -> Heat {
++    let (value, steps) = match load {
++        Load::Percent(value) => (value, PERCENT_STEPS),
++        Load::Bytes(value) => (value, MEMORY_STEPS),
++        Load::DriveRate(value) => (value, DRIVE_STEPS),
++        Load::NetworkRate(value) => (value, NETWORK_STEPS),
++    };
++    match steps.iter().filter(|&&step| value >= step).count() {
++        0 => Heat::None,
++        1 => Heat::Low,
++        2 => Heat::Medium,
++        3 => Heat::High,
++        _ => Heat::Peak,
++    }
++}
++
++/// Tints the table cell that holds `label` for `load`, or clears its tint when the setting is off. The tint goes on
++/// the whole cell (the label's grandparent, past the tree expander), so it fills the column, not just the digits.
++pub fn set_label_heat(label: &LabelCell, load: Load) {
++    let heat = if is_heat_tint_active() { heat_of(load) } else { Heat::None };
++    let Some(cell) = label.parent().and_then(|expander| expander.parent()) else {
++        return;
++    };
++    for (step, class) in CLASSES.iter().enumerate() {
++        if heat as usize == step + 1 {
++            cell.add_css_class(class);
++        } else {
++            cell.remove_css_class(class);
++        }
++    }
++    if is_share(load) {
++        cell.add_css_class(SHARE_CLASS);
++    } else {
++        cell.remove_css_class(SHARE_CLASS);
++    }
++}
++
++#[cfg(test)]
++mod tests {
++    use super::{heat_of, is_share, Heat, Load, MB, MIB};
++
++    #[test]
++    fn an_idle_value_has_no_tint() {
++        assert_eq!(heat_of(Load::Percent(0.)), Heat::None);
++        assert_eq!(heat_of(Load::Bytes(30. * MIB)), Heat::None);
++        assert_eq!(heat_of(Load::NetworkRate(2_000.)), Heat::None);
++    }
++
++    #[test]
++    fn each_step_starts_at_its_bound() {
++        assert_eq!(heat_of(Load::Percent(4.9)), Heat::None);
++        assert_eq!(heat_of(Load::Percent(5.)), Heat::Low);
++        assert_eq!(heat_of(Load::Percent(20.)), Heat::Medium);
++        assert_eq!(heat_of(Load::Percent(50.)), Heat::High);
++        assert_eq!(heat_of(Load::Percent(80.)), Heat::Peak);
++        assert_eq!(heat_of(Load::Percent(400.)), Heat::Peak, "a multi-core share above 100% stays at the top");
++    }
++
++    #[test]
++    fn units_are_read_in_their_own_scale() {
++        // The same number means different loads: 2 GiB of memory is high, 2 GB/s of disk is the peak.
++        assert_eq!(heat_of(Load::Bytes(2048. * MIB)), Heat::High);
++        assert_eq!(heat_of(Load::DriveRate(2000. * MB)), Heat::Peak);
++        assert_eq!(heat_of(Load::NetworkRate(1. * MB)), Heat::Medium);
++    }
++
++    #[test]
++    fn processor_shares_are_tinted_blue_and_sizes_and_rates_amber() {
++        assert!(is_share(Load::Percent(30.)), "CPU and GPU shares");
++        assert!(!is_share(Load::Bytes(2048. * MIB)), "memory, swap and GPU memory");
++        assert!(!is_share(Load::DriveRate(50. * MB)));
++        assert!(!is_share(Load::NetworkRate(1. * MB)));
++    }
++
++    #[test]
++    fn heat_never_falls_as_the_value_rises() {
++        let mut last = Heat::None;
++        for step in 0..=200 {
++            let heat = heat_of(Load::Bytes(step as f32 * 32. * MIB));
++            assert!(heat >= last, "{step}: {heat:?} after {last:?}");
++            last = heat;
 +        }
 +    }
 +}

@@ -93,7 +93,7 @@ pub struct Offer {
 const ON_OFF: &[(&str, &str)] = &[("true", "On"), ("false", "Off")];
 
 /// The settings the menu offers; `--set` reaches every key of the schema.
-pub const OFFERS: [Offer; 9] = [
+pub const OFFERS: [Offer; 10] = [
     Offer {
         key: "app-update-interval-u64",
         name: "Refresh",
@@ -118,6 +118,7 @@ pub const OFFERS: [Offer; 9] = [
     Offer { key: "performance-smooth-graphs", name: "Smooth graphs", choices: ON_OFF },
     Offer { key: "performance-sliding-graphs", name: "Sliding graphs", choices: ON_OFF },
     Offer { key: "apps-page-merged-process-stats", name: "One row per app", choices: ON_OFF },
+    Offer { key: "apps-page-heat-tint", name: "Heat tint on busy values", choices: ON_OFF },
     Offer { key: "performance-page-kernel-times", name: "Kernel time in the CPU graphs", choices: ON_OFF },
     Offer { key: "performance-show-fans", name: "Fans in the sidebar", choices: ON_OFF },
     Offer { key: "performance-show-batteries", name: "Batteries in the sidebar", choices: ON_OFF },
