@@ -1,17 +1,18 @@
 diff -ruN a/CMakeLists.txt b/CMakeLists.txt
---- a/CMakeLists.txt	2026-11-04 14:31:44.760490227 -0500
-+++ b/CMakeLists.txt	2026-11-04 14:40:28.059333592 -0500
-@@ -40,6 +40,9 @@
+--- a/CMakeLists.txt	2026-11-05 02:44:25.324487342 -0500
++++ b/CMakeLists.txt	2026-11-07 07:28:42.701913380 -0500
+@@ -40,6 +40,10 @@
      components/SpeedChart.qml
      components/Summary.qml
      components/ThumbnailStrip.qml
 +    components/BannerGlass.qml
++    components/BannerButton.qml
 +    components/BannerBlur.qml
 +    components/BannerBlurImpl.qml
      PATH components
  )
  
-@@ -67,6 +70,9 @@
+@@ -67,6 +71,9 @@
      NotificationPopup.qml
  )
  
@@ -23,7 +24,7 @@ diff -ruN a/CMakeLists.txt b/CMakeLists.txt
      FILES
 diff -ruN a/components/BannerBlurImpl.qml b/components/BannerBlurImpl.qml
 --- a/components/BannerBlurImpl.qml	1969-12-31 19:00:00.000000000 -0500
-+++ b/components/BannerBlurImpl.qml	2026-11-04 14:37:48.084320129 -0500
++++ b/components/BannerBlurImpl.qml	2026-11-05 02:44:25.329077389 -0500
 @@ -0,0 +1,10 @@
 +/*
 +    SPDX-FileCopyrightText: 2026 xt0n1-t3ch
@@ -37,7 +38,7 @@ diff -ruN a/components/BannerBlurImpl.qml b/components/BannerBlurImpl.qml
 +}
 diff -ruN a/components/BannerBlur.qml b/components/BannerBlur.qml
 --- a/components/BannerBlur.qml	1969-12-31 19:00:00.000000000 -0500
-+++ b/components/BannerBlur.qml	2026-11-04 14:37:48.075480242 -0500
++++ b/components/BannerBlur.qml	2026-11-05 02:44:25.329077389 -0500
 @@ -0,0 +1,11 @@
 +/*
 +    SPDX-FileCopyrightText: 2026 xt0n1-t3ch
@@ -50,9 +51,65 @@ diff -ruN a/components/BannerBlur.qml b/components/BannerBlur.qml
 +Loader {
 +    source: Qt.resolvedUrl("BannerBlurImpl.qml")
 +}
+diff -ruN a/components/BannerButton.qml b/components/BannerButton.qml
+--- a/components/BannerButton.qml	1969-12-31 19:00:00.000000000 -0500
++++ b/components/BannerButton.qml	2026-11-07 07:28:42.269702146 -0500
+@@ -0,0 +1,52 @@
++/*
++    SPDX-FileCopyrightText: 2026 xt0n1-t3ch
++    SPDX-License-Identifier: GPL-2.0-only OR GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
++*/
++// The small round glass button that a notification shows on hover, overhanging one of its corners as macOS does:
++// Clear at the top-left, Plasma's per-app settings at the top-right. Banners and the popover's rows share it.
++import QtQuick
++
++import org.kde.kirigami as Kirigami
++
++Rectangle {
++    id: button
++
++    // How far the button reaches past the corner it sits on.
++    readonly property int overhang: Math.round(width / 3)
++    property string iconName
++    property string text
++    // Whether the button is shown; it fades rather than pops, and takes no clicks while hidden.
++    property bool shown
++    signal clicked
++
++    width: Kirigami.Units.iconSizes.small + Kirigami.Units.smallSpacing * 2
++    height: width
++    radius: width / 2
++    color: buttonArea.containsMouse ? Qt.rgba(0.30, 0.30, 0.33, 0.96) : Qt.rgba(0.20, 0.20, 0.22, 0.94)
++    border.color: Qt.rgba(1, 1, 1, 0.16)
++    border.width: 1
++    opacity: shown ? 1 : 0
++    enabled: opacity > 0
++    Behavior on opacity {
++        NumberAnimation { duration: Kirigami.Units.shortDuration; easing.type: Easing.OutCubic }
++    }
++    Accessible.role: Accessible.Button
++    Accessible.name: text
++
++    Kirigami.Icon {
++        anchors.centerIn: parent
++        width: Math.round(parent.width * 0.55)
++        height: width
++        source: button.iconName
++        color: "#ffffff"
++        isMask: true
++    }
++
++    MouseArea {
++        id: buttonArea
++        anchors.fill: parent
++        hoverEnabled: true
++        cursorShape: Qt.PointingHandCursor
++        onClicked: button.clicked()
++    }
++}
 diff -ruN a/components/BannerGlass.qml b/components/BannerGlass.qml
 --- a/components/BannerGlass.qml	1969-12-31 19:00:00.000000000 -0500
-+++ b/components/BannerGlass.qml	2026-11-04 15:05:48.334944382 -0500
++++ b/components/BannerGlass.qml	2026-11-05 02:44:25.329077389 -0500
 @@ -0,0 +1,36 @@
 +/*
 +    SPDX-FileCopyrightText: 2026 xt0n1-t3ch
@@ -91,9 +148,9 @@ diff -ruN a/components/BannerGlass.qml b/components/BannerGlass.qml
 +    }
 +}
 diff -ruN a/delegates/DelegatePopup.qml b/delegates/DelegatePopup.qml
---- a/delegates/DelegatePopup.qml	2026-11-04 14:31:57.540382202 -0500
-+++ b/delegates/DelegatePopup.qml	2026-11-04 15:03:52.115238168 -0500
-@@ -1,15 +1,20 @@
+--- a/delegates/DelegatePopup.qml	2026-11-05 02:44:25.326487329 -0500
++++ b/delegates/DelegatePopup.qml	2026-11-07 09:42:36.690125920 -0500
+@@ -1,173 +1,246 @@
  /*
      SPDX-FileCopyrightText: 2018-2019 Kai Uwe Broulik <kde@privat.broulik.de>
      SPDX-FileCopyrightText: 2024 Marco Martin <mart@kde.org>
@@ -108,14 +165,18 @@ diff -ruN a/delegates/DelegatePopup.qml b/delegates/DelegatePopup.qml
 +// (Apple HIG, Notifications: "the system displays your app name if you don't provide a title").
 +
  import QtQuick
++import QtQuick.Effects
  import QtQuick.Layouts
  
++import org.kde.plasma.core as PlasmaCore
  import org.kde.plasma.components as PlasmaComponents3
 -import org.kde.plasma.extras as PlasmaExtras
  import org.kde.kirigami as Kirigami
  import org.kde.kquickcontrolsaddons as KQuickControlsAddons
++import org.kde.coreaddons as KCoreAddons
  
-@@ -18,156 +23,151 @@
+ import org.kde.notificationmanager as NotificationManager
+ import plasma.applet.org.kde.plasma.notifications as Notifications
  
  import "../components" as Components
  
@@ -136,9 +197,7 @@ diff -ruN a/delegates/DelegatePopup.qml b/delegates/DelegatePopup.qml
      Accessible.role: Accessible.Notification
  
 -    readonly property int __firstColumn: modelInterface.urgency === NotificationManager.Notifications.CriticalUrgency ? 1 : 0
-+    readonly property color primaryText: "#ffffff"
-+    readonly property color secondaryText: Qt.rgba(1, 1, 1, 0.55)
- 
+-
 -    PlasmaExtras.PlasmoidHeading {
 -        id: heading
 -        topInset: 0
@@ -152,6 +211,19 @@ diff -ruN a/delegates/DelegatePopup.qml b/delegates/DelegatePopup.qml
 -        // HACK PlasmoidHeading is a QQC2 Control which accepts left mouse button by default,
 -        // which breaks the popup default action mouse handler, cf. QTBUG-89785
 -        Component.onCompleted: Notifications.InputDisabler.makeTransparentForInput(this)
++    readonly property color primaryText: "#ffffff"
++    // A long body shows its first lines. In the popover's history it is `expandable`: a click on it, or on Show More,
++    // shows all of it, and Show Less folds it back.
++    property real maximumBodyLines: 4
++    property bool expandable: false
++    property bool bodyExpanded: false
++    // True while the popover shows Clear over this notification's top-right corner, where the time sits; the time
++    // fades out under it.
++    property bool clearShown: false
++    readonly property real bodyLines: expandable && bodyExpanded ? Infinity : maximumBodyLines
++    readonly property bool bodyFolds: expandable && bodyLabel.implicitHeight > bodyMetrics.lineSpacing * maximumBodyLines + 1
++    readonly property color secondaryText: Qt.rgba(1, 1, 1, 0.55)
++
 +    // The app's icon, or the notification's own when the app has none.
 +    Kirigami.Icon {
 +        id: appIcon
@@ -198,16 +270,10 @@ diff -ruN a/delegates/DelegatePopup.qml b/delegates/DelegatePopup.qml
 -                if (delegateRoot.modelInterface.timeout === 0) {
 -                    return 0
 -                }
++        // A thumbnail taller than the text gives its height to both rows; the text stays together in the middle.
++        Layout.alignment: Qt.AlignBottom
 +        spacing: Kirigami.Units.smallSpacing
- 
--                return delegateRoot.modelInterface.remainingTime / delegateRoot.modelInterface.timeout
--            }
--
--            height: parent.height
--            width: Math.round(parent.width * completionFraction)
--            anchors.left: parent.left
--
--            color: Kirigami.Theme.highlightColor
++
 +        PlasmaComponents3.Label {
 +            id: titleLabel
 +            Layout.fillWidth: true
@@ -217,41 +283,24 @@ diff -ruN a/delegates/DelegatePopup.qml b/delegates/DelegatePopup.qml
 +            color: delegateRoot.primaryText
 +            elide: Text.ElideRight
 +            maximumLineCount: 1
-         }
--    }
--
--    Rectangle {
--        id: criticalNotificationIndicator
--        Layout.fillHeight: true
--        Layout.leftMargin: Layout.mirrored ? 0 : -delegateRoot.modelInterface.popupLeftPadding
--        Layout.rightMargin: Layout.mirrored ? -delegateRoot.modelInterface.popupRightPadding : 0
--        Layout.topMargin: -delegateRoot.rowSpacing
--        Layout.bottomMargin: -delegateRoot.rowSpacing
--        Layout.rowSpan: 3
--
--        implicitWidth: 4
--        height: parent.height
--        color: Kirigami.Theme.neutralTextColor
--        visible: delegateRoot.modelInterface.urgency === NotificationManager.Notifications.CriticalUrgency
--    }
++        }
  
--    Components.Summary {
--        id: summary
--        // Base layout intentionally has no row spacing, so add top padding here when needed
--        Layout.topMargin: delegateRoot.hasBodyText || icon.visible ? Kirigami.Units.smallSpacing : 0
--        Layout.fillWidth: true
--        Layout.row: 2
--        Layout.column: delegateRoot.__firstColumn
--        Layout.columnSpan: icon.visible ? 1 : 2
--        modelInterface: delegateRoot.modelInterface
+-                return delegateRoot.modelInterface.remainingTime / delegateRoot.modelInterface.timeout
 +        PlasmaComponents3.Label {
 +            id: ageLabel
 +            property string ageText: ""
 +            text: ageText
 +            visible: text !== ""
++            opacity: delegateRoot.clearShown ? 0 : 1
++            Behavior on opacity {
++                NumberAnimation { duration: Kirigami.Units.shortDuration }
+             }
 +            font: Kirigami.Theme.smallFont
 +            color: delegateRoot.secondaryText
-+
+ 
+-            height: parent.height
+-            width: Math.round(parent.width * completionFraction)
+-            anchors.left: parent.left
 +            function update(): void {
 +                const time = delegateRoot.modelInterface.time;
 +                const job = delegateRoot.modelInterface.jobState;
@@ -265,15 +314,17 @@ diff -ruN a/delegates/DelegatePopup.qml b/delegates/DelegatePopup.qml
 +                    ageText = i18ndc("plasma_applet_org.kde.plasma.notifications", "Notification age, as macOS writes it", "now");
 +                } else if (minutes < 60) {
 +                    ageText = i18ndcp("plasma_applet_org.kde.plasma.notifications", "Notification was added minutes ago, keep short", "%1 min ago", "%1 min ago", minutes);
-+                } else {
++                } else if (minutes < 60 * 22) {
 +                    ageText = Qt.formatTime(time, Qt.locale().timeFormat(Locale.ShortFormat).replace(/.ss?/i, ""));
++                } else {
++                    // Older entries in the history read as a date ("Yesterday"), as Plasma's history row does.
++                    ageText = KCoreAddons.Format.formatRelativeDate(time, Locale.ShortFormat);
 +                }
 +            }
  
--        KQuickControlsAddons.MouseEventListener {
--            anchors.fill: parent
--            visible: delegateRoot.modelInterface.hasDefaultAction && !delegateRoot.hasBodyText
--            onClicked: delegateRoot.modelInterface.defaultActionInvoked();
+-            color: Kirigami.Theme.highlightColor
+-        }
+-    }
 +            Component.onCompleted: update()
 +            Connections {
 +                target: delegateRoot.modelInterface
@@ -283,25 +334,117 @@ diff -ruN a/delegates/DelegatePopup.qml b/delegates/DelegatePopup.qml
 +                target: Notifications.Globals
 +                function onTimeChanged(): void { ageLabel.update(); }
 +            }
+ 
+-    Rectangle {
+-        id: criticalNotificationIndicator
+-        Layout.fillHeight: true
+-        Layout.leftMargin: Layout.mirrored ? 0 : -delegateRoot.modelInterface.popupLeftPadding
+-        Layout.rightMargin: Layout.mirrored ? -delegateRoot.modelInterface.popupRightPadding : 0
+-        Layout.topMargin: -delegateRoot.rowSpacing
+-        Layout.bottomMargin: -delegateRoot.rowSpacing
+-        Layout.rowSpan: 3
+-
+-        implicitWidth: 4
+-        height: parent.height
+-        color: Kirigami.Theme.neutralTextColor
+-        visible: delegateRoot.modelInterface.urgency === NotificationManager.Notifications.CriticalUrgency
++            PlasmaCore.ToolTipArea {
++                anchors.fill: parent
++                active: ageLabel.visible
++                subText: delegateRoot.modelInterface.time ? delegateRoot.modelInterface.time.toLocaleString(Qt.locale(), Locale.LongFormat) : ""
++            }
++        }
+     }
+ 
+-    Components.Summary {
+-        id: summary
+-        // Base layout intentionally has no row spacing, so add top padding here when needed
+-        Layout.topMargin: delegateRoot.hasBodyText || icon.visible ? Kirigami.Units.smallSpacing : 0
++    KQuickControlsAddons.MouseEventListener {
++        Layout.row: 1
++        Layout.column: 1
++        Layout.columnSpan: thumbnail.visible ? 1 : 2
+         Layout.fillWidth: true
+-        Layout.row: 2
+-        Layout.column: delegateRoot.__firstColumn
+-        Layout.columnSpan: icon.visible ? 1 : 2
+-        modelInterface: delegateRoot.modelInterface
++        Layout.alignment: Qt.AlignTop
++        Layout.maximumHeight: bodyMetrics.lineSpacing * delegateRoot.bodyLines
++        implicitWidth: -1 // the body does not drive the width, which avoids a binding loop
++        implicitHeight: Math.min(bodyLabel.implicitHeight, bodyMetrics.lineSpacing * delegateRoot.bodyLines)
++        visible: delegateRoot.hasBodyText
++        clip: true
++        onClicked: {
++            if (delegateRoot.bodyFolds && !delegateRoot.hoveredLink) {
++                delegateRoot.bodyExpanded = !delegateRoot.bodyExpanded;
++            } else if (delegateRoot.modelInterface.hasDefaultAction && !delegateRoot.hoveredLink) {
++                delegateRoot.modelInterface.defaultActionInvoked();
++            }
++        }
++
++        FontMetrics {
++            id: bodyMetrics
++            font: bodyLabel.font
++        }
+ 
+-        KQuickControlsAddons.MouseEventListener {
+-            anchors.fill: parent
+-            visible: delegateRoot.modelInterface.hasDefaultAction && !delegateRoot.hasBodyText
+-            onClicked: delegateRoot.modelInterface.defaultActionInvoked();
++        Components.Body {
++            id: bodyLabel
++            width: parent.width
++            opacity: 0.88
++            modelInterface: delegateRoot.modelInterface
++            Accessible.ignored: true // ignore HTML body in favor of Accessible.description on delegateRoot
          }
      }
  
--    Components.Icon {
++    // A notification's own picture (a screenshot, an album cover), as a thumbnail at the trailing edge.
+     Components.Icon {
 -        id: icon
 -        // Base layout intentionally has no row spacing, so add top padding here
 -        Layout.topMargin: Kirigami.Units.smallSpacing
 -        Layout.row: 2
 -        Layout.column: delegateRoot.__firstColumn + 1
--        Layout.rowSpan: 2
--        modelInterface: delegateRoot.modelInterface
--    }
--
-     KQuickControlsAddons.MouseEventListener {
++        id: thumbnail
++        Layout.row: 0
++        Layout.column: 2
+         Layout.rowSpan: 2
++        Layout.alignment: Qt.AlignVCenter
++        implicitWidth: Kirigami.Units.iconSizes.large
++        implicitHeight: Kirigami.Units.iconSizes.large
+         modelInterface: delegateRoot.modelInterface
++        // Without an app icon the leading icon already shows the notification's own, so it is not shown twice.
++        source: delegateRoot.modelInterface.applicationIconSource
++                && delegateRoot.modelInterface.icon !== delegateRoot.modelInterface.applicationIconSource ? delegateRoot.modelInterface.icon : null
++        // Rounded corners, as macOS draws a notification's picture.
++        layer.enabled: visible
++        layer.effect: MultiEffect {
++            maskEnabled: true
++            maskSource: thumbnailMask
++            maskThresholdMin: 0.5
++            maskSpreadAtMin: 1.0
++        }
+     }
+ 
+-    KQuickControlsAddons.MouseEventListener {
 -        // Base layout intentionally has no row spacing, so add top padding here when needed
 -        Layout.topMargin: summary.visible ? 0 : Kirigami.Units.smallSpacing
-+        Layout.row: 1
++    Rectangle {
++        id: thumbnailMask
++        width: thumbnail.width
++        height: thumbnail.height
++        radius: Kirigami.Units.cornerRadius
++        visible: false
++        layer.enabled: true
++    }
++
++    PlasmaComponents3.Label {
++        Layout.row: 2
 +        Layout.column: 1
-+        Layout.columnSpan: thumbnail.visible ? 1 : 2
++        Layout.columnSpan: 2
          Layout.fillWidth: true
 -        Layout.fillHeight: true
 -        Layout.row: summary.visible ? 3 : 2
@@ -311,15 +454,25 @@ diff -ruN a/delegates/DelegatePopup.qml b/delegates/DelegatePopup.qml
 -        // The body doesn't need to influence the implicit width in any way, this avoids a binding loop
 -        implicitWidth: -1
 -        implicitHeight: scroll.implicitHeight
-+        Layout.maximumHeight: bodyMetrics.lineSpacing * 4
-+        implicitWidth: -1 // the body does not drive the width, which avoids a binding loop
-+        implicitHeight: Math.min(bodyLabel.implicitHeight, bodyMetrics.lineSpacing * 4)
-         visible: delegateRoot.hasBodyText
-+        clip: true
-         onClicked: {
-             if (delegateRoot.modelInterface.hasDefaultAction && !delegateRoot.hoveredLink) {
-                 delegateRoot.modelInterface.defaultActionInvoked();
-             }
+-        visible: delegateRoot.hasBodyText
+-        onClicked: {
+-            if (delegateRoot.modelInterface.hasDefaultAction && !delegateRoot.hoveredLink) {
+-                delegateRoot.modelInterface.defaultActionInvoked();
+-            }
++        // Its text must not widen the column the body wraps in: a wider body folds less, which hides this label, which
++        // narrows the body again, a layout loop.
++        Layout.preferredWidth: 0
++        Layout.minimumWidth: 0
++        elide: Text.ElideRight
++        visible: delegateRoot.bodyFolds
++        text: delegateRoot.bodyExpanded ? i18nc("@action:button fold a long notification", "Show Less")
++                                        : i18nc("@action:button unfold a long notification", "Show More")
++        font: Kirigami.Theme.smallFont
++        color: Kirigami.Theme.linkColor
++        Accessible.role: Accessible.Button
++
++        TapHandler {
++            onTapped: delegateRoot.bodyExpanded = !delegateRoot.bodyExpanded
          }
 -        PlasmaComponents3.ScrollView {
 -            id: scroll
@@ -336,34 +489,9 @@ diff -ruN a/delegates/DelegatePopup.qml b/delegates/DelegatePopup.qml
 -                modelInterface: delegateRoot.modelInterface
 -                Accessible.ignored: true // ignore HTML body in favor of Accessible.description on delegateRoot
 -            }
-+
-+        FontMetrics {
-+            id: bodyMetrics
-+            font: bodyLabel.font
++        HoverHandler {
++            cursorShape: Qt.PointingHandCursor
          }
-+
-+        Components.Body {
-+            id: bodyLabel
-+            width: parent.width
-+            opacity: 0.88
-+            modelInterface: delegateRoot.modelInterface
-+            Accessible.ignored: true // ignore HTML body in favor of Accessible.description on delegateRoot
-+        }
-+    }
-+
-+    // A notification's own picture (a screenshot, an album cover), as a thumbnail at the trailing edge.
-+    Components.Icon {
-+        id: thumbnail
-+        Layout.row: 0
-+        Layout.column: 2
-+        Layout.rowSpan: 2
-+        Layout.alignment: Qt.AlignVCenter
-+        implicitWidth: Kirigami.Units.iconSizes.large
-+        implicitHeight: Kirigami.Units.iconSizes.large
-+        modelInterface: delegateRoot.modelInterface
-+        // Without an app icon the leading icon already shows the notification's own, so it is not shown twice.
-+        source: delegateRoot.modelInterface.applicationIconSource
-+                && delegateRoot.modelInterface.icon !== delegateRoot.modelInterface.applicationIconSource ? delegateRoot.modelInterface.icon : null
      }
  
      Components.FooterLoader {
@@ -371,7 +499,7 @@ diff -ruN a/delegates/DelegatePopup.qml b/delegates/DelegatePopup.qml
 -        Layout.fillWidth: true
 -        Layout.row: 4
 -        Layout.column: delegateRoot.__firstColumn
-+        Layout.row: 2
++        Layout.row: 3
 +        Layout.column: 1
          Layout.columnSpan: 2
 +        Layout.fillWidth: true
@@ -382,9 +510,334 @@ diff -ruN a/delegates/DelegatePopup.qml b/delegates/DelegatePopup.qml
      }
  }
 -
+diff -ruN a/FullRepresentation.qml b/FullRepresentation.qml
+--- a/FullRepresentation.qml	2026-11-05 02:44:25.324715063 -0500
++++ b/FullRepresentation.qml	2026-11-07 09:46:32.835342358 -0500
+@@ -11,7 +11,6 @@
+ 
+ import org.kde.plasma.plasmoid
+ import org.kde.plasma.core as PlasmaCore
+-import org.kde.ksvg as KSvg
+ import org.kde.plasma.components as PlasmaComponents3
+ import org.kde.plasma.extras as PlasmaExtras
+ import org.kde.kirigami as Kirigami
+@@ -48,6 +47,17 @@
+ 
+     Keys.onDownPressed: dndCheck.forceActiveFocus(Qt.TabFocusReason);
+ 
++    // Aurora: what a click on the switch does, for a click on its label. Turning Do not disturb on asks for how long,
++    // as the switch's press does; turning it off revokes every inhibition, as the switch's click does.
++    function toggleDoNotDisturb(): void {
++        if (Notifications.Globals.inhibited) {
++            Notifications.Globals.revokeInhibitions();
++        } else {
++            dndMenu.date = new Date();
++            dndMenu.open(0, 0);
++        }
++    }
++
+     Connections {
+         target: fullRepresentationRoot.appletInterface
+         function onExpandedChanged() {
+@@ -71,15 +81,38 @@
+             id: header
+             spacing: 0
+ 
++            // Aurora: a macOS settings row, the symbol and label leading and the switch at the trailing edge. A click
++            // on the label does what a click on the switch does.
+             RowLayout {
+                 Layout.fillWidth: true
+-                spacing: 0
++                spacing: Kirigami.Units.smallSpacing
++
++                Kirigami.Icon {
++                    id: dndIcon
++                    implicitWidth: Kirigami.Units.iconSizes.small
++                    implicitHeight: Kirigami.Units.iconSizes.small
++                    source: "notifications-disabled"
++                    opacity: dndCheck.enabled ? 1 : 0.5
++                }
++
++                PlasmaComponents3.Label {
++                    Layout.fillWidth: true
++                    text: dndCheck.Accessible.name
++                    textFormat: Text.PlainText
++                    elide: Text.ElideRight
++                    opacity: dndCheck.enabled ? 1 : 0.5
++                    Accessible.ignored: true
++
++                    TapHandler {
++                        enabled: dndCheck.enabled
++                        onTapped: fullRepresentationRoot.toggleDoNotDisturb()
++                    }
++                }
+ 
+                 PlasmaComponents3.Switch {
+                     id: dndCheck
+                     enabled: NotificationManager.Server.valid
+-                    text: i18n("Do not disturb")
+-                    icon.name: "notifications-disabled"
++                    Accessible.name: i18n("Do not disturb")
+                     checkable: true
+                     checked: Notifications.Globals.inhibited
+ 
+@@ -178,10 +211,6 @@
+                     }
+                 }
+ 
+-                Item {
+-                    Layout.fillWidth: true
+-                }
+-
+                 PlasmaComponents3.ToolButton {
+                     visible: !(Plasmoid.containmentDisplayHints & PlasmaCore.Types.ContainmentDrawsPlasmoidHeading)
+ 
+@@ -196,9 +225,10 @@
+                 }
+             }
+ 
++            // Aurora: under the label, past the symbol.
+             PlasmaExtras.DescriptiveLabel {
+-                Layout.leftMargin: dndCheck.mirrored ? 0 : dndCheck.indicator.width + 2 * dndCheck.spacing + Kirigami.Units.iconSizes.smallMedium
+-                Layout.rightMargin: dndCheck.mirrored ? dndCheck.indicator.width + 2 * dndCheck.spacing + Kirigami.Units.iconSizes.smallMedium : 0
++                Layout.leftMargin: dndCheck.mirrored ? dndCheck.width : dndIcon.width + Kirigami.Units.smallSpacing
++                Layout.rightMargin: dndCheck.mirrored ? dndIcon.width + Kirigami.Units.smallSpacing : dndCheck.width
+                 Layout.fillWidth: true
+                 wrapMode: Text.WordWrap
+                 textFormat: Text.PlainText
+@@ -312,6 +342,12 @@
+                 case Qt.Key_End:
+                     currentIndex = count - 1;
+                     break;
++                case Qt.Key_Menu:
++                    // Aurora: the selected notification's menu, as a right-click opens it.
++                    if (currentItem && currentItem.openMenu) {
++                        currentItem.openMenu();
++                    }
++                    break;
+                 }
+             }
+ 
+@@ -337,30 +373,27 @@
+             highlightMoveDuration: 0
+             highlightResizeDuration: 0
+             // Not using PlasmaExtras.Highlight as this is only for indicating keyboard focus
+-            highlight: KSvg.FrameSvgItem {
+-                imagePath: "widgets/listitem"
+-                prefix: "pressed"
++            // Aurora: a ring the shape of a platter, inside the popover's edges like the platters.
++            highlight: Item {
++                Rectangle {
++                    anchors.fill: parent
++                    anchors.leftMargin: Kirigami.Units.largeSpacing
++                    anchors.rightMargin: Kirigami.Units.largeSpacing
++                    radius: Kirigami.Units.gridUnit
++                    color: "transparent"
++                    border.color: Kirigami.Theme.focusColor
++                    border.width: 2
++                }
+             }
+ 
++            // Aurora: each notification is its own platter, so apps are told apart by a gap instead of a line.
+             section {
+                 property: "desktopEntry"
+                 criteria: ViewSection.FullString
+                 delegate: Item {
+                     width: list.width
+                     // Within a section delegate we don't have other ways to detect whether we are the first section
+-                    height: y > 0 ? Math.round(Kirigami.Units.smallSpacing * 2) : 0
+-
+-                    KSvg.SvgItem {
+-                        anchors {
+-                            left: parent.left
+-                            right: parent.right
+-                            verticalCenter: parent.verticalCenter
+-                            margins: Kirigami.Units.largeSpacing
+-                        }
+-                        imagePath: "widgets/line"
+-                        elementId: "horizontal-line"
+-                        visible: parent.y > 0
+-                    }
++                    height: y > 0 ? Kirigami.Units.smallSpacing : 0
+                 }
+             }
+ 
+@@ -369,6 +402,40 @@
+                 width: ListView.view.width
+                 opacity: 0
+ 
++                // Aurora: a notification sits on a lighter glass platter inset from the popover's edges, laid out
++                // like the banners (DelegatePopup), with Clear on hover at its top-right corner. The app's
++                // settings and Minimize are in the menu of a right-click or the Menu key. A group's heading row
++                // stays bare above its platters.
++                readonly property int platterInset: Kirigami.Units.largeSpacing
++                readonly property bool showControls: hovered || ListView.isCurrentItem
++                hoverEnabled: true
++                leftPadding: isGroup ? platterInset + Kirigami.Units.smallSpacing : platterInset + Kirigami.Units.gridUnit * 0.65
++                rightPadding: isGroup ? Kirigami.Units.largeSpacing : platterInset + Kirigami.Units.gridUnit * 0.65
++                topPadding: isGroup ? 0 : Kirigami.Units.gridUnit * 0.6
++                bottomPadding: isGroup ? 0 : Kirigami.Units.gridUnit * 0.6
++                implicitHeight: contentItem.implicitHeight + topPadding + bottomPadding
++                // SwipeDelegate moves its background with the swipe and overrides the insets, so the platter keeps
++                // its inset inside a full-width item.
++                background: Item {
++                    Rectangle {
++                        anchors.fill: parent
++                        anchors.leftMargin: delegate.platterInset
++                        anchors.rightMargin: delegate.platterInset
++                        visible: !delegate.isGroup
++                        radius: Kirigami.Units.gridUnit
++                        color: Qt.rgba(1, 1, 1, delegate.hovered ? 0.11 : 0.07)
++                        border.color: Qt.rgba(1, 1, 1, 0.08)
++                        border.width: 1
++                        Behavior on color {
++                            ColorAnimation { duration: Kirigami.Units.shortDuration }
++                        }
++                    }
++                }
++
++                function openMenu(): void {
++                    platterMenu.open(delegate.width / 2, delegate.height / 2);
++                }
++
+                 required property int index
+                 required property var model
+ 
+@@ -580,28 +647,42 @@
+                         }
+                     }
+ 
++                    // Aurora: a group's heading is the app's icon and name; the hover Clear closes the group and the
++                    // menu has the app's settings, as on a platter.
+                     Component {
+                         id: groupDelegate
+-                        Components.NotificationHeader {
+-                            modelInterface {
+-                                applicationName: delegate.applicationName
+-                                applicationIconSource: delegate.applicationIconName
+-                                originName: delegate.originName || ""
+-
+-                                configurable: delegate.configurable
+-                                closable: delegate.closable
++                        RowLayout {
++                            spacing: Kirigami.Units.smallSpacing
+ 
+-                                onCloseClicked: fullRepresentationRoot.historyModel.close(fullRepresentationRoot.historyModel.index(delegate.index, 0));
+-                                onConfigureClicked: fullRepresentationRoot.historyModel.configure(fullRepresentationRoot.historyModel.index(delegate.index, 0))
++                            Kirigami.Icon {
++                                implicitWidth: Kirigami.Units.iconSizes.small
++                                implicitHeight: Kirigami.Units.iconSizes.small
++                                source: delegate.applicationIconName
++                            }
++                            PlasmaComponents3.Label {
++                                Layout.fillWidth: true
++                                text: delegate.originName ? i18nc("Application name · origin", "%1 · %2", delegate.applicationName, delegate.originName)
++                                                          : delegate.applicationName
++                                textFormat: Text.PlainText
++                                font.weight: Font.DemiBold
++                                elide: Text.ElideRight
++                            }
++                            Components.BannerButton {
++                                visible: delegate.closable
++                                shown: delegate.showControls
++                                iconName: "window-close-symbolic"
++                                text: i18n("Close Group")
++                                onClicked: fullRepresentationRoot.historyModel.close(fullRepresentationRoot.historyModel.index(delegate.index, 0))
+                             }
+-                            closeButtonTooltip: i18n("Close Group")
+                         }
+                     }
+                     Component {
+                         id: notificationDelegate
+-                        Delegates.DelegateHistory {
++                        Delegates.DelegatePopup {
+                             Layout.fillWidth: true
+                             modelInterface: delegateLoader.modelInterface
++                            expandable: true
++                            clearShown: platterClose.visible && platterClose.shown
+                         }
+                     }
+                     Component {
+@@ -609,9 +690,11 @@
+                         ColumnLayout {
+                             spacing: Kirigami.Units.smallSpacing
+ 
+-                            Delegates.DelegateHistoryGrouped {
++                            Delegates.DelegatePopup {
+                                 Layout.fillWidth: true
+                                 modelInterface: delegateLoader.modelInterface
++                                expandable: true
++                                clearShown: platterClose.visible && platterClose.shown
+                             }
+ 
+                             PlasmaComponents3.ToolButton {
+@@ -626,6 +709,50 @@
+                         }
+                     }
+                 }
++
++                // Aurora: Clear on hover, over the platter's top-right corner.
++                Components.BannerButton {
++                    id: platterClose
++                    x: delegate.width - delegate.platterInset - width + overhang
++                    y: -overhang
++                    visible: !delegate.isGroup && delegateLoader.modelInterface.closable
++                    shown: delegate.showControls
++                    iconName: "window-close-symbolic"
++                    text: i18nd("plasma_applet_org.kde.plasma.notifications", "Close")
++                    onClicked: delegateLoader.modelInterface.closeClicked()
++                }
++
++                TapHandler {
++                    acceptedButtons: Qt.RightButton
++                    onTapped: eventPoint => platterMenu.open(eventPoint.position.x, eventPoint.position.y)
++                }
++
++                PlasmaExtras.Menu {
++                    id: platterMenu
++                    visualParent: delegate
++
++                    PlasmaExtras.MenuItem {
++                        visible: delegateLoader.modelInterface.configurable
++                        text: delegateLoader.modelInterface.configureActionLabel || i18nd("plasma_applet_org.kde.plasma.notifications", "Configure")
++                        icon: "configure-symbolic"
++                        onClicked: delegateLoader.modelInterface.configureClicked()
++                    }
++                    // A finished job kept as a popup can be minimized into the list and restored.
++                    PlasmaExtras.MenuItem {
++                        visible: !delegate.isGroup && delegateLoader.modelInterface.dismissable
++                        text: delegateLoader.modelInterface.dismissed
++                            ? i18ndc("plasma_applet_org.kde.plasma.notifications", "Opposite of minimize", "Restore")
++                            : i18nd("plasma_applet_org.kde.plasma.notifications", "Minimize")
++                        icon: delegateLoader.modelInterface.dismissed ? "window-restore-symbolic" : "window-minimize-symbolic"
++                        onClicked: delegateLoader.modelInterface.dismissClicked()
++                    }
++                    PlasmaExtras.MenuItem {
++                        visible: delegateLoader.modelInterface.closable
++                        text: delegate.isGroup ? i18n("Close Group") : i18nd("plasma_applet_org.kde.plasma.notifications", "Close")
++                        icon: "window-close-symbolic"
++                        onClicked: delegateLoader.modelInterface.closeClicked()
++                    }
++                }
+             }
+ 
+             Loader {
+@@ -646,8 +773,10 @@
+                     anchors.centerIn: parent
+                     width: parent.width
+ 
+-                    iconName: "checkmark"
+-                    text: i18n("No unread notifications")
++                    // Aurora: a quiet bell, as macOS shows an empty Notification Center, not a green check.
++                    iconName: "notifications-symbolic"
++                    text: i18n("No Notifications")
++                    explanation: i18n("You're all caught up")
+                 }
+             }
+ 
 diff -ruN a/global/Globals.qml b/global/Globals.qml
---- a/global/Globals.qml	2026-11-04 14:32:01.179351479 -0500
-+++ b/global/Globals.qml	2026-11-04 14:40:28.059066094 -0500
+--- a/global/Globals.qml	2026-11-05 02:44:25.326487329 -0500
++++ b/global/Globals.qml	2026-11-05 02:44:25.329753785 -0500
 @@ -182,11 +182,15 @@
      // Make it wider when on the top or the bottom center, since there's more horizontal
      // space available without looking weird
@@ -405,8 +858,8 @@ diff -ruN a/global/Globals.qml b/global/Globals.qml
      // How much vertical screen real estate the notification popups may consume
      readonly property real popupMaximumScreenFill: 0.8
 diff -ruN a/NotificationPopup.qml b/NotificationPopup.qml
---- a/NotificationPopup.qml	2026-11-04 14:31:47.400467896 -0500
-+++ b/NotificationPopup.qml	2026-11-04 14:39:57.410576711 -0500
+--- a/NotificationPopup.qml	2026-11-05 02:44:25.324715063 -0500
++++ b/NotificationPopup.qml	2026-11-07 07:28:42.701626232 -0500
 @@ -13,6 +13,7 @@
  import org.kde.notificationmanager as NotificationManager
  import plasma.applet.org.kde.plasma.notifications as NotificationsApplet
@@ -487,13 +940,13 @@ diff -ruN a/NotificationPopup.qml b/NotificationPopup.qml
  
                      // When notification is updated, restart hide timer
                      onTimeChanged: {
-@@ -224,5 +245,68 @@
+@@ -224,5 +245,28 @@
                  }
              }
          }
 +
 +        // macOS shows the close button on hover, overhanging the banner's top-left corner.
-+        BannerButton {
++        Components.BannerButton {
 +            id: closeButton
 +            x: banner.x - overhang
 +            y: banner.y - overhang
@@ -505,7 +958,7 @@ diff -ruN a/NotificationPopup.qml b/NotificationPopup.qml
 +        }
 +
 +        // Plasma's per-app settings stay one click away, at the opposite corner.
-+        BannerButton {
++        Components.BannerButton {
 +            x: banner.x + banner.width - width + overhang
 +            y: banner.y - overhang
 +            visible: notificationPopup.modelInterface.configurable
@@ -514,53 +967,13 @@ diff -ruN a/NotificationPopup.qml b/NotificationPopup.qml
 +            text: notificationPopup.modelInterface.configureActionLabel || i18nd("plasma_applet_org.kde.plasma.notifications", "Configure")
 +            onClicked: notificationPopup.modelInterface.configureClicked()
 +        }
-+    }
-+
-+    component BannerButton: Rectangle {
-+        id: button
-+        readonly property int overhang: Math.round(width / 3)
-+        property string iconName
-+        property string text
-+        signal clicked
-+
-+        width: Kirigami.Units.iconSizes.small + Kirigami.Units.smallSpacing * 2
-+        height: width
-+        radius: width / 2
-+        color: buttonArea.containsMouse ? Qt.rgba(0.30, 0.30, 0.33, 0.96) : Qt.rgba(0.20, 0.20, 0.22, 0.94)
-+        border.color: Qt.rgba(1, 1, 1, 0.16)
-+        border.width: 1
-+        property bool shown
-+        opacity: shown ? 1 : 0
-+        enabled: opacity > 0
-+        Behavior on opacity {
-+            NumberAnimation { duration: Kirigami.Units.shortDuration; easing.type: Easing.OutCubic }
-+        }
-+        Accessible.role: Accessible.Button
-+        Accessible.name: text
-+
-+        Kirigami.Icon {
-+            anchors.centerIn: parent
-+            width: Math.round(parent.width * 0.55)
-+            height: width
-+            source: button.iconName
-+            color: "#ffffff"
-+            isMask: true
-+        }
-+
-+        MouseArea {
-+            id: buttonArea
-+            anchors.fill: parent
-+            hoverEnabled: true
-+            cursorShape: Qt.PointingHandCursor
-+            onClicked: button.clicked()
-+        }
      }
 -}
 +}
 \ No newline at end of file
 diff -ruN a/notificationwindow.cpp b/notificationwindow.cpp
---- a/notificationwindow.cpp	2026-11-04 14:32:06.241308766 -0500
-+++ b/notificationwindow.cpp	2026-11-04 14:40:10.506142350 -0500
+--- a/notificationwindow.cpp	2026-11-05 02:44:25.327487323 -0500
++++ b/notificationwindow.cpp	2026-11-05 02:44:25.330487304 -0500
 @@ -6,11 +6,15 @@
  #include "notificationwindow.h"
  
@@ -607,8 +1020,8 @@ diff -ruN a/notificationwindow.cpp b/notificationwindow.cpp
 +    }
 +}
 diff -ruN a/notificationwindow.h b/notificationwindow.h
---- a/notificationwindow.h	2026-11-04 14:32:06.752304456 -0500
-+++ b/notificationwindow.h	2026-11-04 14:40:10.505941651 -0500
+--- a/notificationwindow.h	2026-11-05 02:44:25.327487323 -0500
++++ b/notificationwindow.h	2026-11-05 02:44:25.330487304 -0500
 @@ -13,6 +13,9 @@
      QML_ELEMENT
      Q_PROPERTY(bool takeFocus READ takeFocus WRITE setTakeFocus NOTIFY takeFocusChanged)
@@ -642,7 +1055,7 @@ diff -ruN a/notificationwindow.h b/notificationwindow.h
  };
 diff -ruN a/shaders/glass.frag b/shaders/glass.frag
 --- a/shaders/glass.frag	1969-12-31 19:00:00.000000000 -0500
-+++ b/shaders/glass.frag	2026-11-04 14:37:48.068480300 -0500
++++ b/shaders/glass.frag	2026-11-05 02:44:25.330487304 -0500
 @@ -0,0 +1,57 @@
 +#version 440
 +// SPDX-License-Identifier: GPL-3.0-only
@@ -701,4 +1114,3 @@ diff -ruN a/shaders/glass.frag b/shaders/glass.frag
 +    vec4 glass = rim + body * (1.0 - rim.a);
 +    fragColor = (glass * coverage + outside * (1.0 - coverage)) * qt_Opacity;
 +}
-Binary files a/shaders/glass.frag.qsb and b/shaders/glass.frag.qsb differ

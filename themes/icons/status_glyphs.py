@@ -7,8 +7,10 @@
 They have even 1.5 px strokes, rounded caps and a filled speaker and bell, so the bar does not mix Breeze's thin
 16 px pixel art with the base icons'. No Apple artwork: every path is drawn here.
 
-The icons are symbolic: Plasma recolours ColorScheme-Text to the panel's text colour. Writes status/symbolic and
-actions/symbolic (the Quick Menu magnifier) and adds both folders to index.theme once.
+The icons are symbolic: Plasma recolours ColorScheme-Text to the panel's text colour. Every stroke is written as its
+filled outline, because GTK 4 draws a symbolic icon by filling each shape and ignores strokes (a stroked ring became
+a solid dot in GTK apps). Writes status/symbolic and actions/symbolic (the Quick Menu magnifier) and adds both folders
+to index.theme once.
 
     status_glyphs.py THEME_DIR [--sheet out.png]
 
@@ -26,12 +28,40 @@ STYLE = ('<defs><style id="current-color-scheme" type="text/css">.ColorScheme-Te
 def svg(body):
     """An icon file: `body` inside a 16 px symbolic SVG whose color follows the panel's text."""
     return ('<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">' + STYLE
-            + '<g class="ColorScheme-Text" fill="currentColor" stroke="currentColor">' + body + "</g></svg>\n")
+            + '<g class="ColorScheme-Text" fill="currentColor">' + body + "</g></svg>\n")
+
+
+def capsule(x0, y0, x1, y1, width):
+    """The outline of a segment from (x0, y0) to (x1, y1) stroked `width` wide with round caps, clockwise."""
+    length = math.hypot(x1 - x0, y1 - y0)
+    nx, ny = -(y1 - y0) / length * width / 2, (x1 - x0) / length * width / 2
+    r = f(width / 2)
+    return (f"M{f(x0 + nx)} {f(y0 + ny)} L{f(x1 + nx)} {f(y1 + ny)} A{r} {r} 0 0 0 {f(x1 - nx)} {f(y1 - ny)} "
+            f"L{f(x0 - nx)} {f(y0 - ny)} A{r} {r} 0 0 0 {f(x0 + nx)} {f(y0 + ny)} Z")
 
 
 def line(d, width=1.5):
-    """A stroked path `d` with rounded caps and joins."""
-    return f'<path d="{d}" fill="none" stroke-width="{width}" stroke-linecap="round" stroke-linejoin="round"/>'
+    """The filled outline of the polyline `d` (M and L commands only) stroked `width` wide with round caps and joins.
+
+    Each segment is a capsule; the round ends of neighbouring capsules overlap into round joins.
+    """
+    tokens = d.replace("M", " M ").replace("L", " L ").split()
+    points, segments = None, []
+    for i, token in enumerate(tokens):
+        if token in "ML":
+            point = float(tokens[i + 1]), float(tokens[i + 2])
+            if token == "L":
+                segments.append(capsule(*points, *point, width))
+            points = point
+    return shape(" ".join(segments))
+
+
+def ring(cx, cy, r, width):
+    """The filled outline of a circle of radius `r` stroked `width` wide."""
+    def circle(radius):
+        return (f"M{f(cx - radius)} {f(cy)} A{f(radius)} {f(radius)} 0 1 1 {f(cx + radius)} {f(cy)} "
+                f"A{f(radius)} {f(radius)} 0 1 1 {f(cx - radius)} {f(cy)} Z")
+    return shape(circle(r + width / 2) + " " + circle(r - width / 2), "evenodd")
 
 
 def shape(d, rule="nonzero"):
@@ -44,14 +74,16 @@ def f(v):
     return f"{v:.3f}".rstrip("0").rstrip(".")
 
 
-def arc(cx, cy, r, a0, a1):
-    """Arc from angle a0 to a1 in degrees (0 = up, clockwise)."""
-    def p(a):
+def arc(cx, cy, r, a0, a1, width):
+    """The filled outline of an arc from angle a0 to a1 in degrees (0 = up, clockwise), stroked `width` wide with round
+    caps."""
+    def p(radius, a):
         t = math.radians(a)
-        return cx + r * math.sin(t), cy - r * math.cos(t)
-    (x0, y0), (x1, y1) = p(a0), p(a1)
+        return f(cx + radius * math.sin(t)) + " " + f(cy - radius * math.cos(t))
+    outer, inner, cap = r + width / 2, r - width / 2, f(width / 2)
     large = 1 if (a1 - a0) % 360 > 180 else 0
-    return f"M{f(x0)} {f(y0)} A{f(r)} {f(r)} 0 {large} 1 {f(x1)} {f(y1)}"
+    return shape(f"M{p(outer, a0)} A{f(outer)} {f(outer)} 0 {large} 1 {p(outer, a1)} A{cap} {cap} 0 0 1 {p(inner, a1)} "
+                 f"A{f(inner)} {f(inner)} 0 {large} 0 {p(inner, a0)} A{cap} {cap} 0 0 1 {p(outer, a0)} Z")
 
 
 SPEAKER = shape("M1.9 5.9 H4 L7.1 3.2 Q7.9 2.6 7.9 3.6 V12.4 Q7.9 13.4 7.1 12.8 L4 10.1 H1.9 "
@@ -60,7 +92,7 @@ SPEAKER = shape("M1.9 5.9 H4 L7.1 3.2 Q7.9 2.6 7.9 3.6 V12.4 Q7.9 13.4 7.1 12.8 
 
 def waves(count):
     """The sound waves beside the speaker: `count` arcs, the inner one first."""
-    return "".join(line(arc(8.1, 8, r, 50, 130), 1.4) for r in (2.6, 4.8, 7.0)[:count])
+    return "".join(arc(8.1, 8, r, 50, 130, 1.4) for r in (2.6, 4.8, 7.0)[:count])
 
 
 def ethernet(limited=False):
@@ -72,7 +104,7 @@ def ethernet(limited=False):
 
 def play_circle(inner):
     """A circle with `inner` drawn in it, the frame of the media state icons."""
-    return f'<circle cx="8" cy="8" r="6.5" fill="none" stroke-width="1.4"/>' + inner
+    return ring(8, 8, 6.5, 1.4) + inner
 
 
 BELL = shape("M8 1.6 C5.6 1.6 4.2 3.5 4.2 5.8 V8.6 L2.9 10.6 Q2.5 11.4 3.4 11.4 H12.6 Q13.5 11.4 13.1 10.6 "
@@ -101,8 +133,7 @@ ICONS = {
         "notifications-disabled-symbolic": BELL + line("M2.2 2.2 L13.8 13.8", 1.4),
     },
     "actions": {
-        "system-search-symbolic": '<circle cx="6.8" cy="6.8" r="4.6" fill="none" stroke-width="1.6"/>'
-                                  + line("M10.3 10.3 L14 14", 1.8),
+        "system-search-symbolic": ring(6.8, 6.8, 4.6, 1.6) + line("M10.3 10.3 L14 14", 1.8),
     },
 }
 
