@@ -11,3 +11,4 @@ cmake
 ninja
 extra-cmake-modules    # KDE's CMake modules
 qt6-shadertools        # compiles the glass shader of Quick Menu and the notification banners
+vulkan-headers         # KWin's CMake package asks for them (the pointer hand builds against KWin)

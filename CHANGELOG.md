@@ -11,6 +11,14 @@ it changes. A change that needs a fresh install, or that an earlier backup canno
 
 ## [Unreleased]
 
+### Fixed
+
+- File Explorer and Quick Menu start on processors without AVX2, such as Intel Pentium, Celeron and Atom chips. The
+  package's programs were marked as needing a newer processor, so the system refused to start them with "CPU ISA
+  level is lower than required", and Quick Menu's key only showed "Launching KRunner failed".
+- Building Aurora from its sources no longer stops at the pointing hand on a system without `vulkan-headers`, which
+  KWin's build files ask for; the installer now installs it.
+
 ## [1.3.0] - 2026-11-07
 
 ### Changed

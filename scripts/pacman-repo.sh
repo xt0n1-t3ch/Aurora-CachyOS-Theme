@@ -4,7 +4,8 @@
 # Additional terms (GPL-3.0 section 7, author attribution): see NOTICE.md.
 # Builds Aurora's pacman repository: scripts/pacman-repo.sh PKGBUILD_DIR OUT_DIR [--publish]
 #
-#  1. builds the package of PKGBUILD_DIR with makepkg and signs it;
+#  1. builds the package of PKGBUILD_DIR and signs it: in the clean chroot when it holds machine code
+#     (scripts/clean-build.sh, which also starts it on an older processor), with makepkg here otherwise;
 #  2. writes a fresh database named aurora in OUT_DIR, signed too, with its files as real files (GitHub release
 #     assets cannot be links), and the signing key's public half as aurora.asc;
 #  3. with --publish only: makes the files of OUT_DIR the files of the GitHub release tagged `repo`, the address the
@@ -42,11 +43,23 @@ out=$(readlink -f "$out")
 build=$(mktemp -d)
 trap 'rm -rf "$build"' EXIT
 
-say "Building the package"
-# PKGDEST and BUILDDIR are set here because a user's makepkg.conf may send them elsewhere. Only cargo is needed to
-# build; the package's run-time dependencies are pacman's business when it installs.
-(cd "$src" && PKGDEST="$out" BUILDDIR="$build" makepkg --force --nodeps --clean --sign --key "$key" --noconfirm)
+# A package with machine code runs on other people's processors, so it is built only in the clean chroot, which also
+# starts it on an older processor (scripts/clean-build.sh); AURORA_CLEAN_BUILD names a stand-in for the tests. A
+# package for any architecture holds no machine code and is built here.
+arches=$(cd "$src" && makepkg --printsrcinfo | sed -n 's/^\tarch = //p' | sort -u)
+if [ "$arches" = any ]; then
+    say "Building the package"
+    # PKGDEST and BUILDDIR are set here because a user's makepkg.conf may send them elsewhere.
+    (cd "$src" && PKGDEST="$out" BUILDDIR="$build" makepkg --force --nodeps --clean --noconfirm)
+else
+    "${AURORA_CLEAN_BUILD:-$ROOT/scripts/clean-build.sh}" "$src" "$out"
+fi
 mapfile -t packages < <(cd "$src" && PKGDEST="$out" BUILDDIR="$build" makepkg --packagelist)
+for package in "${packages[@]}"; do
+    [ -f "$package" ] || fail "the build did not write $package"
+    # makepkg --sign signs the same way (scripts/libmakepkg/integrity/generate_signature.sh).
+    gpg --batch --yes --detach-sign --use-agent --no-armor --local-user "$key" --output "$package.sig" "$package"
+done
 
 say "Writing the database"
 repo-add --sign --key "$key" --verify "$out/aurora.db.tar.zst" "${packages[@]}"

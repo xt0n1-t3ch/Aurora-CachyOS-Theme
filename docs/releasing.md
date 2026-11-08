@@ -78,16 +78,49 @@ it again, so it is replaced only if the secret half is lost or exposed. `release
 a change to the package alone (a new dependency) raises `pkgrel` and runs it by hand. The flow is tested in
 [tests/release/test_pacman_repo.sh](../tests/release/test_pacman_repo.sh).
 
-The package is built on my PC and installed on everyone's, so it targets the x86-64 baseline, not my processor.
-CachyOS's makepkg.conf asks for the building PC's own (`-march=native`, `-C target-cpu=native`), and a package built
-that way stops with "Illegal instruction" on an older processor (issue #11). `build()` adds `-march=x86-64
--mtune=generic` and `-C target-cpu=x86-64` after makepkg's flags, and the last one wins in GCC and rustc; makepkg's
-hardening flags stay. `check()` then runs [scripts/cpu_baseline.py](../scripts/cpu_baseline.py) on the `aurora`
-command and every built part, before they are stripped: an instruction newer than SSE2 is refused unless its
-function is built for that instruction set on purpose and named for it (memchr's `find_avx2`, which runs only after
-asking the processor). A static library of the build machine counts too: CachyOS's x86-64-v3 libgcc links
-`__popcountdi2` with `popcnt`. Both are tested in [tests/release/test_pkgbuild.sh](../tests/release/test_pkgbuild.sh)
-and [tests/release/test_cpu_baseline.sh](../tests/release/test_cpu_baseline.sh).
+### Every x86-64 processor
+
+The package is built on my PC and installed on everyone's, so it has to run on any 64-bit x86 processor, not only on
+mine. Three things on this PC break that, and each one has shipped once:
+
+| What leaks | How | Seen in |
+| --- | --- | --- |
+| The compiler flags | CachyOS's makepkg.conf asks for the building PC's own processor (`-march=native`, `-C target-cpu=native`) | issue #11: "Illegal instruction" |
+| Code of the toolchain | CachyOS's x86-64-v3 libgcc links `__popcountdi2` with `popcnt` | found while fixing #11 |
+| The ISA mark | CachyOS's x86-64-v3 glibc marks its program start object (`/usr/lib/Scrt1.o`) as needing x86-64-v3; GNU ld and mold copy the mark into every program, and glibc's loader refuses to start it below that level | issue #14: "CPU ISA level is lower than required" |
+
+glibc writes the mark into that object from the level glibc itself was compiled for, and its loader checks every
+program and library against the processor before any of their code runs (glibc commit ecce11aa, "x86: Support
+GNU_PROPERTY_X86_ISA_1_V[234] marker"). So no flag fixes the last two: the toolchain itself is built for a newer
+processor. The fix is to build somewhere else.
+
+1. **A clean chroot of Arch's packages.** [scripts/pacman-repo.sh](../scripts/pacman-repo.sh) builds a package with
+   machine code only through [scripts/clean-build.sh](../scripts/clean-build.sh): devtools' `mkarchroot` and
+   `makechrootpkg` (ArchWiki, "DeveloperWiki:Building in a clean chroot") in `build/chroot`, with Arch Linux's own
+   core and extra ([packaging/repo/chroot-pacman.conf](../packaging/repo/chroot-pacman.conf), the architecture named
+   `x86_64`, since CachyOS's pacman reads `auto` as x86_64_v3 too) and Arch's generic makepkg.conf from devtools.
+   Every compiler, library and start object in it is built for the x86-64 baseline.
+2. **A run on an older processor.** clean-build.sh then installs the package in the chroot and runs
+   [scripts/old_cpu.py](../scripts/old_cpu.py): every program starts with the arguments of its line in
+   [packaging/repo/old-cpu-runs.txt](../packaging/repo/old-cpu-runs.txt) and every library is loaded with dlopen,
+   under QEMU's user mode as an AMD Opteron of 2003 (`Opteron_G1`: SSE2 and nothing newer), with Arch's Qt and KDE
+   libraries, the ones a user has. A program without a line fails, so a new one cannot skip it. On the published
+   1.3.0 package it fails File Explorer and krunner with the user's own message; the fixed build passes all ten.
+3. **Checks of the files themselves.** In the package, `build()` adds `-march=x86-64 -mtune=generic` and
+   `-C target-cpu=x86-64` after makepkg's flags (the last one wins in GCC and rustc; makepkg's hardening flags stay),
+   ends with `cpu_baseline.py --relabel`, which marks a program whose code holds nothing newer than the baseline as
+   needing only the baseline, and `check()` runs [scripts/cpu_baseline.py](../scripts/cpu_baseline.py) on the
+   `aurora` command and every built part before they are stripped: an instruction newer than SSE2 is refused unless
+   its function is built for that instruction set on purpose and named for it (memchr's `find_avx2`, which runs only
+   after asking the processor), and so is a mark above the baseline. These keep an AUR build on a CachyOS PC right
+   too, where no chroot is used.
+
+The tests: [tests/release/test_cpu_baseline.sh](../tests/release/test_cpu_baseline.sh),
+[tests/release/test_pkgbuild.sh](../tests/release/test_pkgbuild.sh),
+[tests/release/test_old_cpu.sh](../tests/release/test_old_cpu.sh) and
+[tests/release/test_pacman_repo.sh](../tests/release/test_pacman_repo.sh) (a package with machine code is built only in
+the clean chroot). The release build itself is the large test: it does not publish what fails on the Opteron.
+A release needs `devtools` and `qemu-user-static`, and root through sudo once (SUDO_ASKPASS for a graphical prompt).
 
 ## Publishing to the AUR
 

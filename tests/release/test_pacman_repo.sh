@@ -125,4 +125,31 @@ else
     echo "SKIP pacman install: fakeroot is not installed"
 fi
 
+# A package with machine code is built only in the clean chroot (scripts/clean-build.sh): a stand-in in its place
+# records the call and builds with makepkg, as the real one would in the chroot. A package for any architecture holds
+# no machine code and is built here.
+cat > "$work/clean-build" <<'EOF'
+#!/bin/bash
+echo "clean $*" >> "$CLEAN_LOG"
+cd "$1" && PKGDEST="$2" makepkg --force --nodeps --noconfirm > /dev/null 2>&1
+EOF
+chmod +x "$work/clean-build"
+mkdir "$work/native"
+sed "s/^arch=('any')/arch=('x86_64')/; s/^pkgname=aurora-test/pkgname=aurora-native/" "$work/pkg/PKGBUILD" \
+    > "$work/native/PKGBUILD"
+: > "$work/clean.log"
+CLEAN_LOG="$work/clean.log" AURORA_CLEAN_BUILD="$work/clean-build" \
+    "$root/scripts/pacman-repo.sh" "$work/native" "$work/native-repo" > "$work/native.log" 2>&1; code=$?
+check "a package with machine code builds" "$code" 0
+[ "$code" -eq 0 ] || cat "$work/native.log"
+check "it is built in the clean chroot" "$(grep -c "^clean $work/native $work/native-repo" "$work/clean.log")" 1
+native="$work/native-repo/aurora-native-1.0.0-1-x86_64.pkg.tar.zst"
+check "the package built in the clean chroot is signed" \
+    "$(gpg --batch --verify "$native.sig" "$native" > /dev/null 2>&1 && echo ok)" ok
+check "the database lists it" "$(bsdtar -tf "$work/native-repo/aurora.db" 2> /dev/null | grep -c '^aurora-native-1.0.0-1/desc$')" 1
+: > "$work/clean.log"
+CLEAN_LOG="$work/clean.log" AURORA_CLEAN_BUILD="$work/clean-build" \
+    "$root/scripts/pacman-repo.sh" "$work/pkg" "$work/any-repo" > /dev/null 2>&1
+check "a package for any architecture is built here" "$(wc -l < "$work/clean.log")" 0
+
 exit "$failures"

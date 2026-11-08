@@ -30,7 +30,7 @@ depends=(
     'libgcc' 'curl' 'tar' 'pacman-contrib' 'libnotify' 'konsole'
 )
 # installer/build-dependencies.txt, and Rust for the aurora command.
-makedepends=('base-devel' 'git' 'cmake' 'ninja' 'extra-cmake-modules' 'qt6-shadertools' 'cargo')
+makedepends=('base-devel' 'git' 'cmake' 'ninja' 'extra-cmake-modules' 'qt6-shadertools' 'vulkan-headers' 'cargo')
 optdepends=(
     'apple-fonts: SF Pro from Apple, used for the interface instead of Inter when installed'
     'scx-scheds: the optional CPU scheduler tuning (aurora install --performance)'
@@ -74,6 +74,10 @@ build() {
     BUILD_DIR="$srcdir/aurora-$pkgver/build" installer/build.sh file-explorer window-buttons glass energy-page \
         pointing-hand system-tray notifications quick-menu
     BUILD_DIR="$srcdir/aurora-$pkgver/build" python3 -I installer/install.py export "$srcdir/prebuilt"
+    # The build machine's glibc may mark every program it links as needing its own CPU level (CachyOS's x86-64-v3
+    # Scrt1.o does), and glibc's loader then refuses to start it on an older CPU. Programs whose code is baseline are
+    # marked so; check() fails anything still marked higher.
+    python3 -I scripts/cpu_baseline.py --relabel cli/target/release/aurora "$srcdir/prebuilt"
 }
 
 check() {
