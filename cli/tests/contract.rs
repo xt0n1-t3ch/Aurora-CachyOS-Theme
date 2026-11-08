@@ -223,3 +223,28 @@ fn aurora_s_icon_theme_is_the_one_the_install_applies() {
         aurora::icons::AURORA
     );
 }
+
+#[test]
+fn the_repository_aurora_repairs_is_the_one_get_sh_sets_up() {
+    let get = read("get.sh");
+    let value = |name: &str| -> String {
+        get.lines()
+            .find_map(|line| line.strip_prefix(&format!("{name}=")))
+            .unwrap_or_else(|| panic!("get.sh sets no {name}"))
+            .to_string()
+    };
+    assert_eq!(aurora::repo::SERVER, value("SERVER").replace("$REPO", &value("REPO")));
+    assert_eq!(aurora::repo::KEY, value("KEY"));
+    assert_eq!(aurora::repo::KEY_FILE, read("packaging/repo/aurora.asc"));
+}
+
+#[test]
+fn the_key_aurora_carries_has_the_fingerprint_it_trusts() {
+    let output = std::process::Command::new("gpg")
+        .args(["--show-keys", "--with-colons", &repo().join("packaging/repo/aurora.asc").to_string_lossy()])
+        .output()
+        .expect("gpg runs");
+    let listing = String::from_utf8_lossy(&output.stdout);
+    let fingerprint = listing.lines().find_map(|line| line.strip_prefix("fpr:")).map(|rest| rest.trim_matches(':'));
+    assert_eq!(fingerprint, Some(aurora::repo::KEY));
+}

@@ -15,6 +15,7 @@ pub mod logo;
 pub mod mission;
 pub mod plan;
 pub mod release;
+pub mod repo;
 pub mod run;
 pub mod settings;
 pub mod source;

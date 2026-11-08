@@ -23,10 +23,20 @@ any other package never show it. Its buttons:
 
 `aurora settings` chooses how often it looks: every day (the default), every week or never
 (`aurora settings --updates weekly` from a script). The choice is in `~/.config/aurora/aurora.conf`; what the last
-look found is in `~/.local/state/aurora/updates`, and `aurora` names a found version above its menu.
-`aurora check-updates` looks right away.
+look found is in `~/.local/state/aurora/updates`. `aurora` looks again when its menu opens, unless it looked in the
+last 5 minutes (a look takes about 4 s), and names a found version above the menu only while it is newer than the
+installed one, by pacman's own `vercmp`: after an update through pacman or paru, the noted version is forgotten
+instead of being offered again. Without a network the menu uses the last look. `aurora check-updates` looks right
+away.
 
 ## How `aurora update` installs it
+
+First it checks Aurora's repository on this PC, without root: pacman.conf's `[aurora]` section must point at
+Aurora's address and pacman must trust Aurora's key, as [get.sh](../get.sh) sets them up. A missing section, one
+left with an older address or without one, a removed key or one never signed: each is named, and with one password
+`aurora update` puts it back the way get.sh does (the key travels inside `aurora`, with the fingerprint get.sh
+checks). Without the section pacman would never see a new Aurora, and would even count the installed one as built
+from the AUR. `aurora status` shows the repository's state.
 
 `aurora update` changes nothing when no newer aurora-theme is out. When one is, it reads what that package was built
 for before installing anything: pacman packages begin with a `.BUILDINFO` file that lists the packages of the machine
@@ -39,6 +49,9 @@ whole, KDecoration by its minor version.
 | what a system update brings | `sudo pacman -Syu --needed aurora-theme` | Aurora and the rest of the system together, as Arch expects |
 | this PC as it is, while a system update would bring another Plasma, KWin, Qt or KDecoration | `sudo pacman -U` with the package's address | only Aurora; the system update waits for Aurora's next build |
 | neither | nothing | it names the versions that differ and how to update the system anyway |
+
+When pacman ends, `aurora update` checks that the installed aurora-theme is the version it found; when it is not (a
+mirror behind, a package held back), it says so and how to retry, instead of installing the older one again.
 
 pacman checks the package's signature in every case: `pacman -U` with an address takes pacman.conf's `SigLevel`
 unless `RemoteFileSigLevel` says otherwise. An aurora-theme built from the AUR is in no repository, so its AUR helper

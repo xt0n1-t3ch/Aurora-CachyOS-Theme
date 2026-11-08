@@ -184,8 +184,11 @@ fn menu(places: &Places) -> anyhow::Result<()> {
     if !places.installed() {
         return app::install(places, InstallChoices::default());
     }
-    if let Some(line) = app::source(places).ok().and_then(|source| check::notice(places, &source.version())) {
-        cliclack::log::info(line)?;
+    if let Ok(source) = app::source(places) {
+        check::refresh(places, &source)?;
+        if let Some(line) = check::notice(places, &update::release_of(&source), source.kind) {
+            cliclack::log::info(line)?;
+        }
     }
     let action: &str = cliclack::select("What would you like to do?")
         .item("update", "Update", "get the newest version and install it")

@@ -97,7 +97,7 @@ From then on, everything goes through the `aurora` command. Run it alone for a m
 | `aurora backups` | Lists the backups of your desktop from before Aurora; `aurora backups restore` puts one back |
 | `aurora mission-center on` | Puts Aurora's Mission Center (exact per-app GPU, memory and network) in place of the distribution's, or `off`; `settings`, `snapshots` and `rollback` too |
 | `aurora check-updates` | Looks for a newer Aurora right away |
-| `aurora status` | What is installed, from where, the tuning, and whether a rebuild is due |
+| `aurora status` | What is installed, from where, whether Aurora's repository is set up, the tuning, and whether a rebuild is due |
 | `aurora uninstall` | Puts your desktop back the way it was |
 
 Aurora also tells you when a new version is out: a notification with **Update now** and **Skip this version**, once a day or on the schedule you pick in `aurora settings`.
@@ -392,10 +392,20 @@ any other package never show it. Its buttons:
 
 `aurora settings` chooses how often it looks: every day (the default), every week or never
 (`aurora settings --updates weekly` from a script). The choice is in `~/.config/aurora/aurora.conf`; what the last
-look found is in `~/.local/state/aurora/updates`, and `aurora` names a found version above its menu.
-`aurora check-updates` looks right away.
+look found is in `~/.local/state/aurora/updates`. `aurora` looks again when its menu opens, unless it looked in the
+last 5 minutes (a look takes about 4 s), and names a found version above the menu only while it is newer than the
+installed one, by pacman's own `vercmp`: after an update through pacman or paru, the noted version is forgotten
+instead of being offered again. Without a network the menu uses the last look. `aurora check-updates` looks right
+away.
 
 ## How `aurora update` installs it
+
+First it checks Aurora's repository on this PC, without root: pacman.conf's `[aurora]` section must point at
+Aurora's address and pacman must trust Aurora's key, as [get.sh](../get.sh) sets them up. A missing section, one
+left with an older address or without one, a removed key or one never signed: each is named, and with one password
+`aurora update` puts it back the way get.sh does (the key travels inside `aurora`, with the fingerprint get.sh
+checks). Without the section pacman would never see a new Aurora, and would even count the installed one as built
+from the AUR. `aurora status` shows the repository's state.
 
 `aurora update` changes nothing when no newer aurora-theme is out. When one is, it reads what that package was built
 for before installing anything: pacman packages begin with a `.BUILDINFO` file that lists the packages of the machine
@@ -408,6 +418,9 @@ whole, KDecoration by its minor version.
 | what a system update brings | `sudo pacman -Syu --needed aurora-theme` | Aurora and the rest of the system together, as Arch expects |
 | this PC as it is, while a system update would bring another Plasma, KWin, Qt or KDecoration | `sudo pacman -U` with the package's address | only Aurora; the system update waits for Aurora's next build |
 | neither | nothing | it names the versions that differ and how to update the system anyway |
+
+When pacman ends, `aurora update` checks that the installed aurora-theme is the version it found; when it is not (a
+mirror behind, a package held back), it says so and how to retry, instead of installing the older one again.
 
 pacman checks the package's signature in every case: `pacman -U` with an address takes pacman.conf's `SigLevel`
 unless `RemoteFileSigLevel` says otherwise. An aurora-theme built from the AUR is in no repository, so its AUR helper
@@ -1127,7 +1140,7 @@ export QT_QPA_PLATFORM=offscreen q=/usr/lib/qt6/bin/qmltestrunner B=$PWD/build
 | Quick Menu logic (sections, keys, dragged order, the app menu, pins, the Dock script, the account and power rail, its entrance, All Applications by letter) | `(cd components/quick-menu && $q -input tests/tst_quickmenu.qml)` | 43 pass |
 | Quick Menu launcher | `components/quick-menu/tests/test_launch.sh` | 5 pass |
 | Menu bar logos (the logo table, colors, ids) | `(cd components/kali-menu && $q -input tests/tst_logos.qml)` | 8 pass |
-| The `aurora` command: logos, install steps, releases (SemVer tags, HTTPS links, checksums, archive members), sources, logs, the banner (not twice after get.sh, and not before a scripted `mission-center settings --set` or `--reset`); update notices (daily, weekly or never with a few hours of slack, settings and record round trips, checkupdates output recorded on CachyOS, a skipped version, the notice's title, text and buttons, and that it stays until answered; the package release `aurora update` compares; animation speeds read back, default to smooth and are steps of Plasma's slider, the same table as install.py's); sudo's password dialog behind a wrapper that keeps its warnings out of the terminal; the package's program installs the package's copy over an older installed one; the performance tuning's state and root steps, the backups' list and dates, the icon themes a person can pick; the safe update (what a package was built for, read from a recorded `.BUILDINFO` with lookalike names; what a system upgrade brings; KDE Plasma, KWin and Qt matched whole and KDecoration by its minor version; updating with the system, alone or not at all, and the pacman commands for each); Mission Center (Aurora's build told from the distribution's, snapshots newest first and read back, the recipe's version and package name, the command a rollback runs, settings checked against recorded `gsettings range` output, every value the menu offers allowed by the schema); contract tests against `tools.js`, `install.sh`, `release.sh`, `root-steps.sh` (the tuning's files), `install.py` (the icon theme), `build.sh` (the versions each part is stamped with) and the Mission Center recipe | `cargo test --locked --manifest-path cli/Cargo.toml` | 97 + 4 + 12 pass |
+| The `aurora` command: logos, install steps, releases (SemVer tags, HTTPS links, checksums, archive members), sources, logs, the banner (not twice after get.sh, and not before a scripted `mission-center settings --set` or `--reset`); update notices (daily, weekly or never with a few hours of slack, settings and record round trips, checkupdates output recorded on CachyOS, a skipped version, the notice's title, text and buttons, and that it stays until answered; the package release `aurora update` compares; animation speeds read back, default to smooth and are steps of Plasma's slider, the same table as install.py's); sudo's password dialog behind a wrapper that keeps its warnings out of the terminal; the package's program installs the package's copy over an older installed one; the performance tuning's state and root steps, the backups' list and dates, the icon themes a person can pick; the safe update (what a package was built for, read from a recorded `.BUILDINFO` with lookalike names; what a system upgrade brings; KDE Plasma, KWin and Qt matched whole and KDecoration by its minor version; updating with the system, alone or not at all, and the pacman commands for each); Mission Center (Aurora's build told from the distribution's, snapshots newest first and read back, the recipe's version and package name, the command a rollback runs, settings checked against recorded `gsettings range` output, every value the menu offers allowed by the schema); contract tests against `tools.js`, `install.sh`, `release.sh`, `root-steps.sh` (the tuning's files), `install.py` (the icon theme), `build.sh` (the versions each part is stamped with) and the Mission Center recipe; the menu's notice offers only a version newer than the installed one (pacman's vercmp for the package: 1.3.0 noted while 1.3.1 is installed is not offered and is forgotten, a later package release is), SemVer for an archive; Aurora's repository: pacman.conf's `[aurora]` section read as ours, missing, without an address or pointing elsewhere, the key's trust from recorded gpg output, one sudo repair per problem, and the repairs run on copies of a pacman.conf leave a section read as ours; contract tests: the address and key `aurora` repairs with are get.sh's, and the key file it carries has that fingerprint | `cargo test --locked --manifest-path cli/Cargo.toml` | 109 + 4 + 14 pass |
 | Mission Center's own code with Aurora's patches: the glass blur region (one rectangle for square corners, about r²(4 − π) cut for rounded ones, no overlap, clamped radius) and GDK told once to leave the blur protocol to it (`GDK_WAYLAND_DISABLE` kept, the name added once, only a whole name counting), the heat tint (no tint when idle, each step from its bound, units read in their own scale, never cooler as a value rises, processor shares in blue and the rest in amber) and the Performance tiles (a caption over a value is a reading, also inside a row of labels, a box of readings is not; the facts card covers every fact and no more; lone tiles pair once, one after the other), the undecorated window's edges (a 6 px band inside each edge resizes, both ways at a corner, nothing farther in or outside), KWin's shadow for the window, menus and tooltips alike (clear under the body, darker below than above, faded out at the image's corner; eight tiles, one line per edge, every byte placed) and a partition's capacity bar (plain to 90 % used, amber to 95 %, red past it, File Explorer's thresholds), with upstream's tests | `meson test cargo-test` in `build/mission-center` | 57 pass |
 | Plasma patches | each `<part>.patch` on a fresh copy of `upstream/` (plus the `.qsb`) reproduces `vendor/` ([../docs/update.md](../docs/update.md)) | 3 reproduce |
 
@@ -1419,6 +1432,20 @@ the ids and folders the theme writes to your home folder (`org.aurora.*`, `~/.lo
 it changes. A change that needs a fresh install, or that an earlier backup cannot undo, is a major version.
 
 ## [Unreleased]
+
+### Changed
+
+- `aurora` looks for a newer Aurora when its menu opens, unless it looked in the last 5 minutes, so a new release
+  shows up right away instead of after the next daily check.
+- `aurora update` sets up Aurora's repository by itself when it needs it: when pacman.conf's `[aurora]` section is
+  missing or points elsewhere, or pacman does not trust Aurora's key, it says so and fixes it with your password, so
+  pacman always sees new versions. `aurora status` shows the repository's state.
+
+### Fixed
+
+- The menu no longer offers an older Aurora after you updated through pacman or paru. On 1.3.1 it still said
+  "Aurora 1.3.0 is available".
+- `aurora update` checks that pacman really installed the new version, and says how to retry when it did not.
 
 ## [1.3.1] - 2026-11-08
 
