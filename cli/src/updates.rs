@@ -259,6 +259,19 @@ pub fn shown(version: &str) -> &str {
     version.strip_suffix("-1").unwrap_or(version)
 }
 
+/// Whether package version `candidate` is newer than `installed`, by pacman's own rules (vercmp(8): a later package
+/// release counts, `1.3.1-2` is newer than `1.3.1-1`). Either version may lack its release. When vercmp cannot run,
+/// nothing counts as newer, so no notice offers an older version.
+#[must_use]
+pub fn is_newer_package(candidate: &str, installed: &str) -> bool {
+    Command::new("vercmp")
+        .args([candidate, installed])
+        .output()
+        .ok()
+        .and_then(|output| String::from_utf8_lossy(&output.stdout).trim().parse::<i32>().ok())
+        .is_some_and(|order| order > 0)
+}
+
 /// The installed aurora-theme's full version, package release included, from `pacman -Q aurora-theme`.
 #[must_use]
 pub fn installed_release(pacman_q: &str) -> Option<String> {
@@ -344,6 +357,18 @@ mod tests {
     use super::*;
 
     const HOUR: Duration = Duration::from_secs(60 * 60);
+
+    // pacman's vercmp decides, as it does for every upgrade: the cases are the ones the menu met (an older 1.3.0
+    // noted while 1.3.1 is installed) and the package releases a rebuild brings.
+    #[test]
+    fn only_a_later_package_version_is_newer() {
+        assert!(!is_newer_package("1.3.0-1", "1.3.1-1"));
+        assert!(!is_newer_package("1.3.1-1", "1.3.1-1"));
+        assert!(is_newer_package("1.3.1-1", "1.3.0-1"));
+        assert!(is_newer_package("1.3.1-2", "1.3.1-1"));
+        assert!(is_newer_package("1.10.0-1", "1.9.0-1"));
+        assert!(!is_newer_package("1.3.0", "1.3.1"));
+    }
 
     #[test]
     fn a_first_check_is_due_unless_checks_are_off() {

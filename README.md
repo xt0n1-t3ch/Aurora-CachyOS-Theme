@@ -91,7 +91,7 @@ From then on, everything goes through the `aurora` command. Run it alone for a m
 | `aurora backups` | Lists the backups of your desktop from before Aurora; `aurora backups restore` puts one back |
 | `aurora mission-center on` | Puts Aurora's Mission Center (exact per-app GPU, memory and network) in place of the distribution's, or `off`; `settings`, `snapshots` and `rollback` too |
 | `aurora check-updates` | Looks for a newer Aurora right away |
-| `aurora status` | What is installed, from where, the tuning, and whether a rebuild is due |
+| `aurora status` | What is installed, from where, whether Aurora's repository is set up, the tuning, and whether a rebuild is due |
 | `aurora uninstall` | Puts your desktop back the way it was |
 
 Aurora also tells you when a new version is out: a notification with **Update now** and **Skip this version**, once a day or on the schedule you pick in `aurora settings`.

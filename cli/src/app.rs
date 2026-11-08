@@ -351,6 +351,13 @@ pub fn status(places: &Places) -> Result<()> {
     );
     let lines = [
         ("Aurora", from),
+        (
+            "Repository",
+            match found.as_ref().map(|source| source.kind) {
+                Some(Kind::Package) => crate::repo::describe(),
+                _ => "not used by this copy".into(),
+            },
+        ),
         ("Installed", if places.installed() { "yes".into() } else { "no, run `aurora install`".into() }),
         ("System", format!("KDE Plasma {}, KWin {}, Qt {}", get("plasma-workspace"), get("kwin"), get("qt6-base"))),
         ("Parts", parts),

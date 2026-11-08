@@ -11,6 +11,20 @@ it changes. A change that needs a fresh install, or that an earlier backup canno
 
 ## [Unreleased]
 
+### Changed
+
+- `aurora` looks for a newer Aurora when its menu opens, unless it looked in the last 5 minutes, so a new release
+  shows up right away instead of after the next daily check.
+- `aurora update` sets up Aurora's repository by itself when it needs it: when pacman.conf's `[aurora]` section is
+  missing or points elsewhere, or pacman does not trust Aurora's key, it says so and fixes it with your password, so
+  pacman always sees new versions. `aurora status` shows the repository's state.
+
+### Fixed
+
+- The menu no longer offers an older Aurora after you updated through pacman or paru. On 1.3.1 it still said
+  "Aurora 1.3.0 is available".
+- `aurora update` checks that pacman really installed the new version, and says how to retry when it did not.
+
 ## [1.3.1] - 2026-11-08
 
 ### Fixed

@@ -12,6 +12,7 @@ use console::Style;
 
 use crate::app::{InstallChoices, Places, current_logo, install, interactive, source, tuned};
 use crate::plan::{self, Install, Plan};
+use crate::repo;
 use crate::run;
 use crate::source::{Kind, Source};
 use crate::system;
@@ -28,9 +29,11 @@ fn package_update(on_path: impl Fn(&str) -> bool) -> Vec<&'static str> {
     }
 }
 
-/// The version `aurora update` compares before and after: for the package its full release from pacman (a new
-/// package release, 1.0.0-1 to 1.0.0-3, keeps the VERSION file), otherwise the copy's VERSION.
-fn release_of(source: &Source) -> String {
+/// The version `aurora update` compares before and after, and the menu's notice with what the last look found: for the
+/// package its full release from pacman (a new package release, 1.0.0-1 to 1.0.0-3, keeps the VERSION file),
+/// otherwise the copy's VERSION.
+#[must_use]
+pub fn release_of(source: &Source) -> String {
     if source.kind == Kind::Package
         && let Some(release) =
             run::capture("pacman", &["-Q", updates::PACKAGE]).ok().and_then(|out| updates::installed_release(&out))
@@ -98,6 +101,16 @@ fn update_package(places: &Places) -> Result<Next> {
     let command = install.command(&found.url);
     cliclack::log::step(format!("{title}: {}", command.join(" ")))?;
     upgrade(&command.iter().map(String::as_str).collect::<Vec<_>>())?;
+    // pacman can end without error and without the new version (a mirror behind, a package held back): say so instead
+    // of installing the old one again.
+    let now = run::capture("pacman", &["-Q", updates::PACKAGE]).ok().and_then(|out| updates::installed_release(&out));
+    if now.as_deref() != Some(found.version.as_str()) {
+        bail!(
+            "pacman finished, but aurora-theme is {} instead of {}. Run `sudo pacman -Syu`, then `aurora update` again",
+            now.as_deref().unwrap_or("not installed"),
+            found.version
+        );
+    }
     Ok(Next::Install)
 }
 
@@ -119,8 +132,11 @@ pub fn update(places: &Places, yes: bool) -> Result<()> {
             source.clone()
         }
         Kind::Package => {
+            // Aurora's repository first: without its section pacman counts the package as one from the AUR, and without
+            // its key pacman refuses every new build.
+            let ours = repo::ensure(&places.cache.join("aurora/update"), yes)?;
             // pacman -Qm lists a package that no repository has: one built from the AUR, which its helper updates.
-            if run::capture("pacman", &["-Qmq", updates::PACKAGE]).is_ok() {
+            if !ours && run::capture("pacman", &["-Qmq", updates::PACKAGE]).is_ok() {
                 let command = package_update(run::on_path);
                 cliclack::log::step(format!(
                     "Updating the system and the aurora-theme package: {}",
