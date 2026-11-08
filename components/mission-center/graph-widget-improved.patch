@@ -102,3 +102,60 @@ index 5ca65e5..001485f 100644
                  }
  
                  snapshot.append_stroke(&line, &stroke, &stroke_color);
+diff --git a/src/widget.rs b/src/widget.rs
+index e637ea3..67b82a6 100644
+--- a/src/widget.rs
++++ b/src/widget.rs
+@@ -40,13 +40,20 @@ use mc_graph_core::animation::AnimationFrame;
+ use mc_graph_core::dataset::DatasetGroup;
+ use mc_graph_core::scaling::{FillingSettings, RoundingSettings, ScalingSettings};
+ 
++/// The corner radius of a graph in pixels; small graphs use a quarter of their shorter side instead, so a corner never
++/// eats the plot. Aurora tried 10 and 12: GTK 4.24's GPU renderer then logs "gsk_gpu_clip_get_shader_clip: should not
++/// be reached" for the sliding plot under the rounded clip, so it stays at the stock 7.
+ const GRAPH_RADIUS: f32 = 7.;
++/// Aurora: the opacity of the card's fill and of its outline, both in the graph's own color, so the card reads as
++/// tinted glass rather than a hard frame.
++const CARD_FILL_ALPHA: f32 = 0.07;
++const OUTLINE_ALPHA: f32 = 0.55;
+ 
+ // no faster than 200 Hz. if everything is going according to plan, we expect two animation frames in quick succession at the start of a new cycle and want to prevent rendering twice
+ const ANIMATION_LOCKOUT: f32 = 0.005;
+ 
+-// 20% opacity for the gridline overlay
+-const GRID_LINE_ALPHA: f32 = 51. / 255.;
++// Aurora: 10% opacity for the gridline overlay, so the grid recedes behind the plot as on macOS.
++const GRID_LINE_ALPHA: f32 = 26. / 255.;
+ 
+ const GRID_VERTICAL_LINE_IDEAL_PIXEL_WIDTH: f32 = 60.;
+ const GRID_HORIZONTAL_LINE_IDEAL_PIXEL_WIDTH: f32 = 50.;
+@@ -158,7 +165,7 @@ mod imp {
+     impl GraphWidget {
+         #[inline]
+         fn draw_outline(&self, snapshot: &Snapshot, bounds: &gsk::RoundedRect, color: &gdk::RGBA) {
+-            let stroke_color = gdk::RGBA::new(color.red(), color.green(), color.blue(), 1.);
++            let stroke_color = gdk::RGBA::new(color.red(), color.green(), color.blue(), OUTLINE_ALPHA);
+             snapshot.append_border(&bounds, &[1.; 4], &[stroke_color.clone(); 4]);
+         }
+ 
+@@ -222,7 +229,8 @@ mod imp {
+         fn render(&self, snapshot: &Snapshot, width: f32, height: f32, scale_factor: f64) {
+             let base_color = self.base_color.get();
+ 
+-            let radius = graphene::Size::new(GRAPH_RADIUS, GRAPH_RADIUS);
++            let corner = GRAPH_RADIUS.min(width.min(height) / 4.);
++            let radius = graphene::Size::new(corner, corner);
+             let bounds = gsk::RoundedRect::new(
+                 graphene::Rect::new(0., 0., width, height),
+                 radius,
+@@ -263,6 +271,10 @@ mod imp {
+             };
+ 
+             snapshot.push_rounded_clip(&bounds);
++            snapshot.append_color(
++                &gdk::RGBA::new(base_color.red(), base_color.green(), base_color.blue(), CARD_FILL_ALPHA),
++                &graphene::Rect::new(0., 0., width, height),
++            );
+ 
+             if self.obj().direction() == TextDirection::Rtl {
+                 snapshot.scale(-1., 1.);

@@ -12,11 +12,14 @@
 // (Apple HIG, Notifications: "the system displays your app name if you don't provide a title").
 
 import QtQuick
+import QtQuick.Effects
 import QtQuick.Layouts
 
+import org.kde.plasma.core as PlasmaCore
 import org.kde.plasma.components as PlasmaComponents3
 import org.kde.kirigami as Kirigami
 import org.kde.kquickcontrolsaddons as KQuickControlsAddons
+import org.kde.coreaddons as KCoreAddons
 
 import org.kde.notificationmanager as NotificationManager
 import plasma.applet.org.kde.plasma.notifications as Notifications
@@ -36,6 +39,16 @@ BaseDelegate {
     Accessible.role: Accessible.Notification
 
     readonly property color primaryText: "#ffffff"
+    // A long body shows its first lines. In the popover's history it is `expandable`: a click on it, or on Show More,
+    // shows all of it, and Show Less folds it back.
+    property real maximumBodyLines: 4
+    property bool expandable: false
+    property bool bodyExpanded: false
+    // True while the popover shows Clear over this notification's top-right corner, where the time sits; the time
+    // fades out under it.
+    property bool clearShown: false
+    readonly property real bodyLines: expandable && bodyExpanded ? Infinity : maximumBodyLines
+    readonly property bool bodyFolds: expandable && bodyLabel.implicitHeight > bodyMetrics.lineSpacing * maximumBodyLines + 1
     readonly property color secondaryText: Qt.rgba(1, 1, 1, 0.55)
 
     // The app's icon, or the notification's own when the app has none.
@@ -64,6 +77,8 @@ BaseDelegate {
         // Without a thumbnail the title line runs to the banner's edge, so the time sits at the trailing corner.
         Layout.columnSpan: thumbnail.visible ? 1 : 2
         Layout.fillWidth: true
+        // A thumbnail taller than the text gives its height to both rows; the text stays together in the middle.
+        Layout.alignment: Qt.AlignBottom
         spacing: Kirigami.Units.smallSpacing
 
         PlasmaComponents3.Label {
@@ -82,6 +97,10 @@ BaseDelegate {
             property string ageText: ""
             text: ageText
             visible: text !== ""
+            opacity: delegateRoot.clearShown ? 0 : 1
+            Behavior on opacity {
+                NumberAnimation { duration: Kirigami.Units.shortDuration }
+            }
             font: Kirigami.Theme.smallFont
             color: delegateRoot.secondaryText
 
@@ -98,8 +117,11 @@ BaseDelegate {
                     ageText = i18ndc("plasma_applet_org.kde.plasma.notifications", "Notification age, as macOS writes it", "now");
                 } else if (minutes < 60) {
                     ageText = i18ndcp("plasma_applet_org.kde.plasma.notifications", "Notification was added minutes ago, keep short", "%1 min ago", "%1 min ago", minutes);
-                } else {
+                } else if (minutes < 60 * 22) {
                     ageText = Qt.formatTime(time, Qt.locale().timeFormat(Locale.ShortFormat).replace(/.ss?/i, ""));
+                } else {
+                    // Older entries in the history read as a date ("Yesterday"), as Plasma's history row does.
+                    ageText = KCoreAddons.Format.formatRelativeDate(time, Locale.ShortFormat);
                 }
             }
 
@@ -112,6 +134,12 @@ BaseDelegate {
                 target: Notifications.Globals
                 function onTimeChanged(): void { ageLabel.update(); }
             }
+
+            PlasmaCore.ToolTipArea {
+                anchors.fill: parent
+                active: ageLabel.visible
+                subText: delegateRoot.modelInterface.time ? delegateRoot.modelInterface.time.toLocaleString(Qt.locale(), Locale.LongFormat) : ""
+            }
         }
     }
 
@@ -120,13 +148,16 @@ BaseDelegate {
         Layout.column: 1
         Layout.columnSpan: thumbnail.visible ? 1 : 2
         Layout.fillWidth: true
-        Layout.maximumHeight: bodyMetrics.lineSpacing * 4
+        Layout.alignment: Qt.AlignTop
+        Layout.maximumHeight: bodyMetrics.lineSpacing * delegateRoot.bodyLines
         implicitWidth: -1 // the body does not drive the width, which avoids a binding loop
-        implicitHeight: Math.min(bodyLabel.implicitHeight, bodyMetrics.lineSpacing * 4)
+        implicitHeight: Math.min(bodyLabel.implicitHeight, bodyMetrics.lineSpacing * delegateRoot.bodyLines)
         visible: delegateRoot.hasBodyText
         clip: true
         onClicked: {
-            if (delegateRoot.modelInterface.hasDefaultAction && !delegateRoot.hoveredLink) {
+            if (delegateRoot.bodyFolds && !delegateRoot.hoveredLink) {
+                delegateRoot.bodyExpanded = !delegateRoot.bodyExpanded;
+            } else if (delegateRoot.modelInterface.hasDefaultAction && !delegateRoot.hoveredLink) {
                 delegateRoot.modelInterface.defaultActionInvoked();
             }
         }
@@ -158,11 +189,53 @@ BaseDelegate {
         // Without an app icon the leading icon already shows the notification's own, so it is not shown twice.
         source: delegateRoot.modelInterface.applicationIconSource
                 && delegateRoot.modelInterface.icon !== delegateRoot.modelInterface.applicationIconSource ? delegateRoot.modelInterface.icon : null
+        // Rounded corners, as macOS draws a notification's picture.
+        layer.enabled: visible
+        layer.effect: MultiEffect {
+            maskEnabled: true
+            maskSource: thumbnailMask
+            maskThresholdMin: 0.5
+            maskSpreadAtMin: 1.0
+        }
+    }
+
+    Rectangle {
+        id: thumbnailMask
+        width: thumbnail.width
+        height: thumbnail.height
+        radius: Kirigami.Units.cornerRadius
+        visible: false
+        layer.enabled: true
+    }
+
+    PlasmaComponents3.Label {
+        Layout.row: 2
+        Layout.column: 1
+        Layout.columnSpan: 2
+        Layout.fillWidth: true
+        // Its text must not widen the column the body wraps in: a wider body folds less, which hides this label, which
+        // narrows the body again, a layout loop.
+        Layout.preferredWidth: 0
+        Layout.minimumWidth: 0
+        elide: Text.ElideRight
+        visible: delegateRoot.bodyFolds
+        text: delegateRoot.bodyExpanded ? i18nc("@action:button fold a long notification", "Show Less")
+                                        : i18nc("@action:button unfold a long notification", "Show More")
+        font: Kirigami.Theme.smallFont
+        color: Kirigami.Theme.linkColor
+        Accessible.role: Accessible.Button
+
+        TapHandler {
+            onTapped: delegateRoot.bodyExpanded = !delegateRoot.bodyExpanded
+        }
+        HoverHandler {
+            cursorShape: Qt.PointingHandCursor
+        }
     }
 
     Components.FooterLoader {
         id: footerLoader
-        Layout.row: 2
+        Layout.row: 3
         Layout.column: 1
         Layout.columnSpan: 2
         Layout.fillWidth: true

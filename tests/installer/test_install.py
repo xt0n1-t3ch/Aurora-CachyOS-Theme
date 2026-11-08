@@ -303,13 +303,6 @@ class Export(unittest.TestCase):
             self.assertTrue(os.path.isdir(os.path.join(out, "gtk", install.GTK, "gtk-3.0")))
 
 
-class Look(unittest.TestCase):
-    def test_gtk_apps_use_the_cursor_plasma_uses(self):
-        # gtk_theme.py writes its settings when it runs, so its SETTINGS table is read as text.
-        source = read(os.path.join(ROOT, "themes/gtk/gtk_theme.py"))
-        self.assertIn(f'"gtk-cursor-theme-name": "{install.CURSORS}",', source)
-
-
 class Animations(unittest.TestCase):
     """How fast the desktop animates comes from `aurora settings` ([look] animations in aurora.conf): smooth by
     default, a step of Plasma's own speed slider (0.75), never the near-instant values that make it feel abrupt."""

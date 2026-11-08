@@ -11,7 +11,6 @@ import QtQuick.Layouts
 
 import org.kde.plasma.plasmoid
 import org.kde.plasma.core as PlasmaCore
-import org.kde.ksvg as KSvg
 import org.kde.plasma.components as PlasmaComponents3
 import org.kde.plasma.extras as PlasmaExtras
 import org.kde.kirigami as Kirigami
@@ -48,6 +47,17 @@ PlasmaExtras.Representation {
 
     Keys.onDownPressed: dndCheck.forceActiveFocus(Qt.TabFocusReason);
 
+    // Aurora: what a click on the switch does, for a click on its label. Turning Do not disturb on asks for how long,
+    // as the switch's press does; turning it off revokes every inhibition, as the switch's click does.
+    function toggleDoNotDisturb(): void {
+        if (Notifications.Globals.inhibited) {
+            Notifications.Globals.revokeInhibitions();
+        } else {
+            dndMenu.date = new Date();
+            dndMenu.open(0, 0);
+        }
+    }
+
     Connections {
         target: fullRepresentationRoot.appletInterface
         function onExpandedChanged() {
@@ -71,15 +81,38 @@ PlasmaExtras.Representation {
             id: header
             spacing: 0
 
+            // Aurora: a macOS settings row, the symbol and label leading and the switch at the trailing edge. A click
+            // on the label does what a click on the switch does.
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 0
+                spacing: Kirigami.Units.smallSpacing
+
+                Kirigami.Icon {
+                    id: dndIcon
+                    implicitWidth: Kirigami.Units.iconSizes.small
+                    implicitHeight: Kirigami.Units.iconSizes.small
+                    source: "notifications-disabled"
+                    opacity: dndCheck.enabled ? 1 : 0.5
+                }
+
+                PlasmaComponents3.Label {
+                    Layout.fillWidth: true
+                    text: dndCheck.Accessible.name
+                    textFormat: Text.PlainText
+                    elide: Text.ElideRight
+                    opacity: dndCheck.enabled ? 1 : 0.5
+                    Accessible.ignored: true
+
+                    TapHandler {
+                        enabled: dndCheck.enabled
+                        onTapped: fullRepresentationRoot.toggleDoNotDisturb()
+                    }
+                }
 
                 PlasmaComponents3.Switch {
                     id: dndCheck
                     enabled: NotificationManager.Server.valid
-                    text: i18n("Do not disturb")
-                    icon.name: "notifications-disabled"
+                    Accessible.name: i18n("Do not disturb")
                     checkable: true
                     checked: Notifications.Globals.inhibited
 
@@ -178,10 +211,6 @@ PlasmaExtras.Representation {
                     }
                 }
 
-                Item {
-                    Layout.fillWidth: true
-                }
-
                 PlasmaComponents3.ToolButton {
                     visible: !(Plasmoid.containmentDisplayHints & PlasmaCore.Types.ContainmentDrawsPlasmoidHeading)
 
@@ -196,9 +225,10 @@ PlasmaExtras.Representation {
                 }
             }
 
+            // Aurora: under the label, past the symbol.
             PlasmaExtras.DescriptiveLabel {
-                Layout.leftMargin: dndCheck.mirrored ? 0 : dndCheck.indicator.width + 2 * dndCheck.spacing + Kirigami.Units.iconSizes.smallMedium
-                Layout.rightMargin: dndCheck.mirrored ? dndCheck.indicator.width + 2 * dndCheck.spacing + Kirigami.Units.iconSizes.smallMedium : 0
+                Layout.leftMargin: dndCheck.mirrored ? dndCheck.width : dndIcon.width + Kirigami.Units.smallSpacing
+                Layout.rightMargin: dndCheck.mirrored ? dndIcon.width + Kirigami.Units.smallSpacing : dndCheck.width
                 Layout.fillWidth: true
                 wrapMode: Text.WordWrap
                 textFormat: Text.PlainText
@@ -312,6 +342,12 @@ PlasmaExtras.Representation {
                 case Qt.Key_End:
                     currentIndex = count - 1;
                     break;
+                case Qt.Key_Menu:
+                    // Aurora: the selected notification's menu, as a right-click opens it.
+                    if (currentItem && currentItem.openMenu) {
+                        currentItem.openMenu();
+                    }
+                    break;
                 }
             }
 
@@ -337,30 +373,27 @@ PlasmaExtras.Representation {
             highlightMoveDuration: 0
             highlightResizeDuration: 0
             // Not using PlasmaExtras.Highlight as this is only for indicating keyboard focus
-            highlight: KSvg.FrameSvgItem {
-                imagePath: "widgets/listitem"
-                prefix: "pressed"
+            // Aurora: a ring the shape of a platter, inside the popover's edges like the platters.
+            highlight: Item {
+                Rectangle {
+                    anchors.fill: parent
+                    anchors.leftMargin: Kirigami.Units.largeSpacing
+                    anchors.rightMargin: Kirigami.Units.largeSpacing
+                    radius: Kirigami.Units.gridUnit
+                    color: "transparent"
+                    border.color: Kirigami.Theme.focusColor
+                    border.width: 2
+                }
             }
 
+            // Aurora: each notification is its own platter, so apps are told apart by a gap instead of a line.
             section {
                 property: "desktopEntry"
                 criteria: ViewSection.FullString
                 delegate: Item {
                     width: list.width
                     // Within a section delegate we don't have other ways to detect whether we are the first section
-                    height: y > 0 ? Math.round(Kirigami.Units.smallSpacing * 2) : 0
-
-                    KSvg.SvgItem {
-                        anchors {
-                            left: parent.left
-                            right: parent.right
-                            verticalCenter: parent.verticalCenter
-                            margins: Kirigami.Units.largeSpacing
-                        }
-                        imagePath: "widgets/line"
-                        elementId: "horizontal-line"
-                        visible: parent.y > 0
-                    }
+                    height: y > 0 ? Kirigami.Units.smallSpacing : 0
                 }
             }
 
@@ -368,6 +401,40 @@ PlasmaExtras.Representation {
                 id: delegate
                 width: ListView.view.width
                 opacity: 0
+
+                // Aurora: a notification sits on a lighter glass platter inset from the popover's edges, laid out
+                // like the banners (DelegatePopup), with Clear on hover at its top-right corner. The app's
+                // settings and Minimize are in the menu of a right-click or the Menu key. A group's heading row
+                // stays bare above its platters.
+                readonly property int platterInset: Kirigami.Units.largeSpacing
+                readonly property bool showControls: hovered || ListView.isCurrentItem
+                hoverEnabled: true
+                leftPadding: isGroup ? platterInset + Kirigami.Units.smallSpacing : platterInset + Kirigami.Units.gridUnit * 0.65
+                rightPadding: isGroup ? Kirigami.Units.largeSpacing : platterInset + Kirigami.Units.gridUnit * 0.65
+                topPadding: isGroup ? 0 : Kirigami.Units.gridUnit * 0.6
+                bottomPadding: isGroup ? 0 : Kirigami.Units.gridUnit * 0.6
+                implicitHeight: contentItem.implicitHeight + topPadding + bottomPadding
+                // SwipeDelegate moves its background with the swipe and overrides the insets, so the platter keeps
+                // its inset inside a full-width item.
+                background: Item {
+                    Rectangle {
+                        anchors.fill: parent
+                        anchors.leftMargin: delegate.platterInset
+                        anchors.rightMargin: delegate.platterInset
+                        visible: !delegate.isGroup
+                        radius: Kirigami.Units.gridUnit
+                        color: Qt.rgba(1, 1, 1, delegate.hovered ? 0.11 : 0.07)
+                        border.color: Qt.rgba(1, 1, 1, 0.08)
+                        border.width: 1
+                        Behavior on color {
+                            ColorAnimation { duration: Kirigami.Units.shortDuration }
+                        }
+                    }
+                }
+
+                function openMenu(): void {
+                    platterMenu.open(delegate.width / 2, delegate.height / 2);
+                }
 
                 required property int index
                 required property var model
@@ -580,28 +647,42 @@ PlasmaExtras.Representation {
                         }
                     }
 
+                    // Aurora: a group's heading is the app's icon and name; the hover Clear closes the group and the
+                    // menu has the app's settings, as on a platter.
                     Component {
                         id: groupDelegate
-                        Components.NotificationHeader {
-                            modelInterface {
-                                applicationName: delegate.applicationName
-                                applicationIconSource: delegate.applicationIconName
-                                originName: delegate.originName || ""
+                        RowLayout {
+                            spacing: Kirigami.Units.smallSpacing
 
-                                configurable: delegate.configurable
-                                closable: delegate.closable
-
-                                onCloseClicked: fullRepresentationRoot.historyModel.close(fullRepresentationRoot.historyModel.index(delegate.index, 0));
-                                onConfigureClicked: fullRepresentationRoot.historyModel.configure(fullRepresentationRoot.historyModel.index(delegate.index, 0))
+                            Kirigami.Icon {
+                                implicitWidth: Kirigami.Units.iconSizes.small
+                                implicitHeight: Kirigami.Units.iconSizes.small
+                                source: delegate.applicationIconName
                             }
-                            closeButtonTooltip: i18n("Close Group")
+                            PlasmaComponents3.Label {
+                                Layout.fillWidth: true
+                                text: delegate.originName ? i18nc("Application name · origin", "%1 · %2", delegate.applicationName, delegate.originName)
+                                                          : delegate.applicationName
+                                textFormat: Text.PlainText
+                                font.weight: Font.DemiBold
+                                elide: Text.ElideRight
+                            }
+                            Components.BannerButton {
+                                visible: delegate.closable
+                                shown: delegate.showControls
+                                iconName: "window-close-symbolic"
+                                text: i18n("Close Group")
+                                onClicked: fullRepresentationRoot.historyModel.close(fullRepresentationRoot.historyModel.index(delegate.index, 0))
+                            }
                         }
                     }
                     Component {
                         id: notificationDelegate
-                        Delegates.DelegateHistory {
+                        Delegates.DelegatePopup {
                             Layout.fillWidth: true
                             modelInterface: delegateLoader.modelInterface
+                            expandable: true
+                            clearShown: platterClose.visible && platterClose.shown
                         }
                     }
                     Component {
@@ -609,9 +690,11 @@ PlasmaExtras.Representation {
                         ColumnLayout {
                             spacing: Kirigami.Units.smallSpacing
 
-                            Delegates.DelegateHistoryGrouped {
+                            Delegates.DelegatePopup {
                                 Layout.fillWidth: true
                                 modelInterface: delegateLoader.modelInterface
+                                expandable: true
+                                clearShown: platterClose.visible && platterClose.shown
                             }
 
                             PlasmaComponents3.ToolButton {
@@ -624,6 +707,50 @@ PlasmaExtras.Representation {
                                 onClicked: list.setGroupExpanded(delegate.index, !delegate.isGroupExpanded)
                             }
                         }
+                    }
+                }
+
+                // Aurora: Clear on hover, over the platter's top-right corner.
+                Components.BannerButton {
+                    id: platterClose
+                    x: delegate.width - delegate.platterInset - width + overhang
+                    y: -overhang
+                    visible: !delegate.isGroup && delegateLoader.modelInterface.closable
+                    shown: delegate.showControls
+                    iconName: "window-close-symbolic"
+                    text: i18nd("plasma_applet_org.kde.plasma.notifications", "Close")
+                    onClicked: delegateLoader.modelInterface.closeClicked()
+                }
+
+                TapHandler {
+                    acceptedButtons: Qt.RightButton
+                    onTapped: eventPoint => platterMenu.open(eventPoint.position.x, eventPoint.position.y)
+                }
+
+                PlasmaExtras.Menu {
+                    id: platterMenu
+                    visualParent: delegate
+
+                    PlasmaExtras.MenuItem {
+                        visible: delegateLoader.modelInterface.configurable
+                        text: delegateLoader.modelInterface.configureActionLabel || i18nd("plasma_applet_org.kde.plasma.notifications", "Configure")
+                        icon: "configure-symbolic"
+                        onClicked: delegateLoader.modelInterface.configureClicked()
+                    }
+                    // A finished job kept as a popup can be minimized into the list and restored.
+                    PlasmaExtras.MenuItem {
+                        visible: !delegate.isGroup && delegateLoader.modelInterface.dismissable
+                        text: delegateLoader.modelInterface.dismissed
+                            ? i18ndc("plasma_applet_org.kde.plasma.notifications", "Opposite of minimize", "Restore")
+                            : i18nd("plasma_applet_org.kde.plasma.notifications", "Minimize")
+                        icon: delegateLoader.modelInterface.dismissed ? "window-restore-symbolic" : "window-minimize-symbolic"
+                        onClicked: delegateLoader.modelInterface.dismissClicked()
+                    }
+                    PlasmaExtras.MenuItem {
+                        visible: delegateLoader.modelInterface.closable
+                        text: delegate.isGroup ? i18n("Close Group") : i18nd("plasma_applet_org.kde.plasma.notifications", "Close")
+                        icon: "window-close-symbolic"
+                        onClicked: delegateLoader.modelInterface.closeClicked()
                     }
                 }
             }
@@ -646,8 +773,10 @@ PlasmaExtras.Representation {
                     anchors.centerIn: parent
                     width: parent.width
 
-                    iconName: "checkmark"
-                    text: i18n("No unread notifications")
+                    // Aurora: a quiet bell, as macOS shows an empty Notification Center, not a green check.
+                    iconName: "notifications-symbolic"
+                    text: i18n("No Notifications")
+                    explanation: i18n("You're all caught up")
                 }
             }
 

@@ -41,6 +41,7 @@ ecm_target_qml_sources(org.kde.plasma.notifications SOURCES
     components/Summary.qml
     components/ThumbnailStrip.qml
     components/BannerGlass.qml
+    components/BannerButton.qml
     components/BannerBlur.qml
     components/BannerBlurImpl.qml
     PATH components

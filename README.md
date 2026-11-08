@@ -11,7 +11,7 @@ One command installs it and one removes it. The installer saves every setting be
 
 Nothing in KWin is patched and no file that belongs to a package is edited. Some parts are Plasma's own code rebuilt with a small patch, some are plugins that load ahead of the stock ones, some are Plasma widgets, and the rest are settings. When a system update brings a new Plasma, KWin or Qt, the parts built for the old version are skipped at login and Plasma uses its own until you rebuild them.
 
-<h2 align="center" id="showcase"><img src="assets/readme/heading-showcase.svg" alt="Showcase: The desktop, Quick Menu, Control Center, the menu and notifications" width="880"></h2>
+<h2 align="center" id="showcase"><img src="assets/readme/heading-showcase.svg" alt="Showcase: The desktop, Quick Menu, Control Center, notifications and Mission Center" width="880"></h2>
 
 <p align="center">
 <a href="assets/screenshots/desktop.jpg"><img src="assets/screenshots/desktop.jpg" alt="The desktop: the menu bar with the CachyOS logo, the tray, Quick Menu, Control Center and the clock; File Explorer on the left; the Dock at the bottom; Dawn Bird, Aurora's wallpaper, a bird of folded glass rising on the right" width="960"></a>
@@ -27,6 +27,13 @@ Nothing in KWin is patched and no file that belongs to a package is edited. Some
     <td width="50%" align="center"><a href="assets/screenshots/kali-menu.jpg"><img src="assets/screenshots/kali-menu.jpg" alt="The menu open under the CachyOS logo, with About This Computer, System Settings, Sleep, Restart, Shut Down, Lock Screen and Log Out" width="420"></a><br>CachyOS's logo takes the Apple logo's place. Its settings offer Arch Linux, Apple and Kali Linux too.</td>
     <td width="50%" align="center"><a href="assets/screenshots/notifications.jpg"><img src="assets/screenshots/notifications.jpg" alt="Two notification banners in the bottom-right corner, one with Later and Install buttons" width="420"></a><br>Notifications arrive as banners in the bottom-right corner.</td>
   </tr>
+  <tr>
+    <td width="50%" align="center"><a href="assets/screenshots/notification-center.jpg"><img src="assets/screenshots/notification-center.jpg" alt="The notifications popover under the bell: Do not disturb, then each notification on its own glass card with the app's icon, a bold title, the message and a picture" width="420"></a><br>The bell opens the notifications you missed, each on its own glass card as in macOS Tahoe.</td>
+    <td width="50%" align="center"><a href="assets/screenshots/mission-center.jpg"><img src="assets/screenshots/mission-center.jpg" alt="Mission Center on Performance: the device sidebar on clearer glass, the CPU graphs as tinted cards and its readings as glass tiles" width="420"></a><br>Mission Center in File Explorer's glass, with each app's GPU, memory and network counted exactly.</td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center"><a href="assets/screenshots/mission-center-apps.jpg"><img src="assets/screenshots/mission-center-apps.jpg" alt="Mission Center on Apps: the running apps and processes on a glass card, busy cells tinted warmer as they rise" width="840"></a><br>Apps and processes as in the Windows 11 Task Manager, with busy values tinted warmer as they rise.</td>
+  </tr>
 </table>
 
 <h2 align="center" id="features"><img src="assets/readme/heading-features.svg" alt="Features: Every part, what it does and where its code lives" width="880"></h2>
@@ -39,10 +46,11 @@ Nothing in KWin is patched and no file that belongs to a package is edited. Some
 | System tray | Plasma's tray, with drag and drop like Windows 11: drag an icon to move it, or drop it on the arrow to hide it. | [`components/system-tray`](components/system-tray) |
 | Quick Menu | The Windows key opens Tahoe's Applications view: the apps you use most, then every app by category. Right-click an app (or press the Menu key) to pin it to the top or to the Dock, or to take it out of Suggestions. Drag an app onto another one in the same category to move it there; the order is kept. All Applications lists every app by letter. Start typing to search with KRunner. The rail at the bottom works like Windows 11's Start: your picture and name open Lock, Switch User and Log Out, and the power button opens Sleep, Restart and Shut Down. | [`components/quick-menu`](components/quick-menu), [`components/windows-key`](components/windows-key) |
 | Control Center | Network, Bluetooth, Focus, sound and its output devices, the player, Night Light, screen mirroring, settings and screenshots. | [`components/control-center`](components/control-center), [`components/glass`](components/glass) |
-| Notifications | Banners with the app icon, a bold title, the text and the action buttons, in the bottom-right corner. | [`components/notifications`](components/notifications) |
+| Notifications | Banners with the app icon, a bold title, the text and the action buttons, in the bottom-right corner. The bell in the menu bar lists what you missed on glass cards, with Do not disturb at the top. | [`components/notifications`](components/notifications) |
 | Dock | Your pinned apps, a divider, Downloads and Trash. It moves out of the way of windows that reach it; touch the bottom edge to bring it back. | [`components/dock-divider`](components/dock-divider), [`themes/panels`](themes/panels) |
 | Animations | Windows open, close and minimize into the Dock the way macOS does it, at Plasma's designed speed; `aurora settings` makes them faster or turns them off. | [`components/motion`](components/motion) |
 | Pointer | macOS cursors, and a pointing hand over anything you can click, KWin's window buttons included. | [`components/pointing-hand`](components/pointing-hand), [`themes/cursors`](themes/cursors) |
+| Mission Center | Optional, with `aurora mission-center on`: Mission Center in File Explorer's glass, with each app's GPU, memory and network counted exactly, a lean background service and a color per device. Apps and Services read like the Windows 11 Task Manager. | [`components/mission-center`](components/mission-center) |
 | Energy page | A page in Info Center that shows the CPU and GPU power draw, a two-minute chart and the power profiles. | [`components/energy-page`](components/energy-page) |
 | Themes | Dawn Bird, Aurora's own wallpaper; Aurora's colors, Plasma style, Kvantum and GTK themes, cursors and icons with each app's own logo, the Inter font (or SF Pro, if you installed it) and a Konsole profile. | [`themes`](themes) |
 

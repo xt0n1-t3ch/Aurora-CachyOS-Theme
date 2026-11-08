@@ -13,7 +13,7 @@ _gng_commit=19568ad9a2ec998b05f98b3b8f4766a6f22255db
 _rummage_commit=26b93b8c6f0de6912f0a17022f7ece76bad87612
 _graph_commit=8aadf1cd9df0dbaa75a909ca9e3af43d4aac47dc
 pkgver=1.2.0.r52.g039b197
-pkgrel=3
+pkgrel=8
 pkgdesc="Monitor your CPU, Memory, Disk, Network and GPU usage (Aurora's accuracy and efficiency patches)"
 arch=(x86_64)
 url="https://github.com/xt0n1-t3ch/Aurora-CachyOS-Theme"
@@ -54,14 +54,14 @@ source=("mission-center::git+https://gitlab.com/mission-center-devs/mission-cent
         app-rummage-improved.patch
         graph-widget-improved.patch
         aurora-mission-center-nethogs.hook)
-sha256sums=('SKIP'
-            'SKIP'
-            'SKIP'
-            'SKIP'
-            '74ea490485e11d46767316e9da999eb40a04597b745fd8c7d00bec63d08becef'
+sha256sums=('3973d8d94f142bebe661dfd5428e7baeaecb6d12914c09354c30a0a9849f44f5'
+            'a722ba56fd4e7318f258bfba23811964c3ab413ec9dad86b18b6c734364fd4d4'
+            'cea2f58b10471df96034589caf89154059755fefeea02f21030e849bb9d5af4e'
+            '8b6e6a5bd56f6766a45ea160640a4f8ac3050a26fe4f90a31d3433f717ab9968'
+            'a43dd610f75d59303358e785bb4d09f6c9f28a7662bd953747ae6c86e77506f8'
             '7ccee0fb1599362a29fc4506b43ed02912a8fb31485110038d1b70bbe81e9b43'
             '38c4be8d960d0bfe1ede86f8c4ff59907e279e33be4712cb2c190f199fd034f2'
-            'bb6cbd8af2a67a6b5d11ebbc5e79af50e4ce0b180631b870574ce648315cf905'
+            '67e1a8632f144010ae9adaa3ef1e64d2fb8d5a085e27eddb66b357a5286da2f7'
             '0d7d51c2963a113b2be0b115ee9eba7abc00fb83f880c7fafeef68021ac72cc8')
 
 prepare() {

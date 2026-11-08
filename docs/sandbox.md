@@ -9,7 +9,7 @@ KWin runs SCENARIO as its session and exits with it. Nothing touches the real se
 
 ```bash
 tests/sandbox/run.sh "$PWD/tests/sandbox/scenarios/quick-menu.sh" 200 > tests/sandbox/logs/run-quick-menu.log 2>&1
-SANDBOX_SCALE=2 tests/sandbox/run.sh "$PWD/tests/sandbox/scenarios/readme.sh" 160   # the README's pictures, sharp
+SANDBOX_SCALE=2 tests/sandbox/run.sh "$PWD/tests/sandbox/scenarios/readme.sh" 240   # the README's pictures, sharp
 python3 -I assets/screenshots/make.py                                                # crops them into assets/
 ```
 

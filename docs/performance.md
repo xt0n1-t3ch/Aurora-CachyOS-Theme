@@ -44,6 +44,52 @@ lavd `--performance`, flash and p2dq did worse; no scheduler was ejected. BORE s
 - THP defrag `defer` (`/etc/tmpfiles.d/thp.conf`) after 279k direct-compaction stalls.
 - MGLRU `min_ttl_ms` stays at 100: oomd is present.
 
+## Disk I/O scheduler: kyber stays
+
+CachyOS's kyber against ADIOS 3.2.0 on both NVMe disks (2026-11-07, `performance/measure/iosched/ab.py`, results in
+`result-2026-11-07.json`): 4 KiB direct random reads timed while two writers stream direct 1 MiB writes, in
+alternating 15 s windows. Flat out there was no clean winner; at a realistic load kyber did as well or better.
+
+- nvme0 (ADATA LEGEND 700, `/`): read median under load kyber 954, 3119, 3901 µs against ADIOS 1372, 1402, 1413 µs;
+  p99 2.5-10.3 ms against 3.1-7.9 ms. Kyber won the first pair, while the drive was fresh. ADIOS won the later pairs,
+  after the drive's write speed fell from 1.24 GB/s to about 0.8 GB/s, and its writers kept more speed (0.9-1.3 GB/s
+  against 0.8-1.2).
+- nvme1 (Kingston OM8PCP3, `/mnt/D`): the drive's own state ruled. Its writes fell from 618 MB/s to 22 MB/s within
+  minutes, and reads stalled up to 0.73 s whichever scheduler ran. ADIOS had the two best loaded windows (p99 0.7 and
+  3.7 ms against 25-47 ms for kyber) and also the single worst one (p99 280 ms).
+- Unloaded, both read in 77-98 µs at the median. The disk's slowdown under sustained writes costs far more than the
+  scheduler choice: builds and downloads on `/mnt/D` stall reads for tens of ms.
+- CachyOS keeps ADIOS optional because it is still in development and can lock up in rare cases
+  ([wiki](https://wiki.cachyos.org/configuration/general_system_tweaks/)).
+- Rerun with a realistic load (`result-2026-11-07-realistic.json`): two buffered writers at 75 MB/s each (150 MB/s,
+  a fast download or a build), 20 s of rest before each window, 5 alternating rounds. nvme0: read median 125 µs for
+  both; p99 median kyber 455 µs (400-906) against ADIOS 882 µs (409-1407), reads per second 6936 against 6479, kyber
+  better in 3 of 5 pairs. nvme1: p99 median kyber 1.5 ms against ADIOS 1.8 ms, reads per second 6055 against 2090,
+  kyber better in 3 of 5 pairs; both had windows where the drive stalled (kyber up to 1.1 s, ADIOS up to 0.35 s). At a
+  realistic load kyber is as good or better, which settles it.
+- The Kingston stalls reads for tens of ms, and once for 1.1 s, even at 150 MB/s of writes and even with the disk
+  quiet (p99.9 23 ms). The ADATA never went past 51 ms. Heavy writes belong on the ADATA (`/`, `/home`).
+
+## Mission Center's glass
+
+Measured in Mission Center's sandbox (`components/mission-center/tools/sandbox`, a nested KWin at 60 Hz, 2026-11-07):
+the window on the CPU page over Aurora's wallpaper, 15 s to settle, then the CPU used over 30 s, as a share of one
+core. With smooth and sliding graphs on (they redraw every frame), the UI of package 1.2.0.r52-5 and -6 used 20.7 and
+19.5 %; -7, whose glass asked GTK for KWin's blur with CSS `backdrop-filter`, used 66.3 % (6.6 % against 4.4 % with
+the graphs still). On the desktop's 240 Hz screen it used 52 %. magpie stayed at 4.5 % in every build.
+
+- GTK 4.24 builds `backdrop-filter` into every frame as copy, paste and blur nodes, and to find the region it sends
+  KWin it walks the frame (gsk/gskblurutils.c): with a copy around the whole window, it rasterized every clip and graph
+  line on the CPU each frame. The workspace's dev build used 66.6 % as it was, 29.3 % without `backdrop-filter` and
+  20.1 % with no blur and no tint at all.
+- The same nodes around nothing but the paste, from the window's own snapshot, still cost 44.8 %, cached or not: any
+  copy node costs every frame.
+- Mission Center now keeps GDK off ext-background-effect-v1 (`GDK_WAYLAND_DISABLE`) and asks KWin for the blur itself,
+  once per size or state (`src/glass.rs`): 21.4 %, as with no blur. The tint lost its path too: drawn as the sidebar
+  card's shadow with no blur, it costs nothing measurable. Package -8, built so: 20.0 % with the graphs animated and
+  4.8 % with them still, as before the glass; on the desktop, with the same settings and page, 22 % where -7 used
+  52 %.
+
 ## Power
 
 - Power profile stays **Performance** (power-profiles-daemon 0.30, amd_pstate EPP; it changes only the CPU's

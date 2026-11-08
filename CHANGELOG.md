@@ -11,6 +11,57 @@ it changes. A change that needs a fresh install, or that an earlier backup canno
 
 ## [Unreleased]
 
+### Changed
+
+- The notifications popover in the menu bar looks like macOS Tahoe's Notification Center. Each notification sits on
+  its own rounded glass card with the app's icon large at the left, a bold title with its time and the message below,
+  and a picture in rounded corners at the right. Clear appears over a card's top-right corner on hover. The app's
+  settings and Minimize moved to the menu of a right-click or the Menu key. Do not disturb reads as a settings row
+  with its switch at the right, and the label also turns it on. An empty popover shows a bell with "No Notifications".
+  A long message shows its first four lines and opens in full with a click or Show More, and older notifications
+  show their date.
+- Aurora's Mission Center is one sheet of dark glass like File Explorer: KWin blurs what is behind it, the device
+  sidebar floats as the clearer glass, the pages switch in one glass capsule, the window buttons sit in another, and a
+  window that is not in front turns opaque. The graphs are tinted cards, the Performance details sit on a glass card,
+  and the Services filters are chips. The device sidebar now stays on Apps and Services too, when the window is wide
+  enough for every column, and a click on a device opens its Performance view. The search field is always in the
+  header bar, and typing on the Performance page searches the apps. Busy values in Apps and Services are tinted
+  warmer as they rise, as in the Windows 11 Task Manager; Preferences and `aurora mission-center settings` turn the
+  tint off.
+- Mission Center's Apps and Services pages sit on a glass card with the column headings inside, the Apps and
+  Processes headings no longer show as a grey selected bar, Stop, Force Stop and Details are separate glass pills, and
+  busy cells get a rounded tint, blue for CPU and GPU and amber for memory. The device sidebar now fits beside every
+  column from a 1220 px wide window. On Performance, each reading is a glass tile, two to a row, with the details on
+  a card below, lined up with the graphs instead of starting under an empty gap. The selected device in the sidebar is
+  glass instead of solid blue.
+  Its header is File Explorer's toolbar: the window buttons sit in the same capsule with the same glyphs and at the
+  same distance from the window's edges, every control has the same height on one line, and the sidebar and edit
+  buttons sit at the sidebar's top left as in File Explorer, where the sidebar button stays when the sidebar is
+  hidden. In a narrow window, or while the sidebar is being edited, the search field narrows so the page tabs keep
+  their full names. The light style gets the same glass as the dark one instead of the old look.
+  Its glass is now File Explorer's: the same tint over a real blur, the sidebar the clearer glass, and the same soft
+  shadow drawn by KWin; the window resizes from just inside its edges. The devices in the sidebar, the tables and the
+  graphs keep File Explorer's spacing from the edges instead of touching them.
+  Its right-click menus, the main menu and tooltips are File Explorer's blurred glass with its row sizes, blue
+  highlight, check marks and soft shadow, and submenus such as Send Signal open beside the menu instead of replacing
+  it. Dialogs use File Explorer's dialog color, and Preferences is wide enough for its four page names. A drive's
+  partitions sit on a glass card under its details, with File Explorer's capacity bars that turn amber past 90 % used
+  and red past 95 %, and a network's addresses join the rest of its details on their card.
+- The menu bar stays see-through over a maximized window, so its popups (notifications, sound, network) stay glass
+  like File Explorer instead of turning solid gray.
+
+### Fixed
+
+- The menu bar's status icons drawn by Aurora (volume, network, media, the bell and the magnifier) show correctly in
+  GTK apps. GTK drew their outlines filled, so Mission Center's search button showed a solid dot instead of a
+  magnifier.
+- Table headings in GTK apps line up with their columns again. Aurora's GTK theme padded them like list
+  headers, which moved each heading to the right of its values and cut off the last one, such as Mission Center's
+  GPU Memory.
+- The window buttons of GTK apps are as sharp as File Explorer's. Their glyphs sat between two rows of pixels, so
+  they looked dimmer and thicker.
+- Mission Center's Performance details no longer run past the window's right edge in a narrow window.
+
 ## [1.2.0] - 2026-11-07
 
 ### Added

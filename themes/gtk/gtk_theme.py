@@ -18,7 +18,10 @@ font = sys.argv[4] if len(sys.argv) > 4 else "Inter"  # the interface font insta
 config = os.path.join(home, ".config")
 
 # Window button icons: the decoration's strokes (components/window-buttons/src/glass.cpp, paintGlyph), as filled
-# shapes so GTK can recolor them like any symbolic icon.
+# shapes so GTK can recolor them like any symbolic icon. They are drawn around (8, 8) and written half a pixel down and
+# right: GTK puts the 16 px icon on whole pixels, and the decoration and File Explorer center each glyph on a pixel's
+# middle (crisp()), where a 1.4 px stroke covers one row instead of two dimmer ones.
+GLYPH_SHIFT = "translate(0.5 0.5)"
 GLYPHS = {
     "window-minimize-symbolic": '<rect x="3.2" y="7.3" width="9.6" height="1.4" rx="0.7"/>',
     "window-maximize-symbolic": '<path fill-rule="evenodd" d="M5.4 2.5h5.2a2.9 2.9 0 0 1 2.9 2.9v5.2a2.9 2.9 0 0 1-2.9 2.9H5.4a2.9 2.9 0 0 1-2.9-2.9V5.4a2.9 2.9 0 0 1 2.9-2.9zm0 1.4a1.5 1.5 0 0 0-1.5 1.5v5.2a1.5 1.5 0 0 0 1.5 1.5h5.2a1.5 1.5 0 0 0 1.5-1.5V5.4a1.5 1.5 0 0 0-1.5-1.5z"/>',
@@ -29,7 +32,8 @@ symbolic_dir = os.path.join(icon_theme, "actions", "symbolic")
 os.makedirs(symbolic_dir, exist_ok=True)
 for name, body in GLYPHS.items():
     with open(os.path.join(symbolic_dir, name + ".svg"), "w") as f:
-        f.write(f'<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16"><g fill="#bebebe">{body}</g></svg>\n')
+        f.write(f'<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">'
+                f'<g fill="#bebebe" transform="{GLYPH_SHIFT}">{body}</g></svg>\n')
 index = os.path.join(icon_theme, "index.theme")
 text = open(index).read()
 if "actions/symbolic" not in text:
@@ -69,6 +73,23 @@ def without_window_controls(css):
             kept.append(rule)
         i = close + 1
     return "".join(kept), removed
+
+
+# Rules the theme copies from libadwaita's own stylesheet, narrowed. libadwaita loads its copy at theme priority,
+# below an app's stylesheet; ~/.config/gtk-4.0 loads at user priority, above it, so an unnarrowed copy overrides
+# the app's fixes. `.rich-list > header` pads list section headers, and matched the heading row of a column view
+# with the rich-list class too: Mission Center (resources/ui/style.css, `window columnview header`) zeroes that
+# padding, and with it back its last heading was drawn past the table's edge.
+NARROWED = {".rich-list > header {": ":not(columnview).rich-list > header {"}
+
+
+def narrowed(css):
+    """The theme's stylesheet with the rules in NARROWED rewritten; each selector must be found once."""
+    for selector, scoped in NARROWED.items():
+        if css.count("\n" + selector) != 1:
+            raise SystemExit(f"gtk_theme.py: the GTK 4 sheet no longer has one '{selector}' rule to narrow")
+        css = css.replace("\n" + selector, "\n" + scoped)
+    return css
 
 # Scoped to window header bars and lifted by unmatched :not() classes, so the theme's generic header bar
 # button rules (same style provider, so specificity decides) never reach into the capsule.
@@ -179,7 +200,7 @@ for item in ("gtk.css", "gtk-dark.css", "gtk-Dark.css", "aurora.css", "assets", 
         shutil.rmtree(path)
 stylesheet, removed_rules = without_window_controls(open(os.path.join(release, "gtk-4.0", "gtk-dark.css")).read())
 with open(os.path.join(gtk4, "gtk-Dark.css"), "w") as f:
-    f.write(stylesheet)
+    f.write(narrowed(stylesheet))
 shutil.copytree(os.path.join(release, "gtk-4.0", "assets"), os.path.join(gtk4, "assets"))
 shutil.copytree(os.path.join(release, "gtk-4.0", "windows-assets"), os.path.join(gtk4, "windows-assets"))
 with open(os.path.join(gtk4, "aurora.css"), "w") as f:
