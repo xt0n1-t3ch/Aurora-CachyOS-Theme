@@ -59,6 +59,9 @@ fi
 check "build() builds for the x86-64 baseline" \
     "$(cd "$root/packaging/aur" && bash -c 'source ./PKGBUILD && declare -f build' | grep -c '^ *_baseline;\?$')" "1"
 # shellcheck disable=SC1091
+check "build() marks the baseline programs it built as baseline" \
+    "$(cd "$root/packaging/aur" && bash -c 'source ./PKGBUILD && declare -f build' | grep -c 'scripts/cpu_baseline.py --relabel')" "1"
+# shellcheck disable=SC1091
 check "check() refuses machine code that needs more than the baseline" \
     "$(cd "$root/packaging/aur" && bash -c 'source ./PKGBUILD && declare -f check' | grep -c 'scripts/cpu_baseline.py')" "1"
 

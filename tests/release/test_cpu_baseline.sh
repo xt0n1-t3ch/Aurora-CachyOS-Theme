@@ -5,6 +5,8 @@
 # scripts/cpu_baseline.py, the package's check that its machine code runs on every x86-64 CPU, tried on libraries gcc
 # builds here: baseline code passes, code built for a newer CPU fails and names the function, a function built for
 # AVX2 on purpose (a program picks it after asking the CPU) passes, and a stripped file built for a newer CPU fails.
+# Then the ISA level a program is marked with: glibc's loader refuses a program marked as needing x86-64-v3 on an older
+# CPU, so the check fails it, and --relabel marks baseline code as baseline but leaves a program with newer code alone.
 set -u
 root=$(readlink -f "$(dirname "$(readlink -f "$0")")/../..")
 work=$(mktemp -d)
@@ -101,4 +103,35 @@ ln -s "$work/newer.so" "$work/folder/system.so"
 check "a folder is checked file by file, skipping links and what is not machine code" "$(run "$work/folder")" 0
 cp "$work/newer.so" "$work/folder/"
 check "one newer file fails the folder" "$(run "$work/folder")" 1
+
+# The marked level, as readelf prints it (empty without a mark).
+marked() {
+    readelf -n "$1" | sed -n 's/.*x86 ISA needed: //p'
+}
+# CachyOS's glibc links its x86-64-v3 mark into every program from Scrt1.o; -z x86-64-v3 marks the same way on any
+# toolchain. glibc's loader reads the mark before any code runs (sysdeps/x86/dl-prop.h, dl_isa_level_check) and stops
+# with "CPU ISA level is lower than required" on a CPU below it.
+cat > "$work/main.c" << 'EOF'
+int main(void) { return 0; }
+EOF
+gcc -O2 -fuse-ld=bfd -Wl,-z,x86-64-v3 -o "$work/marked" "$work/main.c" "$work/scale.c"
+gcc -O2 -fuse-ld=bfd -mavx2 -Wl,-z,x86-64-v3 -o "$work/marked-newer" "$work/main.c" "$work/scale.c"
+gcc -O2 -fuse-ld=lld -o "$work/unmarked" "$work/main.c" "$work/scale.c" 2> /dev/null ||
+    gcc -O2 -fuse-ld=bfd -Wl,-z,x86-64-baseline -o "$work/unmarked" "$work/main.c" "$work/scale.c"
+check "baseline code marked as needing x86-64-v3 fails" \
+    "$(run "$work/marked"; grep -c 'marked as needing x86-64-v3' "$work/out")" "$(printf '1\n1')"
+check "a program with no mark above the baseline passes" "$(run "$work/unmarked")" 0
+check "--relabel marks baseline code as baseline" "$(run --relabel "$work/marked"; marked "$work/marked")" \
+    "$(printf '0\nx86-64-baseline')"
+check "the relabelled program passes" "$(run "$work/marked")" 0
+check "the relabelled program still runs" "$("$work/marked"; echo $?)" 0
+check "--relabel twice changes nothing more" \
+    "$(sum_before=$(sha256sum < "$work/marked"); run --relabel "$work/marked" > /dev/null; [ "$(sha256sum < "$work/marked")" = "$sum_before" ] && echo same)" same
+check "--relabel leaves a program with newer code marked, and fails" \
+    "$(run --relabel "$work/marked-newer"; marked "$work/marked-newer")" "$(printf '1\nx86-64-baseline, x86-64-v2, x86-64-v3')"
+check "--relabel leaves a program without a mark untouched" \
+    "$(sum_before=$(sha256sum < "$work/unmarked"); run --relabel "$work/unmarked" > /dev/null; [ "$(sha256sum < "$work/unmarked")" = "$sum_before" ] && echo same)" same
+mkdir "$work/marked-folder" && cp "$work/marked" "$work/marked-folder/" && gcc -O2 -fuse-ld=bfd -Wl,-z,x86-64-v3 \
+    -o "$work/marked-folder/again" "$work/main.c"
+check "--relabel walks a folder" "$(run --relabel "$work/marked-folder"; run "$work/marked-folder")" "$(printf '0\n0')"
 exit "$failures"

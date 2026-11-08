@@ -80,6 +80,7 @@ run "changelog" python3 -I tests/release/test_changelog.py
 run "release" tests/release/test_release.sh
 run "AUR package" tests/release/test_pkgbuild.sh
 run "CPU baseline" tests/release/test_cpu_baseline.sh
+run "older processor plan" tests/release/test_old_cpu.sh
 run "pacman repository" tests/release/test_pacman_repo.sh
 run "license headers" python3 -I scripts/license_headers.py --check
 run "llms.txt" python3 -I scripts/llms.py --check

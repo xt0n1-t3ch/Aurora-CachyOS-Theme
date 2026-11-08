@@ -18,6 +18,7 @@ pkgbase = aurora-theme
 	makedepends = ninja
 	makedepends = extra-cmake-modules
 	makedepends = qt6-shadertools
+	makedepends = vulkan-headers
 	makedepends = cargo
 	depends = qt6-base
 	depends = qt6-declarative
