@@ -7,6 +7,7 @@
 
 #include "browsertab.h"
 #include "commandpalette.h"
+#include "inspectorpanel.h"
 #include "sidebar.h"
 #include "toolbar.h"
 
@@ -197,6 +198,13 @@ void MainWindow::buildMenuBar()
     view->addSeparator();
     // Dolphin's key for its split view.
     addWindowAction(view, QStringLiteral("Split View"), {keys(Qt::Key_F3)}, [this] { toggleSplit(); });
+    // Finder's key for its Inspector is Option-Command-I.
+    m_inspectorAction = addWindowAction(view, QStringLiteral("Show Inspector"), {keys(Qt::CTRL | Qt::ALT | Qt::Key_I)},
+                                        [this] { setInspectorVisible(m_inspector->isHidden()); });
+    m_inspectorAction->setCheckable(true);
+    // isHidden, not isVisible: the window is not shown yet while its menus are built.
+    m_inspectorAction->setChecked(!m_inspector->isHidden());
+    m_inspectorAction->setIcon(QIcon::fromTheme(QStringLiteral("dialog-information")));
     m_sidebarAction = addWindowAction(view, QStringLiteral("Hide Sidebar"), {keys(Qt::CTRL | Qt::ALT | Qt::Key_S)},
                                       [this] { setSidebarVisible(!m_sidebar->isVisible()); });
     addWindowAction(view, QStringLiteral("Reload"), {keys(Qt::Key_F5)}, [this] { currentTab()->reload(); })

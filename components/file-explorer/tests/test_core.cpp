@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Additional terms (GPL-3.0 section 7, author attribution): see NOTICE.md.
 // Unit tests for the widget-free logic in src/core: panels, FileManager1 grouping, history, paths, edges, shortcut
-// labels, status text, sidebar rules, drives and the command palette's ranking.
+// labels, status text, sidebar rules, drives, the command palette's ranking and the Inspector's sizes, hashes and
+// permissions.
 
 #include "core/edges.h"
 #include "core/format.h"
@@ -12,6 +13,7 @@
 #include "core/chooser.h"
 #include "core/drives.h"
 #include "core/reveal.h"
+#include "core/inspector.h"
 #include "core/motion.h"
 #include "core/palette.h"
 
@@ -23,6 +25,13 @@
 #include <QSet>
 #include <QTest>
 #include <QUrlQuery>
+#include <QDir>
+#include <QFile>
+#include <QFileInfo>
+#include <QLocale>
+#include <QTemporaryDir>
+
+#include <unistd.h>
 
 
 namespace {
@@ -918,6 +927,111 @@ private Q_SLOTS:
         QCOMPARE(fe::filterMatchText(0), QStringLiteral("No matches"));
         QCOMPARE(fe::filterMatchText(1), QStringLiteral("1 match"));
         QCOMPARE(fe::filterMatchText(1204), QStringLiteral("1204 matches"));
+    }
+
+// The Inspector's logic (core/inspector).
+
+    void a_tally_counts_like_du_once_per_hard_link_and_without_following_links()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const auto write = [&dir](const QString &name, qsizetype bytes) {
+            QFile file(dir.filePath(name));
+            QVERIFY(file.open(QIODevice::WriteOnly));
+            file.write(QByteArray(bytes, 'x'));
+        };
+        QVERIFY(QDir(dir.path()).mkpath(QStringLiteral("a/b")));
+        write(QStringLiteral("one.bin"), 1000);
+        write(QStringLiteral("a/two.bin"), 3000);
+        write(QStringLiteral("a/b/three.bin"), 5);
+        // A hard link to two.bin and a link to the whole folder: neither adds bytes again.
+        QVERIFY(::link(QFile::encodeName(dir.filePath(QStringLiteral("a/two.bin"))).constData(),
+                       QFile::encodeName(dir.filePath(QStringLiteral("a/b/two-again.bin"))).constData()) == 0);
+        QVERIFY(QFile::link(dir.path(), dir.filePath(QStringLiteral("loop"))));
+        std::atomic_bool cancel = false;
+        fe::Tally tally;
+        QVERIFY(fe::tallyTree({dir.path()}, cancel, tally));
+        QCOMPARE(tally.folders, 2);
+        // one, two, three and the link; two-again is two.
+        QCOMPARE(tally.files, 4);
+        const qint64 linkSize = QFileInfo(dir.filePath(QStringLiteral("loop"))).symLinkTarget().isEmpty() ? 0 : dir.path().toUtf8().size();
+        QCOMPARE(tally.bytes, 1000 + 3000 + 5 + linkSize);
+        QVERIFY(tally.onDisk >= 0);
+        QCOMPARE(tally.unreadable, 0);
+
+        // Several items at once: a file among them counts as a file.
+        fe::Tally two;
+        QVERIFY(fe::tallyTree({dir.filePath(QStringLiteral("one.bin")), dir.filePath(QStringLiteral("a/b"))}, cancel, two));
+        QCOMPARE(two.files, 3);
+        QCOMPARE(two.folders, 0);
+        QCOMPARE(two.bytes, 1000 + 5 + 3000);
+    }
+
+    void a_tally_names_unreadable_folders_and_stops_when_cancelled()
+    {
+        QTemporaryDir dir;
+        QVERIFY(QDir(dir.path()).mkpath(QStringLiteral("locked/inside")));
+        QFile::setPermissions(dir.filePath(QStringLiteral("locked")), QFileDevice::Permissions());
+        std::atomic_bool cancel = false;
+        fe::Tally tally;
+        QVERIFY(fe::tallyTree({dir.path()}, cancel, tally));
+        if (::geteuid() != 0) {
+            QCOMPARE(tally.unreadable, 1);
+        }
+        QFile::setPermissions(dir.filePath(QStringLiteral("locked")), QFileDevice::ReadOwner | QFileDevice::WriteOwner | QFileDevice::ExeOwner);
+        cancel = true;
+        fe::Tally stopped;
+        QVERIFY(!fe::tallyTree({dir.path()}, cancel, stopped));
+        QCOMPARE(stopped, fe::Tally());
+    }
+
+    void the_size_line_reads_the_tally()
+    {
+        fe::Tally tally{1203, 1, 4096, 8192, 0};
+        QCOMPARE(fe::tallyText(tally, true, bytes), QStringLiteral("[4096 B] ([8192 B] on disk), %1 items").arg(QLocale().toString(1204)));
+        tally = {1, 0, 10, 4096, 2};
+        QCOMPARE(fe::tallyText(tally, false, bytes),
+                 QStringLiteral("Counting: [10 B] ([4096 B] on disk), 1 item; 2 folders could not be read"));
+    }
+
+    void a_file_hash_matches_the_known_digest_and_stops_when_cancelled()
+    {
+        QTemporaryDir dir;
+        QFile file(dir.filePath(QStringLiteral("abc.txt")));
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        file.write("abc");
+        file.close();
+        std::atomic_bool cancel = false;
+        // FIPS 180-2's example digests of "abc".
+        QCOMPARE(fe::hashFile(file.fileName(), QCryptographicHash::Sha256, cancel),
+                 std::optional<QString>(QStringLiteral("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad")));
+        QCOMPARE(fe::hashFile(file.fileName(), QCryptographicHash::Md5, cancel),
+                 std::optional<QString>(QStringLiteral("900150983cd24fb0d6963f7d28e17f72")));
+        QVERIFY(!fe::hashFile(dir.filePath(QStringLiteral("missing")), QCryptographicHash::Sha256, cancel));
+        cancel = true;
+        QVERIFY(!fe::hashFile(file.fileName(), QCryptographicHash::Sha256, cancel));
+        QCOMPARE(fe::hashKinds().constFirst().name, QStringLiteral("SHA-256"));
+    }
+
+    void a_pasted_hash_is_compared_without_case_spaces_or_its_file_name()
+    {
+        const QString md5 = QStringLiteral("900150983cd24fb0d6963f7d28e17f72");
+        QCOMPARE(fe::checkHash(md5, QString()), fe::HashCheck::Empty);
+        QCOMPARE(fe::checkHash(md5, QStringLiteral("  900150983CD24FB0D6963F7D28E17F72 ")), fe::HashCheck::Match);
+        QCOMPARE(fe::checkHash(md5, QStringLiteral("900150983cd24fb0d6963f7d28e17f72  abc.txt")), fe::HashCheck::Match);
+        QCOMPARE(fe::checkHash(md5, QStringLiteral("900150983cd24fb0d6963f7d28e17f72 *abc.txt")), fe::HashCheck::Match);
+        QCOMPARE(fe::checkHash(md5, QStringLiteral("900150983cd24fb0d6963f7d28e17f73")), fe::HashCheck::Mismatch);
+        QCOMPARE(fe::checkHash(md5, QStringLiteral("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad")), fe::HashCheck::NotThisKind);
+        QCOMPARE(fe::checkHash(md5, QStringLiteral("not a hash")), fe::HashCheck::NotThisKind);
+    }
+
+    void permissions_read_as_ls_writes_them()
+    {
+        QCOMPARE(fe::permissionsText(0755), QStringLiteral("rwxr-xr-x (755)"));
+        QCOMPARE(fe::permissionsText(0640), QStringLiteral("rw-r----- (640)"));
+        QCOMPARE(fe::permissionsText(01777), QStringLiteral("rwxrwxrwt (1777)"));
+        QCOMPARE(fe::permissionsText(04644), QStringLiteral("rwSr--r-- (4644)"));
+        QCOMPARE(fe::permissionsText(02755 | 0040000), QStringLiteral("rwxr-sr-x (2755)"));
     }
 
     void copy_path_writes_every_item_one_per_line()

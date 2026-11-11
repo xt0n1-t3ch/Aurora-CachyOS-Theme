@@ -11,6 +11,9 @@
 #include "browsertab.h"
 #include "commandpalette.h"
 #include "filterbar.h"
+#include "glassfield.h"
+#include "inspectorpanel.h"
+#include "toolbar.h"
 #include "tabpage.h"
 #include "crumbaccessible.h"
 #include "crumbstrip.h"
@@ -400,6 +403,58 @@ private Q_SLOTS:
         QStringList expected{dir.filePath(QStringLiteral("one.txt")), dir.filePath(QStringLiteral("three")), dir.filePath(QStringLiteral("two.txt"))};
         expected.sort();
         QCOMPARE(lines, expected);
+    }
+
+    void theInspectorCountsAFolderAndCountsAgainWhenItChanges()
+    {
+        QTemporaryDir dir;
+        QVERIFY(QDir(dir.path()).mkpath(QStringLiteral("sub")));
+        const auto write = [&dir](const QString &name, qsizetype bytes) {
+            QFile file(dir.filePath(name));
+            QVERIFY(file.open(QIODevice::WriteOnly));
+            file.write(QByteArray(bytes, 'x'));
+        };
+        write(QStringLiteral("a.bin"), 2000);
+        write(QStringLiteral("sub/b.bin"), 3000);
+        fe::InspectorPanel panel;
+        panel.resize(290, 700);
+        QSignalSpy counted(&panel, &fe::InspectorPanel::sizeCounted);
+        panel.setItems({}, QUrl::fromLocalFile(dir.path()));
+        // Hidden, it works out nothing.
+        QVERIFY(!counted.wait(300));
+        panel.show();
+        QVERIFY(counted.wait(5000));
+        QVERIFY2(panel.sizeText().endsWith(QStringLiteral("3 items")), qPrintable(panel.sizeText()));
+        // A new item in the folder counts it again.
+        write(QStringLiteral("c.bin"), 10);
+        QVERIFY(counted.wait(5000));
+        QVERIFY2(panel.sizeText().endsWith(QStringLiteral("4 items")), qPrintable(panel.sizeText()));
+    }
+
+    void theInspectorHashesAFileAndComparesAPastedHash()
+    {
+        QTemporaryDir dir;
+        QFile file(dir.filePath(QStringLiteral("abc.txt")));
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        file.write("abc");
+        file.close();
+        fe::InspectorPanel panel;
+        panel.resize(290, 700);
+        panel.show();
+        KFileItem item(QUrl::fromLocalFile(file.fileName()));
+        item.refresh();
+        panel.setItems({item}, QUrl::fromLocalFile(dir.path()));
+        auto *compute = panel.findChildren<fe::GlassButton *>().value(0);
+        QVERIFY(compute);
+        QSignalSpy hashed(&panel, &fe::InspectorPanel::hashComputed);
+        compute->click();
+        QVERIFY(hashed.wait(5000));
+        QCOMPARE(panel.hashText(), QStringLiteral("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"));
+        auto *compare = panel.findChild<fe::GlassLineEdit *>();
+        compare->setText(QStringLiteral("BA7816BF8F01CFEA414140DE5DAE2223B00361A396177A9CB410FF61F20015AD  abc.txt"));
+        QVERIFY(panel.compareText().startsWith(QStringLiteral("Matches")));
+        compare->setText(QStringLiteral("0000000000000000000000000000000000000000000000000000000000000000"));
+        QVERIFY(panel.compareText().startsWith(QStringLiteral("Does not match")));
     }
 
     void theCommandPaletteFindsAndRunsACommand()

@@ -6,6 +6,7 @@
 #include "filterbar.h"
 
 #include "core/format.h"
+#include "glassfield.h"
 #include "style.h"
 #include "toolbar.h"
 
@@ -13,7 +14,6 @@
 #include <QKeyEvent>
 #include <QLabel>
 #include <QLineEdit>
-#include <QPainter>
 
 namespace fe {
 
@@ -23,56 +23,21 @@ namespace {
 constexpr int BAR_HEIGHT = 34;
 constexpr int FIELD_WIDTH = 260;
 constexpr int FIELD_HEIGHT = 24;
-constexpr int ICON_SIZE = 13;
-
-/// The glass capsule of the field, with the funnel at its left.
-class FilterField : public QLineEdit
-{
-public:
-    explicit FilterField(QWidget *parent)
-        : QLineEdit(parent)
-    {
-        setFrame(false);
-        setFont(style::uiFont(12));
-        setFixedSize(FIELD_WIDTH, FIELD_HEIGHT);
-        setTextMargins(26, 0, 10, 0);
-        setPlaceholderText(QStringLiteral("Filter by name"));
-        setClearButtonEnabled(true);
-        QPalette colors = palette();
-        colors.setColor(QPalette::Base, Qt::transparent);
-        colors.setColor(QPalette::Text, style::TEXT);
-        colors.setColor(QPalette::PlaceholderText, style::TEXT_SECONDARY);
-        setPalette(colors);
-        setAccessibleName(QStringLiteral("Filter by name"));
-    }
-
-protected:
-    void paintEvent(QPaintEvent *event) override
-    {
-        {
-            QPainter painter(this);
-            const QRectF bounds(rect());
-            style::paintGlass(painter, bounds, bounds.height() / 2.0, hasFocus() ? style::CAPSULE_HOVER : style::CAPSULE_FILL);
-            if (hasFocus()) {
-                style::paintFocusRing(painter, bounds.adjusted(1, 1, -1, -1));
-            }
-            const QPixmap funnel = style::tintedIcon(QStringLiteral("view-filter-symbolic"), ICON_SIZE, style::TEXT_SECONDARY, devicePixelRatioF());
-            painter.drawPixmap(QPointF(9, (height() - ICON_SIZE) / 2.0), funnel);
-        }
-        QLineEdit::paintEvent(event);
-    }
-};
 
 } // namespace
 
 FilterBar::FilterBar(QWidget *parent)
     : QWidget(parent)
-    , m_field(new FilterField(this))
+    , m_field(new GlassLineEdit(QStringLiteral("view-filter-symbolic"), FIELD_HEIGHT, this))
     , m_count(new QLabel(this))
     , m_close(new GlassButton(QStringLiteral("window-close-symbolic"), QStringLiteral("Close the filter (Esc)"), this))
 {
     setFixedHeight(BAR_HEIGHT);
     setAccessibleName(QStringLiteral("Filter"));
+    m_field->setFixedWidth(FIELD_WIDTH);
+    m_field->setPlaceholderText(QStringLiteral("Filter by name"));
+    m_field->setClearButtonEnabled(true);
+    m_field->setAccessibleName(QStringLiteral("Filter by name"));
     auto *layout = new QHBoxLayout(this);
     layout->setContentsMargins(14, 0, 10, 0);
     layout->setSpacing(10);

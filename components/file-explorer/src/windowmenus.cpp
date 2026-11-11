@@ -157,6 +157,7 @@ void MainWindow::showMoreMenu()
     menu.addAction(QIcon::fromTheme(QStringLiteral("tab-new")), QStringLiteral("New Tab\tCtrl+T"), this,
                    [this] { openTab(QUrl::fromLocalFile(QDir::homePath())); });
     menu.addAction(m_sidebarAction);
+    menu.addAction(m_inspectorAction);
     syncEditActions();
     execBelow(menu, m_toolbar->moreButton());
 }

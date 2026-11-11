@@ -32,6 +32,10 @@ it changes. A change that needs a fresh install, or that an earlier backup canno
   is marked with the reason, extensions stay, and one Ctrl+Z takes the whole batch back.
 - File Explorer has a command palette (Ctrl+Shift+P, or More > Command Palette): a few letters find any command of
   its menus, shown with where it lives and its shortcut, and Enter runs it.
+- File Explorer has an Inspector at the right of the files (Ctrl+Alt+I, or View > Show Inspector): a preview, the
+  real size of folders and selections with the space they take on disk, kept current while it is open, where the
+  item is, its dates, owner and permissions, and for a file its SHA-256, SHA-512, SHA-1 or MD5 with a field that
+  says whether a pasted hash matches. Closed, it does nothing.
 - File Explorer searches the whole PC as you type: a helper keeps an index of every local disk's names and answers
   in a few milliseconds (490,544 names: under 3 ms for a word). It runs only while File Explorer is used and leaves
   a few minutes after, catches up on what changed meanwhile without reading everything again, follows changes live,

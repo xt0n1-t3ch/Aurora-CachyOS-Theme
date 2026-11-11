@@ -14,6 +14,7 @@
 #include "core/address.h"
 #include "core/places.h"
 #include "core/quicklook.h"
+#include "inspectorpanel.h"
 #include "quicklook.h"
 #include "searchservice.h"
 #include "sidebar.h"
@@ -23,7 +24,9 @@
 #include "toolbar.h"
 #include "windowcontrols.h"
 
+#include <KConfigGroup>
 #include <KNewFileMenu>
+#include <KSharedConfig>
 #include <KPropertiesDialog>
 
 #include <QAction>
@@ -64,6 +67,7 @@ MainWindow::MainWindow(const QUrl &url, fe::PathContext context, QWidget *parent
     , m_tabBar(new fe::PillTabBar)
     , m_stack(new QStackedWidget)
     , m_pathBar(new fe::PathBar)
+    , m_inspector(new fe::InspectorPanel)
 {
     resize(DEFAULT_SIZE);
     setMinimumSize(MINIMUM_SIZE);
@@ -86,8 +90,15 @@ MainWindow::MainWindow(const QUrl &url, fe::PathContext context, QWidget *parent
     contentLayout->addSpacing(6);
     contentLayout->addWidget(m_tabBar);
     contentLayout->addSpacing(4);
-    contentLayout->addWidget(m_stack, 1);
+    // The files and, at their right, the Inspector when it is open.
+    auto *middle = new QHBoxLayout;
+    middle->setContentsMargins(0, 0, 0, 0);
+    middle->setSpacing(8);
+    middle->addWidget(m_stack, 1);
+    middle->addWidget(m_inspector);
+    contentLayout->addLayout(middle, 1);
     contentLayout->addWidget(m_pathBar);
+    m_inspector->setVisible(KSharedConfig::openConfig(QStringLiteral("file-explorerrc"))->group(QStringLiteral("Inspector")).readEntry("Visible", false));
 
     auto *body = new QHBoxLayout;
     body->setContentsMargins(fe::style::SIDEBAR_INSET, fe::style::SIDEBAR_INSET, 0, fe::style::SIDEBAR_INSET);
@@ -287,6 +298,24 @@ void MainWindow::syncStatus()
     } else {
         m_pathBar->setCrumbs(crumbs);
     }
+    if (m_inspector->isVisible()) {
+        m_inspector->setItems(selected, tab->folderUrl());
+    }
+}
+
+void MainWindow::setInspectorVisible(bool visible)
+{
+    if (visible) {
+        // Filled before it shows, so it opens on the selection and not on what it showed last.
+        if (fe::BrowserTab *tab = currentTab()) {
+            m_inspector->setItems(tab->selectedItems(), tab->folderUrl());
+        }
+    }
+    m_inspector->setVisible(visible);
+    m_inspectorAction->setChecked(visible);
+    KConfigGroup group = KSharedConfig::openConfig(QStringLiteral("file-explorerrc"))->group(QStringLiteral("Inspector"));
+    group.writeEntry("Visible", visible);
+    group.sync();
 }
 
 void MainWindow::syncEditActions()

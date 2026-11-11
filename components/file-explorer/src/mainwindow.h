@@ -24,6 +24,7 @@ namespace fe {
 class ActionBar;
 class BrowserTab;
 class CommandPalette;
+class InspectorPanel;
 class GlassButton;
 class PathBar;
 class PillTabBar;
@@ -92,6 +93,8 @@ private:
     /// Copies the enablement, check state and shortcuts of the current tab's part actions to their menu entries.
     void syncPartProxies();
     void setSidebarVisible(bool visible);
+    /// Opens or closes the Inspector and remembers it for the next window.
+    void setInspectorVisible(bool visible);
     void showInfo();
     /// The folders Add to Sidebar would add now: the selected folders, or the folder on screen.
     [[nodiscard]] QList<QUrl> foldersToAddNow() const;
@@ -143,6 +146,8 @@ private:
     fe::PillTabBar *m_tabBar;
     QStackedWidget *m_stack;
     fe::PathBar *m_pathBar;
+    fe::InspectorPanel *m_inspector;
+    QAction *m_inspectorAction = nullptr;
     fe::QuickLook *m_quickLook = nullptr;
     /// Since the last letter typed in a file view, for Space to tell Quick Look from a name being typed.
     QElapsedTimer m_lastTyped;
