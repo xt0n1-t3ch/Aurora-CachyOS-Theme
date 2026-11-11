@@ -43,6 +43,9 @@ const fn ioc(dir: u64, nr: u64, size: usize) -> u64 {
 const IOC_TREE_SEARCH_V2: u64 = ioc(3, 17, SEARCH_KEY_SIZE + 8);
 /// `BTRFS_IOC_GET_SUBVOL_INFO`: `_IOR(0x94, 60, struct btrfs_ioctl_get_subvol_info_args)`.
 const IOC_GET_SUBVOL_INFO: u64 = ioc(2, 60, SUBVOL_INFO_SIZE);
+/// `BTRFS_IOC_SUBVOL_GETFLAGS`: `_IOR(0x94, 25, __u64)`; `BTRFS_SUBVOL_RDONLY` is bit 1.
+const IOC_SUBVOL_GETFLAGS: u64 = ioc(2, 25, 8);
+const SUBVOL_RDONLY: u64 = 1 << 1;
 /// `BTRFS_IOC_START_SYNC`: `_IOR(0x94, 24, __u64)`, which returns the id of the transaction it commits.
 const IOC_START_SYNC: u64 = ioc(2, 24, 8);
 /// `BTRFS_IOC_WAIT_SYNC`: `_IOW(0x94, 22, __u64)`, which waits for that transaction.
@@ -76,6 +79,17 @@ pub fn subvolume_generation(dir: &File) -> io::Result<u64> {
     let mut args = vec![0u8; SUBVOL_INFO_SIZE];
     crate::sys::ioctl_bytes(dir.as_raw_fd(), IOC_GET_SUBVOL_INFO, &mut args)?;
     Ok(read_u64(&args, SUBVOL_INFO_GENERATION))
+}
+
+/// Whether the subvolume `dir` is the root of is read-only, as snapshots usually are.
+///
+/// # Errors
+///
+/// The ioctl's error; `ENOTTY` off btrfs.
+pub fn is_read_only(dir: &File) -> io::Result<bool> {
+    let mut flags = [0u8; 8];
+    crate::sys::ioctl_bytes(dir.as_raw_fd(), IOC_SUBVOL_GETFLAGS, &mut flags)?;
+    Ok(u64::from_ne_bytes(flags) & SUBVOL_RDONLY != 0)
 }
 
 /// Commits the running transaction of the filesystem `dir` is on and waits for it; returns its id. Every change made
@@ -177,6 +191,7 @@ mod tests {
         assert_eq!(IOC_TREE_SEARCH_V2, 0xc070_9411);
         assert_eq!(IOC_GET_SUBVOL_INFO, 0x81f8_943c);
         assert_eq!(IOC_START_SYNC, 0x8008_9418);
+        assert_eq!(IOC_SUBVOL_GETFLAGS, 0x8008_9419);
         assert_eq!(IOC_WAIT_SYNC, 0x4008_9416);
     }
 }

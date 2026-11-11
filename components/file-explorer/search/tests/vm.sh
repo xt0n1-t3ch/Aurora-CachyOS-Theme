@@ -25,10 +25,12 @@ FILTER=${1:-}
 # The image and its mount point live in the machine's /tmp, an overlay in its memory (the rest is this machine's files,
 # read-only); with --memory 2G virtme-ng 1.42 never booted here.
 SCRIPT="set -e; modprobe loop
-truncate -s 256M /tmp/btrfs.img && mkfs.btrfs -q /tmp/btrfs.img && mkdir -p /tmp/btrfs && mount -o loop /tmp/btrfs.img /tmp/btrfs
-export AURORA_SEARCH_BTRFS=/tmp/btrfs
+# A tmpfs over /srv, inside the machine only, gives a mount point outside the folders the helper never indexes.
+mount -t tmpfs none /srv && mkdir -p /srv/btrfs
+truncate -s 256M /tmp/btrfs.img && mkfs.btrfs -q /tmp/btrfs.img && mount -o loop /tmp/btrfs.img /srv/btrfs
+export AURORA_SEARCH_BTRFS=/srv/btrfs
 status=0
-for t in ${TESTS[*]}; do \$t --ignored --test-threads=1 $FILTER || status=1; done
-umount /tmp/btrfs
+for t in ${TESTS[*]}; do echo \"== \$t\"; timeout 90 \$t --ignored --test-threads=1 --nocapture $FILTER || status=1; done
+umount /srv/btrfs
 exit \$status"
 exec timeout 300 uvx --from virtme-ng vng --run "$KERNEL" --busybox "$BUSYBOX" --user root --memory 1G --cpus 2 -- "$SCRIPT"

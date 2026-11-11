@@ -235,6 +235,22 @@ impl Index {
         path
     }
 
+    /// The entry at a path: the volume with the longest path that holds it, then one name at a time.
+    #[must_use]
+    pub fn lookup(&self, path: &Path) -> Option<EntryId> {
+        let volume = self
+            .volumes
+            .iter()
+            .filter(|v| self.is_alive(v.root) && path.starts_with(&v.path))
+            .max_by_key(|v| v.path.as_os_str().len())?;
+        let mut at = volume.root;
+        for part in path.strip_prefix(&volume.path).ok()?.components() {
+            let name = part.as_os_str().as_bytes();
+            at = self.children(at).into_iter().find(|&c| self.name(c) == name)?;
+        }
+        Some(at)
+    }
+
     /// Whether `id` is `ancestor` or inside it.
     #[must_use]
     pub fn is_within(&self, id: EntryId, ancestor: EntryId) -> bool {

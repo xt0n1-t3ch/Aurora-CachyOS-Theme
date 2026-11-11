@@ -69,6 +69,22 @@ pub fn scan(index: &mut Index, dirs: Vec<EntryId>, skip: &(dyn Fn(&Path) -> bool
     let mut edges = Edges::default();
     let mut pending = dirs;
     while !pending.is_empty() {
+        edges.other_devices.extend(scan_step(index, &mut pending, skip, threads).other_devices);
+    }
+    index.compact_if_wasteful();
+    edges
+}
+
+/// Reads one wave of `pending` (the folders at its end, up to a few thousand) and adds the new folders found to it,
+/// so a caller can answer queries between waves.
+pub fn scan_step(
+    index: &mut Index,
+    pending: &mut Vec<EntryId>,
+    skip: &(dyn Fn(&Path) -> bool + Sync),
+    threads: usize,
+) -> Edges {
+    let mut edges = Edges::default();
+    {
         let take = pending.len().min(WAVE);
         let wave: Vec<(EntryId, PathBuf)> = pending.drain(..take).map(|id| (id, index.path(id))).collect();
         let listings = read_wave(&wave, skip, threads);
@@ -85,7 +101,6 @@ pub fn scan(index: &mut Index, dirs: Vec<EntryId>, skip: &(dyn Fn(&Path) -> bool
         }
         pending.extend(index.apply_batch(batch));
     }
-    index.compact_if_wasteful();
     edges
 }
 

@@ -8,12 +8,19 @@
 //! the folders' change times), follows changes live while File Explorer is in use, answers each query within a
 //! frame, and exits when nobody has asked for a while. See docs/search.md.
 
+pub mod access;
 pub mod btrfs;
 pub mod catchup;
+pub mod client;
+pub mod config;
 pub mod index;
 pub mod mounts;
 pub mod query;
 pub mod scan;
+pub mod server;
 pub mod store;
+pub mod watch;
+
+pub use sys::{catch_stop_signals, listen_seqpacket as server_socket, systemd_socket};
 #[expect(unsafe_code, reason = "the one module that calls the kernel through libc; each block states why it is sound")]
 mod sys;
