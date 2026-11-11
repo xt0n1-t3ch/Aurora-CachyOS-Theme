@@ -5,5 +5,7 @@
 # arguments that make it start and exit. A program of the package missing here fails the check, so a new program
 # gets a line before it ships.
 /usr/bin/aurora --version
+/usr/lib/aurora/aurora-search --version
+/usr/bin/aurora-search-query --version
 /usr/lib/aurora/prebuilt/file-explorer/file-explorer --version
 /usr/lib/aurora/prebuilt/quick-menu/bin/krunner --version

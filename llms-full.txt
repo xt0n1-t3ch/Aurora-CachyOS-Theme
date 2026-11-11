@@ -46,7 +46,7 @@ Apps and processes as in the Windows 11 Task Manager, with busy values tinted wa
 
 | Part | What it does | Source |
 | --- | --- | --- |
-| File Explorer | A Finder-style file manager built on Dolphin. Type a path in the toolbar (Ctrl+L) with suggestions and Tab, press Space for Quick Look, F3 for Split View, and tag files with Finder's colors. The sidebar lists your drives with their free space, unfolds your folders and lists each tag's files. Win+E opens it, every app's Open and Save dialogs use it, and "Show in folder" opens it. | [`components/file-explorer`](components/file-explorer) |
+| File Explorer | A Finder-style file manager built on Dolphin. Click any folder of the path, drop files on it or drag it out; type a path (Ctrl+L) with suggestions and Tab; search the whole PC as you type from an index that runs only while File Explorer is used; press Space for Quick Look, F3 for Split View, and tag files with Finder's colors. The sidebar lists your drives with their free space, unfolds your folders and lists each tag's files. Win+E opens it, every app's Open and Save dialogs use it, and "Show in folder" opens it. | [`components/file-explorer`](components/file-explorer) |
 | Window buttons | A glass capsule with minimize, maximize and close, in that order. Qt, GTK and libadwaita apps all get the same buttons at the same size. | [`components/window-buttons`](components/window-buttons) |
 | Menu bar | The system menu under CachyOS's logo (or Arch Linux's, Apple's or Kali Linux's), the name of the active app, the tray, Quick Menu, Control Center and the clock, spaced the way macOS spaces them. There is no global menu. | [`components/kali-menu`](components/kali-menu), [`components/clock`](components/clock), [`themes/panels`](themes/panels) |
 | System tray | Plasma's tray, with drag and drop like Windows 11: drag an icon to move it, or drop it on the arrow to hide it. | [`components/system-tray`](components/system-tray) |
@@ -665,6 +665,14 @@ its Move, Copy or Link menu at the drop's position mapped from the widget given 
 (`src/widgets/dropjob.cpp`, v6.31.0, line 671), so a drop names the widget whose coordinates the drop has: the bar,
 or the sidebar's viewport.
 
+Search answers from aurora-search's index of every local disk when it runs ([search.md](search.md)): a KIO worker
+(`src/plugins/searchworker.cpp`, `aurora-search:` URLs) lists the helper's matches into Dolphin's view, so they have
+icons, columns, drag and drop and menus; `fe::SearchService` keeps one connection while a window is in use, which
+keeps the helper and its live updates running, and lets go after three idle minutes; a scope row under the toolbar
+(`fe::SearchScopeBar`) chooses This PC or the folder, kept in `file-explorerrc [Search] Everywhere`; hidden names are
+matched only while the view shows hidden files. A folder the index does not hold (a network share, a phone) is
+searched in place with Dolphin's filenamesearch, as before.
+
 Color tags (`tagging.cpp`, rules in `core/tags`) live in the file's `user.xdg.tags` attribute through KFileMetaData, so
 Dolphin and Baloo read them too. Each tag's sidebar row opens its shelf, `~/.local/share/file-explorer/tags/<Tag>`, a
 folder of links to the tagged files that File Explorer keeps in step and tidies as it opens, so tags work without
@@ -682,7 +690,8 @@ segments: hover, both menus, a drop in the accent, a segment opening under a dra
 segment and on the sidebar, a refused drop, Ctrl+L, Ctrl+click and middle click), `explorer-finder.sh` (the
 mockup's scene: tags, the unfolded sidebar, the menu, a typed path, Quick Look, Split View, a tag's shelf, the Group
 menu and the folder grouped by Kind from it, and the window inactive behind another),
-`explorer-menus.sh`, `explorer-drives.sh`, `show-in-folder.sh`, `open-save.sh`.
+`explorer-menus.sh`, `explorer-drives.sh`, `explorer-search.sh` (search from the index: whole home, scope row, hidden
+names), `show-in-folder.sh`, `open-save.sh`.
 
 ## Mission Center (`components/mission-center`)
 
@@ -1057,6 +1066,25 @@ alternating 15 s windows. Flat out there was no clean winner; at a realistic loa
 - The Kingston stalls reads for tens of ms, and once for 1.1 s, even at 150 MB/s of writes and even with the disk
   quiet (p99.9 23 ms). The ADATA never went past 51 ms. Heavy writes belong on the ADATA (`/`, `/home`).
 
+## File Explorer's search
+
+Measured 2026-11-11 on this PC (Ryzen 7 5800X, NVMe btrfs), the helper run as the user with `root = /usr`, 490,544
+names, 4 reading threads at idle priority:
+
+| What | Measured |
+| --- | --- |
+| First index of /usr | 1,125 ms; 3.96 s of CPU over the reading threads |
+| Memory | 77.6 MB after the first index; 48.8 MB after a start from the stored index |
+| Index file | 21.9 MB |
+| Start from the stored index, catch up by folder times | 142 ms |
+| A query, a new `aurora-search-query` process each time included (best of 5) | `libQt6Core` 1.9 ms, `python3` 1.9 ms, `kio` 2.6 ms, `.so` 4.6 ms, `ext:h` 11.5 ms, `regex:^lib.*\.so\.6$` 15.5 ms |
+| Wakeups in 3 s with a client connected and nothing to do | 0 |
+
+A word is found with one SIMD pass over every name; `ext:`, `regex:` and wildcards test every name, so they grow
+with the index (about 5 ms per 100,000 names here). With no client and no work the helper leaves; at rest nothing
+runs. The root-only parts (fanotify, the btrfs catch-up) are timed in the virtual machine test: the catch-up after a
+restart answered in under 3 s there, the bound the test sets (`tests/vm_server.rs`).
+
 ## Mission Center's glass
 
 Measured in Mission Center's sandbox (`components/mission-center/tools/sandbox`, a nested KWin at 60 Hz, 2026-11-07):
@@ -1149,6 +1177,8 @@ export QT_QPA_PLATFORM=offscreen q=/usr/lib/qt6/bin/qmltestrunner B=$PWD/build
 | File Explorer's Finder features (typed paths and their suggestions and Tab, the path segments' layout, folding, hit test and which drops they take, color tags and their emblems, the tag shelf's names and path, the sidebar's folder tree, Quick Look's kinds and when Space opens it) | `build/file-explorer/fe_finder_tests` | 45 pass |
 | File Explorer's widgets on the offscreen platform: a click, middle click and Ctrl+click on a segment, a click beside them, a slot that replaces the segments still gets its URL, which drops a segment takes (files from elsewhere, not a folder into itself or files into their own folder, not a read-only folder), a drag resting on a segment opens it but not the folder on screen, the address field at rest opens a segment without taking the keyboard, screen readers read each segment as a link they can press | `QT_QPA_PLATFORM=offscreen build/file-explorer/fe_widget_tests` | 11 pass |
 | The same three File Explorer suites under AddressSanitizer and UBSan (configure `build/file-explorer-asan` with `-fsanitize=address,undefined`; `ASAN_OPTIONS=detect_leaks=0:max_free_fill_size=1048576:free_fill_byte=85` makes a read of freed memory crash, so the URL test bites) | `build/file-explorer-asan/fe_tests`, `fe_finder_tests`, `fe_widget_tests` | 78, 45, 11 pass, no findings |
+| aurora-search, File Explorer's search helper: the index against random histories of a model disk (300 seeds), the query syntax and ranking, hidden names, scan, store (damaged files refused), the catch-up by folder times, mountinfo, fanotify's event layout, the config, the ioctl numbers checked against `linux/btrfs.h` | `cargo test --manifest-path components/file-explorer/search/Cargo.toml` | 25 pass |
+| The helper as root on a real btrfs, in a virtme-ng machine on this PC's kernel (no sudo): the changed folders come from transaction ids after a commit; it indexes, follows a create, a move and a delete live, hides a 0700 folder's names and their count from nobody, scopes, leaves when idle and catches up after a restart | `components/file-explorer/search/tests/vm.sh` | 3 pass |
 | Window buttons | `build/window-buttons/decoration_tests` | 11 pass |
 | Energy page | `build/energy-page/test_power` | 10 pass |
 | Glass blur | `(cd components/glass && $q -import $B/glass/qml -input tests/tst_blurbehind.qml)` | 9 pass |
@@ -1185,7 +1215,7 @@ others capture `tests/sandbox/shots/` to compare by eye.
 | `quick-menu-app-menu.sh` | the app menu: right-click, Pin to Top and the Pinned section, the Menu key (not the field's text menu), Unpin from Dock, an opened app in Suggestions and Remove from Suggestions, no QML warnings (8 PASS); labels found with `tests/helpers/find_text.py` |
 | `readme.sh` | the README's pictures, the notifications popover among them (run with `SANDBOX_SCALE=2`, then `assets/screenshots/make.py`, which also crops Mission Center's two from its own sandbox) |
 | `kali-menu.sh` | the Kali menu with PC labels |
-| `explorer.sh`, `explorer-menus.sh`, `explorer-drives.sh`, `explorer-sidebar-order.sh`, `explorer-crumbs.sh`, `show-in-folder.sh`, `open-save.sh` | File Explorer, its menus (X11 client), its drives, dragging sidebar rows into a new order, the path segments (clicks, menus, drops, a segment opening under a drag, KIO's menu at the pointer, new tabs; 10 PASS), "Show in folder", Open and Save |
+| `explorer.sh`, `explorer-menus.sh`, `explorer-drives.sh`, `explorer-sidebar-order.sh`, `explorer-crumbs.sh`, `explorer-search.sh`, `show-in-folder.sh`, `open-save.sh` | File Explorer, its menus (X11 client), its drives, dragging sidebar rows into a new order, the path segments (clicks, menus, drops, a segment opening under a drag, KIO's menu at the pointer, new tabs; 10 PASS), search from the index (the helper runs as the user on the sandbox's home; 3 PASS and the times in logs/search.txt), "Show in folder", Open and Save |
 | `notifications.sh` | banners in the bottom-right corner, hover buttons |
 | `tray-click.sh`, `tray-drag.sh`, `tray-show.sh` | tray clicks, drag to reorder and hide, bring back |
 | `control-center.sh`, `control-center-panels.sh`, `control-center-bluetooth.sh`, `control-center-shortcut.sh` | the Control Center, its panels, reopening, its shortcut |
@@ -1468,6 +1498,12 @@ it changes. A change that needs a fresh install, or that an earlier backup canno
   a segment opens that folder, so you can go on deeper. Dropping a folder into itself, or files into the folder they
   are already in, is refused. A segment dragged out carries its folder, to the sidebar, a tab or a terminal.
 - Screen readers read File Explorer's path bar as one link per folder, which they can press.
+- File Explorer searches the whole PC as you type: a helper keeps an index of every local disk's names and answers
+  in a few milliseconds (490,544 names: under 3 ms for a word). It runs only while File Explorer is used and leaves
+  a few minutes after, catches up on what changed meanwhile without reading everything again, follows changes live,
+  and shows each user only what that user may open. A scope row picks This PC or the folder; Everything's syntax
+  works (`ext:`, `size:`, `dm:`, wildcards, `regex:`, `|`, `!`). Folders it does not index, like network shares, are
+  searched as before. `aurora-search-query` asks it from a terminal.
 
 ### Changed
 
@@ -1735,6 +1771,17 @@ The rules I set while building Aurora, and why. They decide every design questio
 - The pointing hand on everything clickable; the black minimalist macOS cursor elsewhere, GTK apps included.
 - The clock follows the region's 12- or 24-hour format.
 - The README's pictures show Orion first under Developer Tools and in the Dock.
+
+## File Explorer's search index
+
+- 2026-11-11, Tony: search must be instant, never stale, and cost nothing while it is not used, even with a File
+  Explorer window open all day. Neither a resident indexer (Everything's way, always running) nor an index built
+  when the window opens (a full read of the disks every time) meets that. The helper starts on demand from its
+  socket, catches up from btrfs transaction ids or folder times instead of reading everything, follows changes with
+  fanotify only while File Explorer is in use, and leaves when idle ([search.md](search.md)).
+- The index lives in the helper's memory while it runs, not in a mapped file: entries link to each other and change
+  in place, which a read-only mapping cannot hold, and the memory goes back when the helper leaves.
+- `plocate`'s nightly `updatedb` stays: other programs use `locate`, and turning it off is the user's choice.
 
 ## Fonts
 

@@ -47,6 +47,8 @@ BUILT = [
     ("file-explorer", "file-explorer", ".local/bin/file-explorer"),
     # File Explorer's color tag dots, which Dolphin's views draw too.
     ("file-explorer", "bin/kf6/overlayicon/aurora-tags.so", f"{PLUGINS}/kf6/overlayicon/aurora-tags.so"),
+    # The KIO worker that lists aurora-search's matches into File Explorer's view (aurora-search: URLs).
+    ("file-explorer", "bin/kf6/kio/aurora-search.so", f"{PLUGINS}/kf6/kio/aurora-search.so"),
     ("window-buttons", "org.aurora.decoration.so", f"{PLUGINS}/org.kde.kdecoration3/org.aurora.decoration.so"),
     ("pointing-hand", "aurora-pointer.so", f"{PLUGINS}/kwin/plugins/aurora-pointer.so"),
     ("energy-page", "bin/plasma/kcms/kinfocenter/kcm_energyinfo.so", f"{PLUGINS}/plasma/kcms/kinfocenter/kcm_energyinfo.so"),
@@ -215,6 +217,13 @@ for file in "${tuning[@]}"; do
         break
     fi
 done
+# File Explorer's search helper, installed from a checkout (the package removes its own copy with itself).
+if [ -f /etc/systemd/system/aurora-search.socket ]; then
+    echo "Removing File Explorer's search helper (asks for your password)"
+    as_root sh -c 'systemctl disable --now aurora-search.socket aurora-search.service
+        rm -f /etc/systemd/system/aurora-search.socket /etc/systemd/system/aurora-search.service
+        rm -rf /usr/local/lib/aurora /var/lib/aurora/search; systemctl daemon-reload'
+fi
 # Put the old GTK theme back, then tell the running apps that the colors, fonts, style, icons and cursor changed.
 qdbus6 org.kde.kded6 /modules/gtkconfig org.kde.GtkConfig.setGtkTheme "$(cat "$B/old-gtk-theme")" > /dev/null 2>&1
 for change in 0 1 2 4 5; do

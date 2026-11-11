@@ -150,6 +150,14 @@ for plugin in org.kde.kdecoration3/org.aurora.decoration.so kwin/plugins/aurora-
         root_steps+=(link "$plugins/$plugin" "$link")
     fi
 done
+# File Explorer's whole-disk search: a helper that runs as root, started by its socket only while File Explorer
+# is used (docs/search.md). Installed when it was built and differs from what is there; the package brings its own.
+search_built="${BUILD_DIR:-$ROOT/build}/search"
+if [ -f /usr/lib/systemd/system/aurora-search.socket ]; then
+    systemctl is-enabled --quiet aurora-search.socket 2> /dev/null || root_steps+=(search "$search_built" "$ROOT/installer/system")
+elif [ -x "$search_built/aurora-search" ] && ! cmp -s "$search_built/aurora-search" /usr/local/lib/aurora/aurora-search; then
+    root_steps+=(search "$search_built" "$ROOT/installer/system")
+fi
 if $performance; then
     root_steps+=(tune "$ROOT/performance/system")
 fi

@@ -70,6 +70,25 @@ alternating 15 s windows. Flat out there was no clean winner; at a realistic loa
 - The Kingston stalls reads for tens of ms, and once for 1.1 s, even at 150 MB/s of writes and even with the disk
   quiet (p99.9 23 ms). The ADATA never went past 51 ms. Heavy writes belong on the ADATA (`/`, `/home`).
 
+## File Explorer's search
+
+Measured 2026-11-11 on this PC (Ryzen 7 5800X, NVMe btrfs), the helper run as the user with `root = /usr`, 490,544
+names, 4 reading threads at idle priority:
+
+| What | Measured |
+| --- | --- |
+| First index of /usr | 1,125 ms; 3.96 s of CPU over the reading threads |
+| Memory | 77.6 MB after the first index; 48.8 MB after a start from the stored index |
+| Index file | 21.9 MB |
+| Start from the stored index, catch up by folder times | 142 ms |
+| A query, a new `aurora-search-query` process each time included (best of 5) | `libQt6Core` 1.9 ms, `python3` 1.9 ms, `kio` 2.6 ms, `.so` 4.6 ms, `ext:h` 11.5 ms, `regex:^lib.*\.so\.6$` 15.5 ms |
+| Wakeups in 3 s with a client connected and nothing to do | 0 |
+
+A word is found with one SIMD pass over every name; `ext:`, `regex:` and wildcards test every name, so they grow
+with the index (about 5 ms per 100,000 names here). With no client and no work the helper leaves; at rest nothing
+runs. The root-only parts (fanotify, the btrfs catch-up) are timed in the virtual machine test: the catch-up after a
+restart answered in under 3 s there, the bound the test sets (`tests/vm_server.rs`).
+
 ## Mission Center's glass
 
 Measured in Mission Center's sandbox (`components/mission-center/tools/sandbox`, a nested KWin at 60 Hz, 2026-11-07):

@@ -90,8 +90,10 @@ run "GitHub metadata" python3 -I scripts/github_meta.py --check
 if command -v shellcheck > /dev/null; then
     run "shell lint" scripts/lint-shell.sh
 fi
-# The aurora command is Rust and optional, so its tests run only where cargo is installed.
+# The aurora command and File Explorer's search helper are Rust and optional, so their tests run only where cargo is
+# installed. The helper's root tests run in a virtual machine (components/file-explorer/search/tests/vm.sh).
 if command -v cargo > /dev/null; then
+    run "search helper" cargo test --quiet --locked --manifest-path components/file-explorer/search/Cargo.toml
     run "aurora command" cargo test --quiet --locked --manifest-path cli/Cargo.toml
 fi
 

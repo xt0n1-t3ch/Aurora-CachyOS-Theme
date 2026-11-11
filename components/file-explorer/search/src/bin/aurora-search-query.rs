@@ -25,6 +25,10 @@ fn main() -> ExitCode {
             "--scope" => scope = args.next().map(PathBuf::from),
             "--limit" => limit = args.next().and_then(|v| v.parse().ok()).unwrap_or(limit),
             "--wait-ready" => wait = true,
+            "--version" => {
+                println!("aurora-search-query {}", env!("CARGO_PKG_VERSION"));
+                return ExitCode::SUCCESS;
+            }
             _ => words.push(arg),
         }
     }

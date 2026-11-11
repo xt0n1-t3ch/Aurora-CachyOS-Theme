@@ -31,6 +31,17 @@ The rules I set while building Aurora, and why. They decide every design questio
 - The clock follows the region's 12- or 24-hour format.
 - The README's pictures show Orion first under Developer Tools and in the Dock.
 
+## File Explorer's search index
+
+- 2026-11-11, Tony: search must be instant, never stale, and cost nothing while it is not used, even with a File
+  Explorer window open all day. Neither a resident indexer (Everything's way, always running) nor an index built
+  when the window opens (a full read of the disks every time) meets that. The helper starts on demand from its
+  socket, catches up from btrfs transaction ids or folder times instead of reading everything, follows changes with
+  fanotify only while File Explorer is in use, and leaves when idle ([search.md](search.md)).
+- The index lives in the helper's memory while it runs, not in a mapped file: entries link to each other and change
+  in place, which a read-only mapping cannot hold, and the memory goes back when the helper leaves.
+- `plocate`'s nightly `updatedb` stays: other programs use `locate`, and turning it off is the user's choice.
+
 ## Fonts
 
 - Aurora ships only free fonts: Inter for the interface and JetBrains Mono with Nerd Fonts' symbols for Konsole.

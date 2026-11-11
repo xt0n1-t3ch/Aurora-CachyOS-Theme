@@ -22,6 +22,12 @@ it changes. A change that needs a fresh install, or that an earlier backup canno
   a segment opens that folder, so you can go on deeper. Dropping a folder into itself, or files into the folder they
   are already in, is refused. A segment dragged out carries its folder, to the sidebar, a tab or a terminal.
 - Screen readers read File Explorer's path bar as one link per folder, which they can press.
+- File Explorer searches the whole PC as you type: a helper keeps an index of every local disk's names and answers
+  in a few milliseconds (490,544 names: under 3 ms for a word). It runs only while File Explorer is used and leaves
+  a few minutes after, catches up on what changed meanwhile without reading everything again, follows changes live,
+  and shows each user only what that user may open. A scope row picks This PC or the folder; Everything's syntax
+  works (`ext:`, `size:`, `dm:`, wildcards, `regex:`, `|`, `!`). Folders it does not index, like network shares, are
+  searched as before. `aurora-search-query` asks it from a terminal.
 
 ### Changed
 

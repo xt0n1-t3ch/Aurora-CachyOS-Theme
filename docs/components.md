@@ -45,6 +45,14 @@ its Move, Copy or Link menu at the drop's position mapped from the widget given 
 (`src/widgets/dropjob.cpp`, v6.31.0, line 671), so a drop names the widget whose coordinates the drop has: the bar,
 or the sidebar's viewport.
 
+Search answers from aurora-search's index of every local disk when it runs ([search.md](search.md)): a KIO worker
+(`src/plugins/searchworker.cpp`, `aurora-search:` URLs) lists the helper's matches into Dolphin's view, so they have
+icons, columns, drag and drop and menus; `fe::SearchService` keeps one connection while a window is in use, which
+keeps the helper and its live updates running, and lets go after three idle minutes; a scope row under the toolbar
+(`fe::SearchScopeBar`) chooses This PC or the folder, kept in `file-explorerrc [Search] Everywhere`; hidden names are
+matched only while the view shows hidden files. A folder the index does not hold (a network share, a phone) is
+searched in place with Dolphin's filenamesearch, as before.
+
 Color tags (`tagging.cpp`, rules in `core/tags`) live in the file's `user.xdg.tags` attribute through KFileMetaData, so
 Dolphin and Baloo read them too. Each tag's sidebar row opens its shelf, `~/.local/share/file-explorer/tags/<Tag>`, a
 folder of links to the tagged files that File Explorer keeps in step and tidies as it opens, so tags work without
@@ -62,7 +70,8 @@ segments: hover, both menus, a drop in the accent, a segment opening under a dra
 segment and on the sidebar, a refused drop, Ctrl+L, Ctrl+click and middle click), `explorer-finder.sh` (the
 mockup's scene: tags, the unfolded sidebar, the menu, a typed path, Quick Look, Split View, a tag's shelf, the Group
 menu and the folder grouped by Kind from it, and the window inactive behind another),
-`explorer-menus.sh`, `explorer-drives.sh`, `show-in-folder.sh`, `open-save.sh`.
+`explorer-menus.sh`, `explorer-drives.sh`, `explorer-search.sh` (search from the index: whole home, scope row, hidden
+names), `show-in-folder.sh`, `open-save.sh`.
 
 ## Mission Center (`components/mission-center`)
 

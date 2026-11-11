@@ -26,6 +26,10 @@ fn main() -> ExitCode {
             ("--state", Some(v)) => state = PathBuf::from(v),
             ("--config", Some(v)) => config = PathBuf::from(v),
             ("--threads", Some(v)) => threads = v.parse().unwrap_or(threads),
+            ("--version", None) => {
+                println!("aurora-search {}", env!("CARGO_PKG_VERSION"));
+                return ExitCode::SUCCESS;
+            }
             _ => {
                 eprintln!("usage: aurora-search [--socket PATH] [--state DIR] [--config FILE] [--threads N]");
                 return ExitCode::from(2);

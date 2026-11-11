@@ -30,6 +30,8 @@ depends=(
     'libgcc' 'curl' 'tar' 'pacman-contrib' 'libnotify' 'konsole'
 )
 # installer/build-dependencies.txt, and Rust for the aurora command.
+# The search helper's settings stay as the user left them across updates.
+backup=('etc/aurora/search.conf')
 makedepends=('base-devel' 'git' 'cmake' 'ninja' 'extra-cmake-modules' 'qt6-shadertools' 'vulkan-headers' 'cargo')
 optdepends=(
     'apple-fonts: SF Pro from Apple, used for the interface instead of Inter when installed'
@@ -57,6 +59,8 @@ prepare() {
     cd "aurora-$pkgver/cli"
     export RUSTUP_TOOLCHAIN=${RUSTUP_TOOLCHAIN:-stable}
     cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
+    cd ../components/file-explorer/search
+    cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
 }
 
 build() {
@@ -66,6 +70,8 @@ build() {
     export CARGO_TARGET_DIR=target
     # Kept unstripped here so check() can read the function names; package() strips it.
     CARGO_PROFILE_RELEASE_STRIP=false cargo build --frozen --release
+    # File Explorer's whole-disk search helper and its query command.
+    (cd ../components/file-explorer/search && CARGO_PROFILE_RELEASE_STRIP=false cargo build --frozen --release --bins)
     # The parts, built for this machine's Plasma, KWin and Qt; build.sh fails when one of them does not build. Then
     # only what the install copies goes into prebuilt/, with the icons and the GTK theme unpacked.
     cd "$srcdir/aurora-$pkgver"
@@ -77,7 +83,8 @@ build() {
     # The build machine's glibc may mark every program it links as needing its own CPU level (CachyOS's x86-64-v3
     # Scrt1.o does), and glibc's loader then refuses to start it on an older CPU. Programs whose code is baseline are
     # marked so; check() fails anything still marked higher.
-    python3 -I scripts/cpu_baseline.py --relabel cli/target/release/aurora "$srcdir/prebuilt"
+    python3 -I scripts/cpu_baseline.py --relabel cli/target/release/aurora "$srcdir/prebuilt" \
+        components/file-explorer/search/target/release/aurora-search components/file-explorer/search/target/release/aurora-search-query
 }
 
 check() {
@@ -85,13 +92,24 @@ check() {
     export RUSTUP_TOOLCHAIN=${RUSTUP_TOOLCHAIN:-stable}
     export CARGO_TARGET_DIR=target
     cargo test --frozen
+    (cd ../components/file-explorer/search && cargo test --frozen)
     # Nothing built here may need a newer CPU than the x86-64 baseline.
-    python3 -I ../scripts/cpu_baseline.py target/release/aurora "$srcdir/prebuilt"
+    python3 -I ../scripts/cpu_baseline.py target/release/aurora "$srcdir/prebuilt" \
+        ../components/file-explorer/search/target/release/aurora-search \
+        ../components/file-explorer/search/target/release/aurora-search-query
 }
 
 package() {
     cd "aurora-$pkgver"
     install -Dm755 cli/target/release/aurora "$pkgdir/usr/bin/aurora"
+    # File Explorer's search helper: started by its socket, which `aurora install` turns on (docs/search.md).
+    local search=components/file-explorer/search/target/release
+    install -Dm755 "$search/aurora-search" "$pkgdir/usr/lib/aurora/aurora-search"
+    install -Dm755 "$search/aurora-search-query" "$pkgdir/usr/bin/aurora-search-query"
+    install -Dm644 installer/system/aurora-search.socket "$pkgdir/usr/lib/systemd/system/aurora-search.socket"
+    sed 's|@HELPER@|/usr/lib/aurora/aurora-search|' installer/system/aurora-search.service.in \
+        > "$pkgdir/usr/lib/systemd/system/aurora-search.service"
+    install -Dm644 installer/system/search.conf "$pkgdir/etc/aurora/search.conf"
     # What the install reads: the built parts (prebuilt/), the scripts, the themes, the tuning files, and the parts'
     # sources for `aurora rebuild` (their CMake files build tests/ and tools/ too). Plasma's reference copies
     # (upstream/), the measuring tools, the repository's tests, art and release tooling stay out.
