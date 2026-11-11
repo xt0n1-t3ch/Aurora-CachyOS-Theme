@@ -18,6 +18,12 @@ use crate::index::{EntryId, Index, Kind, fold};
 
 /// The most matches counted exactly; past it a result says "at least".
 pub const COUNT_LIMIT: usize = 10_000;
+/// Bytes of folded names each search thread takes: below twice this one thread searches them all, since a thread
+/// costs tens of microseconds to start and one thread reads about 12 MiB of names per millisecond (docs/performance.md,
+/// File Explorer's search).
+const PARALLEL_MIN: usize = 16 << 20;
+/// The most threads one search uses.
+const MAX_SEARCH_THREADS: usize = 8;
 const DAY: i64 = 86_400;
 
 /// A size or a modification time of a candidate, read with statx when a query asks for it.
@@ -227,8 +233,9 @@ impl Query {
     /// The best `limit` visible matches, and how many there are.
     pub fn run(&self, index: &Index, context: &mut Context<'_>, limit: usize) -> Found {
         let mut candidates: Vec<(u32, EntryId)> = Vec::new();
+        let parts = search_threads(index.folded_arena().len());
         for alternative in &self.alternatives {
-            self.collect(index, alternative, context.scope, &mut candidates);
+            self.collect(index, alternative, context.scope, parts, &mut candidates);
         }
         candidates.sort_unstable();
         candidates.dedup_by_key(|c| c.1);
@@ -254,7 +261,14 @@ impl Query {
         found
     }
 
-    fn collect(&self, index: &Index, terms: &[Term], scope: Option<EntryId>, out: &mut Vec<(u32, EntryId)>) {
+    fn collect(
+        &self,
+        index: &Index,
+        terms: &[Term],
+        scope: Option<EntryId>,
+        parts: usize,
+        out: &mut Vec<(u32, EntryId)>,
+    ) {
         let first_word = terms.iter().find_map(|t| match (&t.test, t.negated) {
             (Test::Name(word), false) => Some(word.as_slice()),
             _ => None,
@@ -268,29 +282,52 @@ impl Query {
             })
             .max_by_key(|w| w.len());
         let hidden = self.hidden;
-        let mut consider = |id: EntryId| {
+        let consider = |id: EntryId| -> Option<(u32, EntryId)> {
             if scope.is_some_and(|s| !index.is_within(id, s)) || (!hidden && is_hidden(index, id, scope)) {
-                return;
+                return None;
             }
-            if terms.iter().all(|t| holds_on_name(index, id, t)) {
-                out.push((score(index, id, first_word), id));
-            }
+            terms.iter().all(|t| holds_on_name(index, id, t)).then(|| (score(index, id, first_word), id))
         };
-        if let Some(word) = driver {
+        let Some(word) = driver else {
+            // No word to search for: every name is tested, in as many ranges of ids as a word search would use.
+            let slots = index.slot_count();
+            let ranges: Vec<(usize, usize)> =
+                (0..parts).map(|i| (slots * i / parts, slots * (i + 1) / parts)).collect();
+            let test_all = |(start, end): (usize, usize)| -> Vec<(u32, EntryId)> {
+                (start..end)
+                    .filter_map(|slot| EntryId::try_from(slot).ok())
+                    .filter(|&id| index.is_alive(id) && index.parent(id).is_some())
+                    .filter_map(consider)
+                    .collect()
+            };
+            in_parallel(&ranges, test_all, out);
+            return;
+        };
+        let arena = index.folded_arena();
+        let search = |(start, end): (usize, usize)| -> Vec<(u32, EntryId)> {
+            let mut found = Vec::new();
             let mut last = None;
-            for pos in memmem::find_iter(index.folded_arena(), word) {
-                if let Some(id) = index.entry_at(pos).filter(|&id| Some(id) != last) {
+            for pos in memmem::find_iter(&arena[start..end], word) {
+                if let Some(id) = index.entry_at(start + pos).filter(|&id| Some(id) != last) {
                     last = Some(id);
-                    consider(id);
+                    found.extend(consider(id));
                 }
             }
-        } else {
-            for id in index.live_entries() {
-                if index.parent(id).is_some() {
-                    consider(id);
-                }
-            }
+            found
+        };
+        // Each range ends at a NUL and a query holds none, so no hit spans two ranges and no entry is found twice.
+        in_parallel(&split_at_names(arena, parts), search, out);
+    }
+
+    /// Every candidate of every alternative, best first, searching the names in `parts` ranges.
+    #[cfg(test)]
+    fn collect_in_parts(&self, index: &Index, parts: usize) -> Vec<(u32, EntryId)> {
+        let mut out = Vec::new();
+        for alternative in &self.alternatives {
+            self.collect(index, alternative, None, parts, &mut out);
         }
+        out.sort_unstable();
+        out
     }
 
     fn passes_meta(&self, id: EntryId, context: &mut Context<'_>) -> bool {
@@ -335,6 +372,48 @@ fn is_hidden(index: &Index, id: EntryId, scope: Option<EntryId>) -> bool {
         at = index.parent(current);
     }
     false
+}
+
+/// Runs `work` on each range, one thread per range when there are several, and gathers what they found.
+fn in_parallel<F>(ranges: &[(usize, usize)], work: F, out: &mut Vec<(u32, EntryId)>)
+where
+    F: Fn((usize, usize)) -> Vec<(u32, EntryId)> + Sync,
+{
+    if let [range] = ranges {
+        out.extend(work(*range));
+        return;
+    }
+    let work = &work;
+    std::thread::scope(|s| {
+        let handles: Vec<_> = ranges.iter().map(|&range| s.spawn(move || work(range))).collect();
+        for handle in handles {
+            out.extend(handle.join().expect("a search thread only reads the index"));
+        }
+    });
+}
+
+/// How many threads search `bytes` of names: one per `PARALLEL_MIN`, up to the processors there are.
+fn search_threads(bytes: usize) -> usize {
+    let processors = std::thread::available_parallelism().map_or(1, std::num::NonZeroUsize::get);
+    (bytes / PARALLEL_MIN).clamp(1, processors.min(MAX_SEARCH_THREADS))
+}
+
+/// Splits the arena into at most `parts` ranges of about equal size, each ending just after a NUL.
+fn split_at_names(arena: &[u8], parts: usize) -> Vec<(usize, usize)> {
+    let mut ranges = Vec::with_capacity(parts);
+    let mut start = 0;
+    for i in 1..parts {
+        let target = (arena.len() * i / parts).max(start);
+        let Some(nul) = arena.get(target..).and_then(|rest| memchr::memchr(0, rest)) else { break };
+        let end = target + nul + 1;
+        if end >= arena.len() {
+            break;
+        }
+        ranges.push((start, end));
+        start = end;
+    }
+    ranges.push((start, arena.len()));
+    ranges
 }
 
 fn compares(compare: Compare, value: u64, bound: u64) -> bool {

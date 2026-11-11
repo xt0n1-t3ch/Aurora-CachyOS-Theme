@@ -119,6 +119,20 @@ fn names_match_without_case_and_compaction_keeps_them() {
     assert_eq!(index.len(), 2);
 }
 
+#[test]
+fn a_name_that_folding_keeps_is_stored_once() {
+    let mut index = Index::new();
+    index.add_volume(Path::new("/v"), 256);
+    let root = index.volumes()[0].root;
+    let lower = index.insert(root, b"notes.txt", Kind::File, 2);
+    let upper = index.insert(root, b"Notes.txt", Kind::File, 3);
+    // Only "Notes.txt" and its NUL are kept as written; both live folded with theirs, after the root's empty name.
+    assert_eq!(index.arena_bytes(), (10, 21));
+    assert_eq!(index.name(lower), b"notes.txt");
+    assert_eq!(index.name(upper), b"Notes.txt");
+    assert_eq!(index.path(upper), Path::new("/v/Notes.txt"));
+}
+
 /// A tiny deterministic generator, so a failing history can be replayed from its seed.
 struct Rng(u64);
 
@@ -174,7 +188,8 @@ fn random_histories_end_where_the_disk_is() {
                     .chain(disk.iter().filter(|(_, v)| v.1 == Kind::Dir).map(|(p, _)| p.clone()))
                     .collect();
                 let dir = dirs[rng.next(dirs.len())].clone();
-                let names = ["a", "b", "c", "d"];
+                // Two names that folding keeps and two it changes, so both ways a name is stored are exercised.
+                let names = ["a", "B", "c", "Dé"];
                 let name = names[rng.next(4)];
                 let path = if dir.is_empty() { name.to_string() } else { format!("{dir}/{name}") };
                 let parent_of = |p: &str| p.rsplit_once('/').map_or(String::new(), |(d, _)| d.to_string());

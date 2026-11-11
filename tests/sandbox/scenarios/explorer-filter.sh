@@ -17,9 +17,9 @@ for name in "Report 2026.pdf" "report-draft.odt" "beach.jpg" "holiday.png" "note
     printf 'x\n' > "$DIR/$name"
 done
 # On the sandbox's 2560x1440 screen: the last rows of the unfiltered list, and the rows the filter keeps.
-LAST_ROWS="820 900 1400 1010"
-FIRST_ROWS="820 460 1400 700"
-VIEW="810 420 1990 1130"
+LAST_ROWS=(820 900 1400 1010)
+FIRST_ROWS=(820 460 1400 700)
+VIEW=(810 420 1990 1130)
 
 input() { "$FI" "$@" > /dev/null 2>&1; }
 type_word() {
@@ -58,12 +58,12 @@ input keydown 29 keydown 56 keydown 33 keyup 33 keyup 56 keyup 29 wait 500
 type_word report
 input wait 600
 shot filter-typed
-emptied filter-hides-what-does-not-match filter-before filter-typed $LAST_ROWS
+emptied filter-hides-what-does-not-match filter-before filter-typed "${LAST_ROWS[@]}"
 type_word zz
 input wait 600
 shot filter-none
-emptied no-match-empties-the-view filter-typed filter-none $FIRST_ROWS
+emptied no-match-empties-the-view filter-typed filter-none "${FIRST_ROWS[@]}"
 # Escape closes the row and every item comes back.
 input keydown 1 keyup 1 wait 800
 shot filter-closed
-check escape-shows-everything-again filter-before filter-closed $VIEW same
+check escape-shows-everything-again filter-before filter-closed "${VIEW[@]}" same

@@ -33,4 +33,7 @@ status=0
 for t in ${TESTS[*]}; do echo \"== \$t\"; timeout 90 \$t --ignored --test-threads=1 --nocapture $FILTER || status=1; done
 umount /srv/btrfs
 exit \$status"
-exec timeout 300 uvx --from virtme-ng vng --run "$KERNEL" --busybox "$BUSYBOX" --user root --memory 1G --cpus 2 -- "$SCRIPT"
+# The machine gets no input: virtme-ng waits on a standard input that is open, and a shell that leaves its own open
+# made the run hang until the timeout.
+exec timeout 300 uvx --from virtme-ng vng --run "$KERNEL" --busybox "$BUSYBOX" --user root --memory 1G --cpus 2 -- "$SCRIPT" \
+    < /dev/null

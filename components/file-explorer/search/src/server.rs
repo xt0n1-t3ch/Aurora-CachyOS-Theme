@@ -108,7 +108,8 @@ impl Server {
                 .roots
                 .iter()
                 .filter_map(|root| {
-                    let on = all.iter().filter(|m| root.starts_with(&m.path)).max_by_key(|m| m.path.as_os_str().len())?;
+                    let on =
+                        all.iter().filter(|m| root.starts_with(&m.path)).max_by_key(|m| m.path.as_os_str().len())?;
                     Some(Mount { path: root.clone(), ..on.clone() })
                 })
                 .collect();
@@ -263,6 +264,7 @@ impl Server {
                 self.scan_wave();
                 if self.pending.is_empty() {
                     self.index.compact_if_wasteful();
+                    sys::give_back_freed_memory();
                     self.notify();
                 }
             }

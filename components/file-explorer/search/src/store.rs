@@ -9,7 +9,7 @@
 //! check, or comes from another layout, is ignored: the helper scans anew.
 
 use std::fs::{self, File};
-use std::io::{self, Write};
+use std::io::{self, BufReader, BufWriter, Read, Seek, SeekFrom, Write};
 use std::os::unix::ffi::OsStrExt;
 use std::path::{Path, PathBuf};
 
@@ -18,24 +18,31 @@ use crate::index::{EntryId, Index, Kind};
 const MAGIC: &[u8; 8] = b"AURSRCH1";
 const NO_PARENT: u32 = u32::MAX;
 const NO_MTIME: i64 = i64::MIN;
+/// The read and write buffer: big enough that the disk sees long transfers, small next to the index.
+const BUFFER: usize = 1 << 20;
+/// The fewest bytes a row can take: parent, kind, inode, mtime and a name's length.
+const ROW_MIN: u64 = 4 + 1 + 8 + 8 + 4;
 
 /// Writes `index` to `path` through a temporary file, flushed and renamed over the old one, so a crash leaves the
-/// old index or the new one, never half of one.
+/// old index or the new one, never half of one. The body streams to the file as it is encoded; the length and CRC
+/// are written into the header at the end, so saving holds no copy of the index in memory.
 ///
 /// # Errors
 ///
 /// The I/O error of writing, flushing or renaming.
 pub fn save(index: &Index, path: &Path) -> io::Result<()> {
-    let body = encode(index);
-    let mut bytes = Vec::with_capacity(body.len() + 20);
-    bytes.extend_from_slice(MAGIC);
-    bytes.extend_from_slice(&(body.len() as u64).to_le_bytes());
-    bytes.extend_from_slice(&crc32fast::hash(&body).to_le_bytes());
-    bytes.extend_from_slice(&body);
     let temporary = path.with_extension("new");
     {
-        let mut file = File::create(&temporary)?;
-        file.write_all(&bytes)?;
+        let mut out = BufWriter::with_capacity(BUFFER, File::create(&temporary)?);
+        out.write_all(MAGIC)?;
+        out.write_all(&[0; 12])?;
+        let mut body = Checked { inner: &mut out, crc: crc32fast::Hasher::new(), length: 0 };
+        encode(index, &mut body)?;
+        let (length, crc) = (body.length, body.crc.finalize());
+        let mut file = out.into_inner().map_err(io::IntoInnerError::into_error)?;
+        file.seek(SeekFrom::Start(MAGIC.len() as u64))?;
+        file.write_all(&length.to_le_bytes())?;
+        file.write_all(&crc.to_le_bytes())?;
         file.sync_all()?;
     }
     fs::rename(&temporary, path)?;
@@ -45,55 +52,62 @@ pub fn save(index: &Index, path: &Path) -> io::Result<()> {
     Ok(())
 }
 
-/// Reads an index written by [`save`]; `None` when there is none or it does not pass the check.
+/// Reads an index written by [`save`]; `None` when there is none or it does not pass the check. The file is read in
+/// a stream while the index is built, and the index is dropped when the CRC at the end does not match.
 #[must_use]
 pub fn load(path: &Path) -> Option<Index> {
-    let bytes = fs::read(path).ok()?;
-    if bytes.len() < 20 || &bytes[..8] != MAGIC {
+    let mut file = BufReader::with_capacity(BUFFER, File::open(path).ok()?);
+    let mut head = [0; 20];
+    file.read_exact(&mut head).ok()?;
+    if &head[..8] != MAGIC {
         return None;
     }
-    let length = usize::try_from(u64::from_le_bytes(bytes[8..16].try_into().ok()?)).ok()?;
-    let crc = u32::from_le_bytes(bytes[16..20].try_into().ok()?);
-    let body = bytes.get(20..20 + length)?;
-    if crc32fast::hash(body) != crc {
-        return None;
-    }
-    decode(body)
+    let length = u64::from_le_bytes(head[8..16].try_into().ok()?);
+    let crc = u32::from_le_bytes(head[16..20].try_into().ok()?);
+    let mut body = Checked { inner: file.take(length), crc: crc32fast::Hasher::new(), length: 0 };
+    let index = decode(&mut Reader { inner: &mut body, budget: length, name: Vec::new() })?;
+    (body.length == length && body.crc.finalize() == crc).then_some(index)
 }
 
-fn encode(index: &Index) -> Vec<u8> {
-    let mut out = Vec::new();
+fn encode(index: &Index, out: &mut impl Write) -> io::Result<()> {
     let volumes = index.volumes();
-    put_u32(&mut out, u32::try_from(volumes.len()).unwrap_or(0));
+    put_u32(out, u32::try_from(volumes.len()).unwrap_or(0))?;
     for v in volumes {
-        put_bytes(&mut out, v.path.as_os_str().as_bytes());
-        out.extend_from_slice(&v.fsid.to_le_bytes());
-        out.extend_from_slice(&v.generation.to_le_bytes());
-        out.push(u8::from(v.btrfs));
-        out.extend_from_slice(&index.ino(v.root).to_le_bytes());
-        out.extend_from_slice(&index.mtime(v.root).unwrap_or(NO_MTIME).to_le_bytes());
-        // Depth-first: a parent is always written before its children.
-        let mut rows: Vec<(u32, EntryId)> = Vec::new();
+        put_bytes(out, v.path.as_os_str().as_bytes())?;
+        out.write_all(&v.fsid.to_le_bytes())?;
+        out.write_all(&v.generation.to_le_bytes())?;
+        out.write_all(&[u8::from(v.btrfs)])?;
+        out.write_all(&index.ino(v.root).to_le_bytes())?;
+        out.write_all(&index.mtime(v.root).unwrap_or(NO_MTIME).to_le_bytes())?;
+        put_u32(out, u32::try_from(count_below(index, v.root)).unwrap_or(0))?;
+        // Depth-first: a parent is always written before its children, which name it by its position.
+        let mut written: u32 = 0;
         let mut stack: Vec<(u32, EntryId)> = index.children(v.root).into_iter().map(|c| (NO_PARENT, c)).collect();
         while let Some((parent, id)) = stack.pop() {
-            let position = u32::try_from(rows.len()).unwrap_or(NO_PARENT);
-            rows.push((parent, id));
-            stack.extend(index.children(id).into_iter().map(|c| (position, c)));
-        }
-        put_u32(&mut out, u32::try_from(rows.len()).unwrap_or(0));
-        for (parent, id) in rows {
-            put_u32(&mut out, parent);
-            out.push(kind_byte(index.kind(id)));
-            out.extend_from_slice(&index.ino(id).to_le_bytes());
-            out.extend_from_slice(&index.mtime(id).unwrap_or(NO_MTIME).to_le_bytes());
-            put_bytes(&mut out, index.name(id));
+            put_u32(out, parent)?;
+            out.write_all(&[kind_byte(index.kind(id))])?;
+            out.write_all(&index.ino(id).to_le_bytes())?;
+            out.write_all(&index.mtime(id).unwrap_or(NO_MTIME).to_le_bytes())?;
+            put_bytes(out, index.name(id))?;
+            stack.extend(index.children(id).into_iter().map(|c| (written, c)));
+            written += 1;
         }
     }
-    out
+    Ok(())
 }
 
-fn decode(body: &[u8]) -> Option<Index> {
-    let mut r = Reader { bytes: body, at: 0 };
+/// How many entries are inside `dir`, at any depth.
+fn count_below(index: &Index, dir: EntryId) -> usize {
+    let mut count = 0;
+    let mut stack = index.children(dir);
+    while let Some(id) = stack.pop() {
+        count += 1;
+        stack.extend(index.children(id));
+    }
+    count
+}
+
+fn decode(r: &mut Reader<'_, impl Read>) -> Option<Index> {
     let mut index = Index::new();
     for _ in 0..r.u32()? {
         let path = PathBuf::from(std::ffi::OsStr::from_bytes(r.bytes()?));
@@ -112,22 +126,23 @@ fn decode(body: &[u8]) -> Option<Index> {
             index.set_mtime(root, root_mtime);
         }
         let count = r.u32()? as usize;
-        let mut ids: Vec<EntryId> = Vec::with_capacity(count);
+        // The count is not checked until the CRC at the end, so a damaged one may reserve no more rows than the bytes
+        // left could hold.
+        let mut ids: Vec<EntryId> = Vec::with_capacity(count.min(usize::try_from(r.budget / ROW_MIN).unwrap_or(0)));
         for _ in 0..count {
             let parent = r.u32()?;
             let kind = kind_of(r.u8()?)?;
             let ino = r.u64()?;
             let mtime = r.i64()?;
-            let name = r.bytes()?;
             let parent = if parent == NO_PARENT { root } else { *ids.get(parent as usize)? };
-            let id = index.insert(parent, name, kind, ino);
+            let id = index.insert(parent, r.bytes()?, kind, ino);
             if mtime != NO_MTIME {
                 index.set_mtime(id, mtime);
             }
             ids.push(id);
         }
     }
-    (r.at == body.len()).then_some(index)
+    (r.budget == 0).then_some(index)
 }
 
 fn kind_byte(kind: Kind) -> u8 {
@@ -149,41 +164,77 @@ fn kind_of(byte: u8) -> Option<Kind> {
     })
 }
 
-fn put_u32(out: &mut Vec<u8>, value: u32) {
-    out.extend_from_slice(&value.to_le_bytes());
+fn put_u32(out: &mut impl Write, value: u32) -> io::Result<()> {
+    out.write_all(&value.to_le_bytes())
 }
 
-fn put_bytes(out: &mut Vec<u8>, bytes: &[u8]) {
-    put_u32(out, u32::try_from(bytes.len()).unwrap_or(0));
-    out.extend_from_slice(bytes);
+fn put_bytes(out: &mut impl Write, bytes: &[u8]) -> io::Result<()> {
+    put_u32(out, u32::try_from(bytes.len()).unwrap_or(0))?;
+    out.write_all(bytes)
 }
 
-struct Reader<'a> {
-    bytes: &'a [u8],
-    at: usize,
+/// A stream that keeps the CRC-32 and the length of what passes through it.
+struct Checked<T> {
+    inner: T,
+    crc: crc32fast::Hasher,
+    length: u64,
 }
 
-impl<'a> Reader<'a> {
-    fn take(&mut self, n: usize) -> Option<&'a [u8]> {
-        let slice = self.bytes.get(self.at..self.at.checked_add(n)?)?;
-        self.at += n;
-        Some(slice)
+impl<T: Write> Write for Checked<T> {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        let n = self.inner.write(buf)?;
+        self.crc.update(&buf[..n]);
+        self.length += n as u64;
+        Ok(n)
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        self.inner.flush()
+    }
+}
+
+impl<T: Read> Read for Checked<T> {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        let n = self.inner.read(buf)?;
+        self.crc.update(&buf[..n]);
+        self.length += n as u64;
+        Ok(n)
+    }
+}
+
+/// Reads the body's fields; `budget` is how many bytes of the body are left.
+struct Reader<'a, R> {
+    inner: &'a mut R,
+    budget: u64,
+    /// The last name read, reused so a name costs no allocation.
+    name: Vec<u8>,
+}
+
+impl<R: Read> Reader<'_, R> {
+    fn take<const N: usize>(&mut self) -> Option<[u8; N]> {
+        self.budget = self.budget.checked_sub(N as u64)?;
+        let mut out = [0; N];
+        self.inner.read_exact(&mut out).ok()?;
+        Some(out)
     }
     fn u8(&mut self) -> Option<u8> {
-        Some(self.take(1)?[0])
+        Some(self.take::<1>()?[0])
     }
     fn u32(&mut self) -> Option<u32> {
-        Some(u32::from_le_bytes(self.take(4)?.try_into().ok()?))
+        Some(u32::from_le_bytes(self.take()?))
     }
     fn u64(&mut self) -> Option<u64> {
-        Some(u64::from_le_bytes(self.take(8)?.try_into().ok()?))
+        Some(u64::from_le_bytes(self.take()?))
     }
     fn i64(&mut self) -> Option<i64> {
-        Some(i64::from_le_bytes(self.take(8)?.try_into().ok()?))
+        Some(i64::from_le_bytes(self.take()?))
     }
-    fn bytes(&mut self) -> Option<&'a [u8]> {
-        let n = self.u32()? as usize;
-        self.take(n)
+    fn bytes(&mut self) -> Option<&[u8]> {
+        let n = self.u32()?;
+        self.budget = self.budget.checked_sub(u64::from(n))?;
+        self.name.resize(n as usize, 0);
+        self.inner.read_exact(&mut self.name).ok()?;
+        Some(&self.name)
     }
 }
 

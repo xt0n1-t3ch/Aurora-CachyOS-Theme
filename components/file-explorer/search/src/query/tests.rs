@@ -117,6 +117,43 @@ fn hidden_names_wait_for_hidden() {
 }
 
 #[test]
+fn the_arena_splits_after_whole_names() {
+    let arena = b"alpha\0beta\0gamma\0delta\0";
+    let parts = split_at_names(arena, 3);
+    assert_eq!(parts.len(), 3);
+    assert_eq!(parts.first().unwrap().0, 0);
+    assert_eq!(parts.last().unwrap().1, arena.len());
+    for pair in parts.windows(2) {
+        assert_eq!(pair[0].1, pair[1].0);
+    }
+    for &(start, end) in &parts {
+        assert!(end > start && arena[end - 1] == 0, "{start}..{end}");
+    }
+    assert_eq!(split_at_names(arena, 1), [(0, arena.len())]);
+    // More parts than names leaves no empty part.
+    assert_eq!(split_at_names(b"a\0", 4), [(0, 2)]);
+}
+
+#[test]
+fn many_threads_find_what_one_finds() {
+    let mut index = Index::new();
+    index.add_volume(Path::new("/v"), 1);
+    let root = index.volumes()[0].root;
+    for i in 0..5000u64 {
+        index.insert(root, format!("file-{i}-report.txt").as_bytes(), Kind::File, 10 + i);
+    }
+    // A word searches the names' arena; `ext:` tests every entry.
+    for (text, matches) in [("report", 5000), ("ext:txt", 5000), ("*-7-*", 1)] {
+        let query = parse(text).unwrap();
+        let one = query.collect_in_parts(&index, 1);
+        assert_eq!(one.len(), matches, "{text}");
+        for parts in [2, 3, 7, 16] {
+            assert_eq!(query.collect_in_parts(&index, parts), one, "{text} in {parts} parts");
+        }
+    }
+}
+
+#[test]
 fn bad_words_are_named() {
     assert_eq!(parse("size:lots").unwrap_err(), "size:lots");
     assert!(parse("regex:(").unwrap_err().starts_with("regex:("));

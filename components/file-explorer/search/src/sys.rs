@@ -25,6 +25,15 @@ pub fn fstatfs_type(fd: RawFd) -> io::Result<i64> {
     Ok(unsafe { stat.assume_init() }.f_type)
 }
 
+/// Hands the heap's free pages back to the system (glibc's `malloc_trim(3)`). A scan frees its listing buffers
+/// in many small pieces that glibc keeps for reuse; without this they would stay in the helper's resident memory.
+pub fn give_back_freed_memory() {
+    // SAFETY: `malloc_trim` takes no pointers and only releases pages glibc's allocator owns and no one uses.
+    unsafe {
+        libc::malloc_trim(0);
+    }
+}
+
 /// Lowers the calling thread to the idle I/O class and nice 19, so its reading never delays the user's programs.
 /// Linux keeps both per thread (`ioprio_set` with `IOPRIO_WHO_PROCESS` and `setpriority` on a thread id).
 pub fn lower_this_thread() {

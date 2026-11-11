@@ -4,9 +4,11 @@
 //! Every name the helper knows: one tree per volume, kept in step with the disk by batches of re-read folders.
 //!
 //! Entries live in one vector and link to their parent, first child and siblings, so a move is two link changes and
-//! keeps the whole subtree. Names live twice in two arenas: as written (for paths) and case-folded (for matching), each
-//! name followed by a NUL, so one SIMD substring search runs over every name at once and a hit can never span two
-//! names (a query holds no NUL). Renamed and removed names stay in the arenas until a compaction.
+//! keeps the whole subtree. Every name lives case-folded in one arena, followed by a NUL, so one SIMD substring search
+//! runs over every name at once and a hit can never span two names (a query holds no NUL). A name that folding changes
+//! (about one in five: 881,615 of the 4,580,100 names measured on a data disk, see docs/performance.md) is also kept
+//! as written in a second arena, for paths; the others are read from the folded arena. Renamed and removed names stay
+//! in the arenas until a compaction.
 
 use std::ffi::OsStr;
 use std::os::unix::ffi::OsStrExt;
@@ -17,6 +19,8 @@ use rustc_hash::{FxHashMap, FxHashSet};
 /// An entry's place in the index. Ids are reused after removal.
 pub type EntryId = u32;
 const NONE: EntryId = EntryId::MAX;
+/// The `name_off` of an entry whose name as written is its folded name.
+const SAME: u32 = u32::MAX;
 
 /// What a name is, from the folder listing's `d_type`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -70,6 +74,7 @@ pub struct Volume {
 pub struct Index {
     entries: Vec<Entry>,
     free: Vec<EntryId>,
+    /// Names that folding changes, as written.
     names: Vec<u8>,
     folded: Vec<u8>,
     /// (folded offset, entry) in offset order, to map a hit back to its entry.
@@ -80,6 +85,7 @@ pub struct Index {
     mtimes: FxHashMap<EntryId, i64>,
     volumes: Vec<Volume>,
     live: usize,
+    /// Bytes of the folded arena that belong to removed or renamed entries.
     dead_bytes: usize,
 }
 
@@ -135,6 +141,12 @@ impl Index {
         self.live == 0
     }
 
+    /// One more than the highest id ever given: live and free slots alike.
+    #[must_use]
+    pub fn slot_count(&self) -> usize {
+        self.entries.len()
+    }
+
     #[must_use]
     pub fn is_alive(&self, id: EntryId) -> bool {
         self.entries.get(id as usize).is_some_and(|e| e.alive)
@@ -143,6 +155,9 @@ impl Index {
     #[must_use]
     pub fn name(&self, id: EntryId) -> &[u8] {
         let e = &self.entries[id as usize];
+        if e.name_off == SAME {
+            return self.folded_name(id);
+        }
         &self.names[e.name_off as usize..e.name_off as usize + e.name_len as usize]
     }
 
@@ -305,10 +320,15 @@ impl Index {
 
     fn push_name(&mut self, name: &[u8]) -> (u32, u32, u16, u16) {
         let folded = fold(name);
-        let name_off = u32::try_from(self.names.len()).expect("names under 4 GiB");
         let fold_off = u32::try_from(self.folded.len()).expect("names under 4 GiB");
-        self.names.extend_from_slice(name);
-        self.names.push(0);
+        let name_off = if folded == name {
+            SAME
+        } else {
+            let off = u32::try_from(self.names.len()).expect("names under 4 GiB");
+            self.names.extend_from_slice(name);
+            self.names.push(0);
+            off
+        };
         self.folded.extend_from_slice(&folded);
         self.folded.push(0);
         (
@@ -354,7 +374,7 @@ impl Index {
     pub fn attach(&mut self, id: EntryId, parent: EntryId, name: &[u8]) {
         self.unlink(id);
         if self.name(id) != name {
-            self.dead_bytes += self.entries[id as usize].name_len as usize + 1;
+            self.dead_bytes += self.entries[id as usize].fold_len as usize + 1;
             let (name_off, fold_off, name_len, fold_len) = self.push_name(name);
             let e = &mut self.entries[id as usize];
             (e.name_off, e.fold_off, e.name_len, e.fold_len) = (name_off, fold_off, name_len, fold_len);
@@ -378,7 +398,7 @@ impl Index {
                 self.dirs.remove(&(e.volume, e.ino));
             }
             self.mtimes.remove(&at);
-            self.dead_bytes += e.name_len as usize + 1;
+            self.dead_bytes += e.fold_len as usize + 1;
             let slot = &mut self.entries[at as usize];
             slot.alive = false;
             slot.first_child = NONE;
@@ -455,26 +475,32 @@ impl Index {
         (e.alive && e.fold_off == off && pos < off + u32::from(e.fold_len)).then_some(id)
     }
 
-    /// Rewrites the arenas without the names of removed and renamed entries once those take over half of them.
+    /// Rewrites the arenas without the names of removed and renamed entries once those take over half of the folded
+    /// arena.
     ///
     /// # Panics
     ///
     /// Never: the arenas only shrink.
     pub fn compact_if_wasteful(&mut self) {
-        if self.dead_bytes * 2 < self.names.len() {
+        if self.dead_bytes * 2 < self.folded.len() {
             return;
         }
-        let mut names = Vec::with_capacity(self.names.len() - self.dead_bytes);
-        let mut folded = Vec::with_capacity(self.folded.len());
+        let mut names = Vec::with_capacity(self.names.len());
+        let mut folded = Vec::with_capacity(self.folded.len() - self.dead_bytes);
         let mut table = Vec::with_capacity(self.live);
         for id in 0..self.entries.len() {
             let e = self.entries[id];
             if !e.alive {
                 continue;
             }
-            let name_off = u32::try_from(names.len()).expect("names under 4 GiB");
+            let name_off = if e.name_off == SAME {
+                SAME
+            } else {
+                let off = u32::try_from(names.len()).expect("names under 4 GiB");
+                names.extend_from_slice(&self.names[e.name_off as usize..=e.name_off as usize + e.name_len as usize]);
+                off
+            };
             let fold_off = u32::try_from(folded.len()).expect("names under 4 GiB");
-            names.extend_from_slice(&self.names[e.name_off as usize..=e.name_off as usize + e.name_len as usize]);
             folded.extend_from_slice(&self.folded[e.fold_off as usize..=e.fold_off as usize + e.fold_len as usize]);
             let id = EntryId::try_from(id).expect("fewer than 4 billion entries");
             table.push((fold_off, id));
@@ -486,6 +512,12 @@ impl Index {
         self.folded = folded;
         self.fold_table = table;
         self.dead_bytes = 0;
+    }
+
+    /// The bytes the two name arenas hold: as written, then folded. For the memory budget's tests.
+    #[must_use]
+    pub fn arena_bytes(&self) -> (usize, usize) {
+        (self.names.len(), self.folded.len())
     }
 }
 
