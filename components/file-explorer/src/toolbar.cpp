@@ -248,6 +248,7 @@ Toolbar::Toolbar(const QString &homePath, QWidget *parent)
         {"view-list-symbolic", "as List", ViewMode::List},
         {"view-list-compact-symbolic", "as Compact List", ViewMode::Compact},
         {"view-file-columns-symbolic", "as Columns", ViewMode::Columns},
+        {"view-preview-symbolic", "as Gallery", ViewMode::Gallery},
     };
     for (const auto &mode : modes) {
         auto *button = new GlassButton(QString::fromLatin1(mode.icon), QString::fromLatin1(mode.tip));

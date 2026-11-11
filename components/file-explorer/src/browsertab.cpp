@@ -8,6 +8,7 @@
 
 #include "batchrenamesheet.h"
 #include "columnsstrip.h"
+#include "gallerystage.h"
 #include "core/paths.h"
 #include "filterbar.h"
 #include "searchscopebar.h"
@@ -65,6 +66,9 @@ QString viewModeAction(ViewMode mode)
     case ViewMode::Columns:
         // The last column is Dolphin's list.
         return QStringLiteral("details");
+    case ViewMode::Gallery:
+        // Under the stage, Dolphin's icons are the strip of thumbnails.
+        return QStringLiteral("icons");
     case ViewMode::Icons:
         break;
     }
@@ -79,6 +83,7 @@ BrowserTab::BrowserTab(const QUrl &url, QWidget *parent)
     , m_scopeBar(new SearchScopeBar(this))
     , m_filterBar(new FilterBar(this))
     , m_columns(new ColumnsStrip(QDir::homePath(), this))
+    , m_gallery(new GalleryStage(this))
     , m_relistTimer(new QTimer(this))
 {
     auto *layout = new QVBoxLayout(this);
@@ -142,7 +147,13 @@ BrowserTab::BrowserTab(const QUrl &url, QWidget *parent)
     row->setContentsMargins(0, 0, 0, 0);
     row->setSpacing(0);
     row->addWidget(m_columns);
-    row->addWidget(m_part->widget(), 1);
+    // The gallery's stage over Dolphin's view, which keeps a quarter of the height as the strip of thumbnails.
+    auto *stack = new QVBoxLayout;
+    stack->setContentsMargins(0, 0, 0, 0);
+    stack->setSpacing(0);
+    stack->addWidget(m_gallery, 3);
+    stack->addWidget(m_part->widget(), 1);
+    row->addLayout(stack, 1);
     layout->addLayout(row, 1);
     connect(m_columns, &ColumnsStrip::folderChosen, this, &BrowserTab::openFolder);
     connect(m_columns, &ColumnsStrip::fileChosen, this, [this](const QUrl &file) {
@@ -154,7 +165,12 @@ BrowserTab::BrowserTab(const QUrl &url, QWidget *parent)
         m_columns->setShowHiddenFiles(hidden->isChecked());
         connect(hidden, &QAction::toggled, m_columns, &ColumnsStrip::setShowHiddenFiles);
     }
-    m_columnsMode = KSharedConfig::openConfig(QStringLiteral("file-explorerrc"))->group(QStringLiteral("View")).readEntry("Columns", false);
+    const QString own = KSharedConfig::openConfig(QStringLiteral("file-explorerrc"))->group(QStringLiteral("View")).readEntry("Mode", QString());
+    if (own == u"columns") {
+        m_ownView = ViewMode::Columns;
+    } else if (own == u"gallery") {
+        m_ownView = ViewMode::Gallery;
+    }
     makeViewTransparent();
     openFolder(url);
 }
@@ -223,9 +239,14 @@ void BrowserTab::connectPart()
                 if (!checked) {
                     return;
                 }
-                // Dolphin remembers a mode per folder; in the columns view the last column stays a list.
-                if (m_columnsMode && mode != ViewMode::List) {
-                    QTimer::singleShot(0, this, [this] { triggerPartAction(viewModeAction(ViewMode::List)); });
+                // Dolphin remembers a mode per folder; under the columns or the gallery its view keeps the mode they
+                // need (a list, or icons).
+                if (m_ownView && viewModeAction(*m_ownView) != viewModeAction(mode)) {
+                    QTimer::singleShot(0, this, [this] {
+                        if (m_ownView) {
+                            triggerPartAction(viewModeAction(*m_ownView));
+                        }
+                    });
                     return;
                 }
                 Q_EMIT viewModeChanged();
@@ -289,7 +310,7 @@ void BrowserTab::showUrl(const QUrl &url)
     m_part->openUrl(url);
     refreshFreeSpace();
     refreshCounts();
-    syncColumns();
+    syncOwnView();
     Q_EMIT locationChanged();
 }
 
@@ -434,34 +455,36 @@ void BrowserTab::runSearch()
 
 void BrowserTab::setViewMode(ViewMode mode)
 {
-    const bool columns = mode == ViewMode::Columns;
-    if (columns != m_columnsMode) {
-        m_columnsMode = columns;
+    const bool own = mode == ViewMode::Columns || mode == ViewMode::Gallery;
+    const std::optional<ViewMode> wanted = own ? std::optional(mode) : std::nullopt;
+    if (wanted != m_ownView) {
+        m_ownView = wanted;
         // The next tab and window open the way this one was left.
         KConfigGroup group = KSharedConfig::openConfig(QStringLiteral("file-explorerrc"))->group(QStringLiteral("View"));
-        group.writeEntry("Columns", columns);
+        group.writeEntry("Mode", mode == ViewMode::Columns ? QStringLiteral("columns") : mode == ViewMode::Gallery ? QStringLiteral("gallery") : QString());
         group.sync();
-        syncColumns();
+        syncOwnView();
     }
     triggerPartAction(viewModeAction(mode));
-    if (columns) {
+    if (own) {
         Q_EMIT viewModeChanged();
     }
 }
 
-void BrowserTab::syncColumns()
+void BrowserTab::syncOwnView()
 {
-    if (m_columnsMode) {
-        m_columns->setFolder(isSearching() ? QUrl() : url());
-    } else {
-        m_columns->setFolder(QUrl());
+    m_columns->setFolder(m_ownView == ViewMode::Columns && !isSearching() ? url() : QUrl());
+    const bool gallery = m_ownView == ViewMode::Gallery;
+    if (gallery) {
+        m_gallery->setItem(selectedItems().value(0));
     }
+    m_gallery->setVisible(gallery);
 }
 
 ViewMode BrowserTab::viewMode() const
 {
-    if (m_columnsMode) {
-        return ViewMode::Columns;
+    if (m_ownView) {
+        return *m_ownView;
     }
     for (const ViewMode mode : {ViewMode::List, ViewMode::Compact}) {
         if (const QAction *action = partAction(viewModeAction(mode)); action && action->isChecked()) {
@@ -650,6 +673,11 @@ ColumnsStrip *BrowserTab::columnsStrip() const
     return m_columns;
 }
 
+GalleryStage *BrowserTab::galleryStage() const
+{
+    return m_gallery;
+}
+
 void BrowserTab::activateItems(const KFileItemList &items)
 {
     bool openedFolderHere = false;
@@ -725,6 +753,9 @@ void BrowserTab::refreshCounts()
     // AllItems holds only what the filter lets through (DolphinPartFileInfoExtension::queryFor, dolphin v26.08.3).
     m_filterBar->setMatchCount(m_counts.items);
     m_counts.selected = selected.size();
+    if (m_ownView == ViewMode::Gallery) {
+        m_gallery->setItem(selected.value(0));
+    }
     m_counts.selectedFileBytes = 0;
     for (const KFileItem &item : selected) {
         if (!item.isDir()) {

@@ -12,6 +12,7 @@
 #include "columnsstrip.h"
 #include "commandpalette.h"
 #include "filterbar.h"
+#include "gallerystage.h"
 #include "glassfield.h"
 #include "inspectorpanel.h"
 #include "searchscopebar.h"
@@ -25,6 +26,7 @@
 #include <QClipboard>
 #include <QDir>
 #include <QFile>
+#include <QImage>
 #include <QLineEdit>
 #include <QListView>
 #include <QProcess>
@@ -550,6 +552,40 @@ private Q_SLOTS:
         tab.setViewMode(fe::ViewMode::Icons);
         QVERIFY(strip->isHidden());
         QCOMPARE(tab.viewMode(), fe::ViewMode::Icons);
+    }
+
+    void theGalleryShowsTheSelectedPictureLarge()
+    {
+        QTemporaryDir dir;
+        QImage image(640, 400, QImage::Format_RGB32);
+        image.fill(QColor(200, 40, 40));
+        const QString path = dir.filePath(QStringLiteral("red.png"));
+        QVERIFY(image.save(path));
+        QFile other(dir.filePath(QStringLiteral("notes.txt")));
+        QVERIFY(other.open(QIODevice::WriteOnly));
+        other.close();
+        fe::BrowserTab tab(QUrl::fromLocalFile(dir.path()));
+        if (!tab.isLoaded()) {
+            QSKIP("Dolphin's part is not installed");
+        }
+        tab.resize(1000, 700);
+        tab.show();
+        fe::GalleryStage *stage = tab.galleryStage();
+        tab.setViewMode(fe::ViewMode::Icons);
+        QVERIFY(stage->isHidden());
+        tab.setViewMode(fe::ViewMode::Gallery);
+        QCOMPARE(tab.viewMode(), fe::ViewMode::Gallery);
+        QVERIFY(stage->isVisible());
+        QVERIFY(stage->item().isNull());
+        QSignalSpy pictured(stage, &fe::GalleryStage::pictureChanged);
+        tab.selectInPlace({QUrl::fromLocalFile(path)});
+        QTRY_COMPARE(stage->item().url(), QUrl::fromLocalFile(path));
+        // The picture's own preview, where KIO's image thumbnailer is installed.
+        if (pictured.wait(5000)) {
+            QVERIFY(stage->showsPreview());
+        }
+        tab.setViewMode(fe::ViewMode::List);
+        QVERIFY(stage->isHidden());
     }
 
     void theSearchRowSavesAndHidesTheFolderTheIndexDoesNotHold()

@@ -47,6 +47,8 @@ it changes. A change that needs a fresh install, or that an earlier backup canno
 - File Explorer has Finder's columns view (the fourth view button, or View > as Columns): a column for each folder
   from your home folder down to the one you are in, with the files as the last column. A click in a column goes
   there, and you can drop files on a column's folders.
+- File Explorer has Finder's gallery view (the fifth view button, or View > as Gallery): the selected picture,
+  video or document large, with its name and kind, above a strip of thumbnails.
 - File Explorer searches the whole PC as you type: a helper keeps an index of every local disk's names and answers
   in a few milliseconds (490,544 names: under 3 ms for a word). It runs only while File Explorer is used and leaves
   a few minutes after, catches up on what changed meanwhile without reading everything again, follows changes live,

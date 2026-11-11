@@ -42,10 +42,13 @@ and the context menu has a Git submenu with Log, Add, Commit, Push and the rest,
 by `fe::BrowserTab::versionControlActions`), smart folders (Save at the right of the search row names the search
 and puts it in Favorites as a KDE place, so Dolphin lists it under Search For; it opens like a folder, its icon a
 magnifier, and the index's change notices keep it current), a columns view (`fe::ColumnsStrip`, the fourth view button, View > as
-Columns, remembered in `file-explorerrc [View] Columns`; which folders in `core/paths` `columnFolders`: a column per
+Columns, remembered with the gallery in `file-explorerrc [View] Mode`; which folders in `core/paths` `columnFolders`: a column per
 folder from home, or from the disk's root, to the folder on screen, each a KIO listing kept current, with Dolphin's list
 as the last column, so every file action stays Dolphin's; a click on a folder opens it, on a file opens its folder
-with it selected, and files dropped on a column's folder go into it), path segments in both bars (`fe::CrumbStrip`, rules in `core/crumbs`; below), Finder menus with shortcuts written the Windows way (`fe::shortcutLabel`: "Ctrl+Alt+C", "Alt+Enter", "Win+E"),
+with it selected, and files dropped on a column's folder go into it), a gallery view (`fe::GalleryStage`, the fifth
+view button, View > as Gallery: the selected item as large as the window allows, its preview from KIO's thumbnailers
+or its icon, with its name and kind, above Dolphin's icons as the strip; previews are asked for only while it shows
+and once per pause in the selection), path segments in both bars (`fe::CrumbStrip`, rules in `core/crumbs`; below), Finder menus with shortcuts written the Windows way (`fe::shortcutLabel`: "Ctrl+Alt+C", "Alt+Enter", "Win+E"),
 and the pointing hand on every clickable widget.
 
 Group offers the Finder's choices (None, Name, Kind, Date Modified, Date Created, Size, Tags) through Dolphin's own
@@ -93,14 +96,14 @@ It also serves `org.freedesktop.FileManager1` (`--service`: "Show in folder" sel
 portal backend (`--portal`: Open and Save panels with a chooser bar; it quits after three idle minutes). Installed as
 `~/.local/bin/file-explorer`; Win+E launches it. Folders without a view of their own show Finder's columns (Name,
 Modified, Size, Type) from `~/.local/share/file-explorer/view_properties/global/.directory`. Tests: `fe_tests` (90),
-`fe_finder_tests` (55), `fe_widget_tests` (24, offscreen: clicks, drops, a drag resting on a segment, the address
+`fe_finder_tests` (55), `fe_widget_tests` (25, offscreen: clicks, drops, a drag resting on a segment, the address
 field at rest, accessibility, the filter row over a real Dolphin view, the glass behind a field inside a tab, the
 Rename sheet renaming a real folder and one Undo taking it back, F2 on two items opening it, the command palette
 finding, running and closing, Copy Path with three items and with none, the Inspector counting a
 folder and again after a change, hashing a file and comparing a pasted hash, a tar.gz opened as a
 folder, Up out of it, the Inspector counting inside it, the search row's Save and its folder capsule hidden when the index
 does not hold the folder, the columns leading to a folder and opening
-what is clicked), `tests/installer/test_tag_emblems.sh` (5). Sandbox: `explorer.sh`, `explorer-crumbs.sh` (the path
+what is clicked, the gallery showing the selected picture), `tests/installer/test_tag_emblems.sh` (5). Sandbox: `explorer.sh`, `explorer-crumbs.sh` (the path
 segments: hover, both menus, a drop in the accent, a segment opening under a drag, KIO's menu at the pointer on a
 segment and on the sidebar, a refused drop, Ctrl+L, Ctrl+click and middle click), `explorer-finder.sh` (the
 mockup's scene: tags, the unfolded sidebar, the menu, a typed path, Quick Look, Split View, a tag's shelf, the Group
@@ -115,7 +118,8 @@ folder, a picture, Compute and a typed SHA-256 that matches; 3 PASS), `explorer-
 zip, then Alt+Up; 2 PASS), `explorer-git.sh` (a repository's
 status emblems, the context menu and its Git submenu; needs `dolphin-plugins` or `AURORA_DOLPHIN_PLUGINS` naming its
 unpacked package; 2 PASS), `explorer-columns.sh` (the
-columns view from the palette, a click in a column; 2 PASS), `show-in-folder.sh`, `open-save.sh`.
+columns view from the palette, a click in a column; 2 PASS), `explorer-gallery.sh` (the gallery from the palette,
+the first picture large, Right to the next; 2 PASS), `show-in-folder.sh`, `open-save.sh`.
 
 ## Mission Center (`components/mission-center`)
 

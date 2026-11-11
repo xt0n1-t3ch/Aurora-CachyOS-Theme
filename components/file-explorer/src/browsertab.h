@@ -13,6 +13,8 @@
 #include <KParts/NavigationExtension>
 
 #include <QHash>
+
+#include <optional>
 #include <QPointer>
 #include <QWidget>
 
@@ -21,6 +23,7 @@ class QTimer;
 
 namespace fe {
 class ColumnsStrip;
+class GalleryStage;
 class FilterBar;
 class SearchScopeBar;
 }
@@ -120,6 +123,7 @@ public:
     [[nodiscard]] QString filterText() const;
     [[nodiscard]] FilterBar *filterBar() const;
     [[nodiscard]] ColumnsStrip *columnsStrip() const;
+    [[nodiscard]] GalleryStage *galleryStage() const;
 
 Q_SIGNALS:
     /// The location on screen changed.
@@ -147,8 +151,9 @@ private:
     /// Shows url in the part without touching the history.
     void showUrl(const QUrl &url);
     void endSearch();
-    /// Shows the columns that lead to the folder on screen, or none outside the columns view or while searching.
-    void syncColumns();
+    /// Shows the columns that lead to the folder on screen, or none outside the columns view or while searching; shows
+    /// the gallery's stage in the gallery view, with the selected item on it.
+    void syncOwnView();
     /// Whether the listing on screen comes from aurora-search's index, which announces its changes.
     [[nodiscard]] bool listsFromIndex() const;
     void runSearch();
@@ -171,8 +176,9 @@ private:
     SearchScopeBar *m_scopeBar;
     FilterBar *m_filterBar;
     ColumnsStrip *m_columns;
-    /// The columns view is on: the columns show left of the view, which is a list.
-    bool m_columnsMode = false;
+    GalleryStage *m_gallery;
+    /// The columns or gallery view, which the window draws around Dolphin's view; nothing for Dolphin's own modes.
+    std::optional<ViewMode> m_ownView;
     /// The scope chosen in the scope row: the whole PC, or the folder the search started in.
     bool m_everywhere = true;
     /// Whether the search on screen lists from the index, which announces its changes.

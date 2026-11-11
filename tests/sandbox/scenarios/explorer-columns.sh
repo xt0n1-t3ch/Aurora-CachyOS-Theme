@@ -14,7 +14,7 @@ TOP="$HOME/Columns"
 rm -rf "$TOP" && mkdir -p "$TOP/Projects/Aurora/docs" "$TOP/Projects/Orion" "$TOP/Music"
 for name in index.md install.md search.md; do printf 'x\n' > "$TOP/Projects/Aurora/docs/$name"; done
 printf 'x\n' > "$TOP/Projects/Aurora/README.md"
-kwriteconfig6 --file file-explorerrc --group View --key Columns false
+kwriteconfig6 --file file-explorerrc --group View --key Mode ""
 kwriteconfig6 --file file-explorerrc --group Inspector --key Visible false
 input() { "$FI" "$@" > /dev/null 2>&1; }
 type_word() {

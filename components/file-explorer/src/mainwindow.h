@@ -157,6 +157,7 @@ private:
     QAction *m_filterAction = nullptr;
     QAction *m_paletteAction = nullptr;
     QAction *m_columnsAction = nullptr;
+    QAction *m_galleryAction = nullptr;
     /// The menu bar, hidden without a global menu; the command palette lists its menus.
     QMenuBar *m_menuBar = nullptr;
     fe::CommandPalette *m_palette = nullptr;
