@@ -39,7 +39,9 @@ the path reads as the archive's own path, then the folders in it, and Up from it
 archive selected), Git (Dolphin's Git plugin from `dolphin-plugins`, which the installer turns on in `dolphinrc
 [VersionControl] enabledPlugins` without turning off the user's others: each file in a repository shows its status,
 and the context menu has a Git submenu with Log, Add, Commit, Push and the rest, taken from the part's action groups
-by `fe::BrowserTab::versionControlActions`), path segments in both bars (`fe::CrumbStrip`, rules in `core/crumbs`; below), Finder menus with shortcuts written the Windows way (`fe::shortcutLabel`: "Ctrl+Alt+C", "Alt+Enter", "Win+E"),
+by `fe::BrowserTab::versionControlActions`), smart folders (Save at the right of the search row names the search
+and puts it in Favorites as a KDE place, so Dolphin lists it under Search For; it opens like a folder, its icon a
+magnifier, and the index's change notices keep it current), path segments in both bars (`fe::CrumbStrip`, rules in `core/crumbs`; below), Finder menus with shortcuts written the Windows way (`fe::shortcutLabel`: "Ctrl+Alt+C", "Alt+Enter", "Win+E"),
 and the pointing hand on every clickable widget.
 
 Group offers the Finder's choices (None, Name, Kind, Date Modified, Date Created, Size, Tags) through Dolphin's own
@@ -87,18 +89,19 @@ It also serves `org.freedesktop.FileManager1` (`--service`: "Show in folder" sel
 portal backend (`--portal`: Open and Save panels with a chooser bar; it quits after three idle minutes). Installed as
 `~/.local/bin/file-explorer`; Win+E launches it. Folders without a view of their own show Finder's columns (Name,
 Modified, Size, Type) from `~/.local/share/file-explorer/view_properties/global/.directory`. Tests: `fe_tests` (90),
-`fe_finder_tests` (54), `fe_widget_tests` (22, offscreen: clicks, drops, a drag resting on a segment, the address
+`fe_finder_tests` (54), `fe_widget_tests` (23, offscreen: clicks, drops, a drag resting on a segment, the address
 field at rest, accessibility, the filter row over a real Dolphin view, the glass behind a field inside a tab, the
 Rename sheet renaming a real folder and one Undo taking it back, F2 on two items opening it, the command palette
 finding, running and closing, Copy Path with three items and with none, the Inspector counting a
 folder and again after a change, hashing a file and comparing a pasted hash, a tar.gz opened as a
-folder, Up out of it, the Inspector counting inside it), `tests/installer/test_tag_emblems.sh` (5). Sandbox: `explorer.sh`, `explorer-crumbs.sh` (the path
+folder, Up out of it, the Inspector counting inside it, the search row's Save and its folder capsule hidden when the index
+does not hold the folder), `tests/installer/test_tag_emblems.sh` (5). Sandbox: `explorer.sh`, `explorer-crumbs.sh` (the path
 segments: hover, both menus, a drop in the accent, a segment opening under a drag, KIO's menu at the pointer on a
 segment and on the sidebar, a refused drop, Ctrl+L, Ctrl+click and middle click), `explorer-finder.sh` (the
 mockup's scene: tags, the unfolded sidebar, the menu, a typed path, Quick Look, Split View, a tag's shelf, the Group
 menu and the folder grouped by Kind from it, and the window inactive behind another),
 `explorer-menus.sh`, `explorer-drives.sh`, `explorer-search.sh` (search from the index: whole home, scope row, hidden
-names), `explorer-undo.sh` (Delete, then Ctrl+Z brings the file back; FAIL on the code before Undo), `explorer-filter.sh`
+names, Save to a smart folder in Favorites and opening it), `explorer-undo.sh` (Delete, then Ctrl+Z brings the file back; FAIL on the code before Undo), `explorer-filter.sh`
 (Ctrl+Alt+F, a word hides the rest, no match empties the view, Escape brings everything back), `explorer-rename.sh`
 (Ctrl+A, F2, find and replace, Enter, then Ctrl+Z; 3 PASS), `explorer-palette.sh` (Ctrl+Shift+P, "show hidden",
 Enter; 3 PASS), `explorer-copypaths.sh` (Ctrl+A, Ctrl+Alt+C, the three paths read

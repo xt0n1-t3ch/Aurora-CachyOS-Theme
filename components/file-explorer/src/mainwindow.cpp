@@ -35,6 +35,7 @@
 #include <QDir>
 #include <QFileInfo>
 #include <QHBoxLayout>
+#include <QInputDialog>
 #include <QKeyEvent>
 #include <QMenu>
 #include <QMouseEvent>
@@ -234,6 +235,18 @@ void MainWindow::connectTab(fe::BrowserTab *tab)
         }
     });
     connect(tab, &fe::BrowserTab::newTabRequested, this, [this](const QUrl &target) { openTab(target, false); });
+    connect(tab, &fe::BrowserTab::saveSearchRequested, this, [this](const QString &term, const QString &query, const QUrl &scope) {
+        bool ok = false;
+        const QString name = QInputDialog::getText(this, QStringLiteral("Save Search"), QStringLiteral("Name of the smart folder:"),
+                                                   QLineEdit::Normal, term, &ok)
+                                 .trimmed();
+        if (!ok || name.isEmpty()) {
+            return;
+        }
+        // A smart folder is a place of KDE's like any other, so Dolphin's sidebar shows it too, and the index keeps
+        // what it lists current.
+        m_sidebar->view()->addFolder(fe::indexedSearchUrl(query, scope, name), name);
+    });
     connect(tab, &fe::BrowserTab::contextMenuRequested, this,
             [this, tab](const QPoint &pos, const KFileItemList &items, const KParts::NavigationExtension::ActionGroupMap &groups) {
                 fe::execContextMenu(tab, pos, items, m_actions, this, tab->versionControlActions(groups));

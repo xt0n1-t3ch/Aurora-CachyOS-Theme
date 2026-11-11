@@ -13,6 +13,7 @@
 #include "filterbar.h"
 #include "glassfield.h"
 #include "inspectorpanel.h"
+#include "searchscopebar.h"
 #include "toolbar.h"
 #include "tabpage.h"
 #include "crumbaccessible.h"
@@ -508,6 +509,27 @@ private Q_SLOTS:
         QVERIFY(panel.compareText().startsWith(QStringLiteral("Matches")));
         compare->setText(QStringLiteral("0000000000000000000000000000000000000000000000000000000000000000"));
         QVERIFY(panel.compareText().startsWith(QStringLiteral("Does not match")));
+    }
+
+    void theSearchRowSavesAndHidesTheFolderTheIndexDoesNotHold()
+    {
+        fe::SearchScopeBar bar;
+        bar.resize(700, 34);
+        bar.setScope(QStringLiteral("Games"), true);
+        bar.show();
+        QSignalSpy saved(&bar, &fe::SearchScopeBar::saveRequested);
+        QSignalSpy chosen(&bar, &fe::SearchScopeBar::scopeChosen);
+        // Save sits at the right end.
+        QTest::mouseClick(&bar, Qt::LeftButton, Qt::NoModifier, QPoint(660, 17));
+        QCOMPARE(saved.size(), 1);
+        // The folder's capsule, right of This PC, picks the folder; hidden, it is not there to press.
+        const QPoint folder(170, 17);
+        QTest::mouseClick(&bar, Qt::LeftButton, Qt::NoModifier, folder);
+        QCOMPARE(chosen.size(), 1);
+        bar.setScope(QStringLiteral("Games"), true);
+        bar.setFolderShown(false);
+        QTest::mouseClick(&bar, Qt::LeftButton, Qt::NoModifier, folder);
+        QCOMPARE(chosen.size(), 1);
     }
 
     void theCommandPaletteFindsAndRunsACommand()

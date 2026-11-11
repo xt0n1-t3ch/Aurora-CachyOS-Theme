@@ -100,14 +100,20 @@ BrowserTab::BrowserTab(const QUrl &url, QWidget *parent)
     m_relistTimer->setSingleShot(true);
     m_relistTimer->setInterval(RELIST_MS);
     connect(m_relistTimer, &QTimer::timeout, this, [this] {
-        if (isSearching() && m_indexed) {
+        if (listsFromIndex()) {
             reload();
         }
     });
     connect(&SearchService::instance(), &SearchService::indexChanged, this, [this] {
-        if (isSearching() && m_indexed) {
+        if (listsFromIndex()) {
             m_relistTimer->start();
         }
+    });
+    connect(m_scopeBar, &SearchScopeBar::saveRequested, this, [this] {
+        // The search as typed, with the scope chosen; the name is asked by the window.
+        const QAction *hidden = partAction(QStringLiteral("show_hidden_files"));
+        const QString text = hidden && hidden->isChecked() ? m_searchTerm + QStringLiteral(" hidden:") : m_searchTerm;
+        Q_EMIT saveSearchRequested(m_searchTerm, text, m_everywhere ? QUrl() : m_searchOrigin);
     });
 
     m_searchTimer->setSingleShot(true);
@@ -247,6 +253,10 @@ void BrowserTab::showUrl(const QUrl &url)
     // The view keeps its name filter across folders (DolphinView::setNameFilter); a filter typed for one listing would
     // hide items of the next, so it ends here.
     m_filterBar->dismiss();
+    if (url.scheme() == u"aurora-search") {
+        // A smart folder: the helper's change notices keep it current, as they keep a search current.
+        SearchService::instance().warm();
+    }
     m_part->openUrl(url);
     refreshFreeSpace();
     refreshCounts();
@@ -258,6 +268,12 @@ void BrowserTab::openFolder(const QUrl &url)
     endSearch();
     m_history.visit(url);
     showUrl(url);
+}
+
+bool BrowserTab::listsFromIndex() const
+{
+    // A search typed here, or a smart folder opened from the sidebar, which is a search of the index too.
+    return (isSearching() && m_indexed) || url().scheme() == u"aurora-search";
 }
 
 void BrowserTab::endSearch()
@@ -374,7 +390,8 @@ void BrowserTab::runSearch()
     if (m_indexed) {
         const QString folderName = m_searchOrigin.isLocalFile() ? QFileInfo(m_searchOrigin.toLocalFile()).fileName() : m_searchOrigin.fileName();
         m_scopeBar->setScope(folderName.isEmpty() ? QStringLiteral("/") : folderName, m_everywhere);
-        m_scopeBar->setVisible(folderIndexed);
+        m_scopeBar->setFolderShown(folderIndexed);
+        m_scopeBar->show();
         // Hidden names are matched only while the view shows hidden files, as in the folder itself.
         const QAction *hidden = partAction(QStringLiteral("show_hidden_files"));
         const QString text = hidden && hidden->isChecked() ? m_searchTerm + QStringLiteral(" hidden:") : m_searchTerm;

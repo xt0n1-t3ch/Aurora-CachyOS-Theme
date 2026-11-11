@@ -130,6 +130,10 @@ Q_SIGNALS:
     void viewModeChanged();
     /// A folder should open in a new tab.
     void newTabRequested(const QUrl &url);
+    /// Save was pressed on a search of the index: the window asks for a name and puts the search in the sidebar as a
+    /// smart folder. term is what was typed, query what the index is asked (with hidden: when hidden files show),
+    /// scope the folder searched or an empty URL for the whole PC.
+    void saveSearchRequested(const QString &term, const QString &query, const QUrl &scope);
     /// A file was double-clicked while picking.
     void filePicked(const QUrl &url);
     /// Dolphin asks for a context menu at globalPos.
@@ -141,6 +145,8 @@ private:
     /// Shows url in the part without touching the history.
     void showUrl(const QUrl &url);
     void endSearch();
+    /// Whether the listing on screen comes from aurora-search's index, which announces its changes.
+    [[nodiscard]] bool listsFromIndex() const;
     void runSearch();
     /// Opens a folder in this tab, reports a file as picked, or starts the file in its application.
     void handleOpenRequest(const QUrl &url, const KParts::OpenUrlArguments &arguments);

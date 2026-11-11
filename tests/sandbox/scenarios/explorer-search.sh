@@ -20,6 +20,17 @@ printf 'docs\n' > "$DOCS/aurora-notes.md"
 rm -f "$HOME/Crumbs/aurora-live-note.txt"
 # File Explorer keeps the last scope chosen; the scenario starts from This PC.
 kwriteconfig6 --file file-explorerrc --group Search --key Everywhere true
+kwriteconfig6 --file file-explorerrc --group Inspector --key Visible false
+# No smart folder from an earlier run.
+python3 -I - "$HOME/.local/share/user-places.xbel" <<'EOF'
+import re, sys
+path = sys.argv[1]
+try:
+    text = open(path).read()
+except OSError:
+    sys.exit(0)
+open(path, "w").write(re.sub(r'\s*<bookmark href="aurora-search:[^"]*".*?</bookmark>', "", text, flags=re.S))
+EOF
 
 check() {
     if python3 -I "$CHANGED" "$SHOTS/$2.png" "$SHOTS/$3.png" "$4" "$5" "$6" "$7" > /dev/null 2>&1; then
@@ -76,6 +87,18 @@ shot search-folder
 check the-scope-row-keeps-the-folder search-results search-folder 880 400 1010 425
 IN_DOCS=$("$SB/build/search/aurora-search-query" --socket "$AURORA_SEARCH_SOCKET" --scope "$DOCS" aurora | head -1 | cut -f1)
 [ "$IN_DOCS" = 1 ] && echo "PASS the-helper-finds-one-match-in-docs" >> "$OUT" || echo "FAIL the-helper-finds-one-match-in-docs ($IN_DOCS)" >> "$OUT"
+
+# Save at the right end of the scope row, then Enter keeps the suggested name: a smart folder joins Favorites.
+input move 1945 406 wait 200 down wait 80 up wait 1500
+shot search-save
+input keydown 28 keyup 28 wait 1500
+shot search-saved
+check save-puts-a-smart-folder-in-the-sidebar search-folder search-saved 580 620 790 760
+# The smart folder opens like a folder and lists the search's matches.
+input move 640 680 wait 200 down wait 80 up wait 2000
+shot search-smart-folder
+# The path bar now names the smart folder instead of the folder's path.
+check the-smart-folder-opens search-saved search-smart-folder 880 1120 1260 1150
 
 echo "helper memory after: $(awk '/VmRSS/ {print $2, $3}' /proc/$HELPER/status)" >> "$OUT"
 kill "$HELPER"

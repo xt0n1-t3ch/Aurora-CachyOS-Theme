@@ -21,6 +21,8 @@ constexpr qreal PADDING = 12.0;
 constexpr qreal CAPSULE_HEIGHT = 24.0;
 const QString LABEL = QStringLiteral("Search:");
 const QString EVERYWHERE = QStringLiteral("This PC");
+const QString SAVE = QStringLiteral("Save");
+constexpr qreal RIGHT = 14.0;
 
 } // namespace
 
@@ -33,6 +35,12 @@ SearchScopeBar::SearchScopeBar(QWidget *parent)
     setAccessibleName(QStringLiteral("Search scope"));
 }
 
+void SearchScopeBar::setFolderShown(bool shown)
+{
+    m_folderShown = shown;
+    update();
+}
+
 void SearchScopeBar::setScope(const QString &folderName, bool everywhere)
 {
     m_folderName = folderName;
@@ -43,6 +51,10 @@ void SearchScopeBar::setScope(const QString &folderName, bool everywhere)
 QRectF SearchScopeBar::capsule(int which) const
 {
     const QFontMetricsF metrics(font());
+    if (which == 2) {
+        const qreal saveWidth = metrics.horizontalAdvance(SAVE) + PADDING * 2;
+        return {width() - RIGHT - saveWidth, (height() - CAPSULE_HEIGHT) / 2.0, saveWidth, CAPSULE_HEIGHT};
+    }
     qreal x = LEFT + metrics.horizontalAdvance(LABEL) + GAP * 2;
     const qreal first = metrics.horizontalAdvance(EVERYWHERE) + PADDING * 2;
     const QString folder = QStringLiteral("\u201C%1\u201D").arg(m_folderName);
@@ -61,18 +73,26 @@ void SearchScopeBar::paintEvent(QPaintEvent *)
     painter.setPen(style::TEXT_SECONDARY);
     painter.drawText(QRectF(LEFT, 0, width(), height()), Qt::AlignVCenter | Qt::AlignLeft, LABEL);
     const QStringList labels{EVERYWHERE, QStringLiteral("\u201C%1\u201D").arg(m_folderName)};
-    for (int which = 0; which < 2; ++which) {
+    for (int which = 0; which < (m_folderShown ? 2 : 1); ++which) {
         const QRectF rect = capsule(which);
         const bool chosen = (which == 0) == m_everywhere;
         style::paintGlass(painter, rect, rect.height() / 2.0, chosen ? style::SEGMENT_CHECKED : style::CAPSULE_FILL);
         painter.setPen(chosen ? style::TEXT : style::TEXT_SECONDARY);
         painter.drawText(rect, Qt::AlignCenter, labels.at(which));
     }
+    const QRectF save = capsule(2);
+    style::paintGlass(painter, save, save.height() / 2.0, style::CAPSULE_FILL);
+    painter.setPen(style::TEXT);
+    painter.drawText(save, Qt::AlignCenter, SAVE);
 }
 
 void SearchScopeBar::mousePressEvent(QMouseEvent *event)
 {
-    for (int which = 0; which < 2; ++which) {
+    if (capsule(2).contains(event->position())) {
+        Q_EMIT saveRequested();
+        return;
+    }
+    for (int which = 0; which < (m_folderShown ? 2 : 1); ++which) {
         if (capsule(which).contains(event->position())) {
             const bool everywhere = which == 0;
             if (everywhere != m_everywhere) {

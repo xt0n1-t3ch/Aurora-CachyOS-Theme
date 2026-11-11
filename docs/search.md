@@ -52,6 +52,13 @@ the path; `*` and `?` match the whole name; `ext:jpg;png`, `regex:`, `folder:`, 
 view shows hidden files. Matches are ranked: the name equal to the first word, then starting with it, then a word of
 the name starting with it, then anywhere; shallower and shorter first.
 
+## Smart folders
+
+Save in the search row asks for a name and adds the search to KDE's places as an `aurora-search:` URL with that
+title. File Explorer shows it in Favorites; Dolphin, which files every place whose scheme holds "search" under Search
+For, shows it there and opens it through the same KIO worker. A tab showing one connects to the helper as a search
+does, so the helper's change notices list it again.
+
 ## Settings
 
 `/etc/aurora/search.conf`: `idle_minutes`, and `exclude = /path` (one per line). `aurora-search-query WORDS` asks from
