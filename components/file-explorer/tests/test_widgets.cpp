@@ -2,10 +2,13 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Additional terms (GPL-3.0 section 7, author attribution): see NOTICE.md.
 // Tests of File Explorer's widgets on Qt's offscreen platform: the path segments' clicks, drops and spring-loading,
-// the address field at rest, and what assistive technology reads of the path bar.
+// the address field at rest, what assistive technology reads of the path bar, and the filter row over Dolphin's view.
 
 #include "addressfield.h"
 #include "bottombar.h"
+#include "browsertab.h"
+#include "filterbar.h"
+#include "tabpage.h"
 #include "crumbaccessible.h"
 #include "crumbstrip.h"
 
@@ -13,6 +16,7 @@
 #include <QApplication>
 #include <QDir>
 #include <QFile>
+#include <QLineEdit>
 #include <QMimeData>
 #include <QSignalSpy>
 #include <QTemporaryDir>
@@ -195,6 +199,91 @@ private Q_SLOTS:
         bar->setCrumbs({{QStringLiteral("alex"), HOME}});
         QCOMPARE(group->childCount(), 1);
         QCOMPARE(group->child(0)->text(QAccessible::Name), QStringLiteral("alex"));
+    }
+
+    void theFilterRowSendsEachKeyAndClosesOnEscape()
+    {
+        QWidget window;
+        auto *bar = new fe::FilterBar(&window);
+        window.resize(600, 40);
+        window.show();
+        QVERIFY(bar->isHidden());
+        bar->open();
+        QVERIFY(bar->isVisible());
+        QSignalSpy changed(bar, &fe::FilterBar::filterChanged);
+        QSignalSpy toView(bar, &fe::FilterBar::focusViewRequested);
+        auto *field = bar->findChild<QLineEdit *>();
+        QVERIFY(field);
+        QTest::keyClicks(field, QStringLiteral("re"));
+        QCOMPARE(changed.size(), 2);
+        QCOMPARE(changed.last().at(0).toString(), QStringLiteral("re"));
+        bar->setMatchCount(3);
+        QCOMPARE(bar->matchText(), QStringLiteral("3 matches"));
+        QTest::keyClick(field, Qt::Key_Down);
+        QCOMPARE(toView.size(), 1);
+        QVERIFY(bar->isVisible());
+        QTest::keyClick(field, Qt::Key_Escape);
+        QVERIFY(bar->isHidden());
+        QCOMPARE(bar->text(), QString());
+        QCOMPARE(changed.last().at(0).toString(), QString());
+        QCOMPARE(toView.size(), 2);
+        // Closing an empty row sends nothing.
+        bar->open();
+        bar->dismiss();
+        QCOMPARE(changed.size(), 3);
+    }
+
+    void aFilterHidesWhatDoesNotMatchAndEndsWithTheFolder()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        for (const char *name : {"Report.pdf", "report-draft.odt", "beach.jpg"}) {
+            QFile file(dir.filePath(QString::fromLatin1(name)));
+            QVERIFY(file.open(QIODevice::WriteOnly));
+        }
+        QVERIFY(QDir(dir.path()).mkdir(QStringLiteral("Other")));
+        fe::BrowserTab tab(QUrl::fromLocalFile(dir.path()));
+        if (!tab.isLoaded()) {
+            QSKIP("Dolphin's part is not installed");
+        }
+        tab.resize(800, 500);
+        tab.show();
+        QTRY_COMPARE(tab.statusText().section(u',', 0, 0), QStringLiteral("4 items"));
+        tab.openFilter();
+        auto *field = tab.filterBar()->findChild<QLineEdit *>();
+        QTest::keyClicks(field, QStringLiteral("REPORT"));
+        QCOMPARE(tab.statusText().section(u',', 0, 0), QStringLiteral("2 items"));
+        QCOMPARE(tab.filterBar()->matchText(), QStringLiteral("2 matches"));
+        QTest::keyClicks(field, QStringLiteral("zzz"));
+        QCOMPARE(tab.filterBar()->matchText(), QStringLiteral("No matches"));
+        // Another folder shows everything it holds, with the row closed.
+        tab.openFolder(QUrl::fromLocalFile(dir.filePath(QStringLiteral("Other"))));
+        QVERIFY(tab.filterBar()->isHidden());
+        QCOMPARE(tab.filterText(), QString());
+        tab.goBack();
+        QTRY_COMPARE(tab.statusText().section(u',', 0, 0), QStringLiteral("4 items"));
+    }
+
+    void aFieldInsideATabShowsTheGlassBehindIt()
+    {
+        // A style sheet on any ancestor hands every field below it to Qt's style sheet style, which fills a line
+        // edit with an opaque panel; the window's glass must show through the filter field instead.
+        QTemporaryDir dir;
+        auto *tab = new fe::BrowserTab(QUrl::fromLocalFile(dir.path()));
+        if (!tab->isLoaded()) {
+            delete tab;
+            QSKIP("Dolphin's part is not installed");
+        }
+        fe::TabPage page(tab);
+        page.resize(800, 400);
+        page.show();
+        tab->openFilter();
+        auto *field = tab->filterBar()->findChild<QLineEdit *>();
+        QImage image(page.size(), QImage::Format_ARGB32_Premultiplied);
+        image.fill(Qt::transparent);
+        page.render(&image, QPoint(), QRegion(), QWidget::DrawChildren);
+        const QColor inside = image.pixelColor(field->mapTo(&page, QPoint(field->width() / 2, field->height() / 2)));
+        QVERIFY2(inside.alphaF() < 0.5, qPrintable(inside.name(QColor::HexArgb)));
     }
 };
 

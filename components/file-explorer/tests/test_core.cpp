@@ -911,6 +911,13 @@ private Q_SLOTS:
         fade.setHovered(false);
         QVERIFY2(fade.progress() <= reached && fade.progress() > 0.0, "no jump back to fully hovered or to none");
     }
+
+    void a_filter_counts_its_matches_in_words()
+    {
+        QCOMPARE(fe::filterMatchText(0), QStringLiteral("No matches"));
+        QCOMPARE(fe::filterMatchText(1), QStringLiteral("1 match"));
+        QCOMPARE(fe::filterMatchText(1204), QStringLiteral("1204 matches"));
+    }
 };
 
 QTEST_GUILESS_MAIN(CoreTest)

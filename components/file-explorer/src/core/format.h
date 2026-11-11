@@ -26,6 +26,9 @@ struct FolderCounts {
 /// by formatSize; the app passes the formatter of Dolphin's Size column, so the numbers always match.
 [[nodiscard]] QString statusLine(const FolderCounts &counts, const std::function<QString(qint64)> &formatSize);
 
+/// The count a filter row shows: "No matches", "1 match", "12 matches".
+[[nodiscard]] QString filterMatchText(qsizetype matches);
+
 /// A shortcut as Qt writes it ("Shift+Ctrl+N", "Alt+Return", "Meta+E") written the way Windows shows it
 /// ("Ctrl+Shift+N", "Alt+Enter", "Win+E"): modifiers in Win, Ctrl, Alt, Shift order, then the key's Windows name.
 [[nodiscard]] QString shortcutLabel(const QString &portableText);

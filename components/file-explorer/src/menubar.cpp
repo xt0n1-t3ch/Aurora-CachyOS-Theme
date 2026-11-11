@@ -137,6 +137,10 @@ void MainWindow::buildMenuBar()
         m_toolbar->searchField()->setFocus();
         m_toolbar->searchField()->selectAll();
     })->setIcon(QIcon::fromTheme(QStringLiteral("edit-find")));
+    // Dolphin's Ctrl+I is Get Info here (Finder's key) and Ctrl+Shift+F is Recents, so the filter takes Ctrl+Alt+F.
+    m_filterAction = addWindowAction(edit, QStringLiteral("Filter by Name"), {keys(Qt::CTRL | Qt::ALT | Qt::Key_F)},
+                                     [this] { currentTab()->openFilter(); });
+    m_filterAction->setIcon(QIcon::fromTheme(QStringLiteral("view-filter")));
 
     QMenu *view = bar->addMenu(QStringLiteral("View"));
     addPartProxy(view, QStringLiteral("as Icons"), QStringLiteral("icons"));

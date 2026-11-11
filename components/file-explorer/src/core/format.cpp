@@ -84,4 +84,12 @@ QString statusLine(const FolderCounts &counts, const std::function<QString(qint6
     return line;
 }
 
+QString filterMatchText(qsizetype matches)
+{
+    if (matches == 0) {
+        return QStringLiteral("No matches");
+    }
+    return matches == 1 ? QStringLiteral("1 match") : QStringLiteral("%1 matches").arg(matches);
+}
+
 } // namespace fe

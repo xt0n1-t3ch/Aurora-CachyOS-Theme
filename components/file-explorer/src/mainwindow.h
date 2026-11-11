@@ -145,6 +145,7 @@ private:
     fe::WindowActions m_actions{};
     QAction *m_sidebarAction = nullptr;
     QAction *m_addToSidebar = nullptr;
+    QAction *m_filterAction = nullptr;
     QMenu *m_sortMenu = nullptr;
     QList<PartProxy> m_partProxies;
     bool m_picking = false;

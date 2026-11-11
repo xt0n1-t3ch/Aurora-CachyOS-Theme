@@ -20,6 +20,7 @@ class KNewFileMenu;
 class QTimer;
 
 namespace fe {
+class FilterBar;
 class SearchScopeBar;
 }
 
@@ -94,6 +95,13 @@ public:
     void paste();
     void focusView();
 
+    /// Opens the filter row: the view keeps only the items whose names contain what is typed in it. The filter
+    /// belongs to the listing on screen and ends when the tab shows another folder or search.
+    void openFilter();
+    /// The filter's text; empty when no filter is on.
+    [[nodiscard]] QString filterText() const;
+    [[nodiscard]] FilterBar *filterBar() const;
+
 Q_SIGNALS:
     /// The location on screen changed.
     void locationChanged();
@@ -134,6 +142,7 @@ private:
     QString m_searchTerm;
     QTimer *m_searchTimer;
     SearchScopeBar *m_scopeBar;
+    FilterBar *m_filterBar;
     /// The scope chosen in the scope row: the whole PC, or the folder the search started in.
     bool m_everywhere = true;
     /// Whether the search on screen lists from the index, which announces its changes.

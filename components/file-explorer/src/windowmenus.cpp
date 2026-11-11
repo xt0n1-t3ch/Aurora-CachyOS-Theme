@@ -146,6 +146,7 @@ void MainWindow::showMoreMenu()
     addPart("show_hidden_files");
     addPart("show_preview");
     addPart("sort");
+    menu.addAction(m_filterAction);
     menu.addSeparator();
     menu.addAction(QIcon::fromTheme(QStringLiteral("document-properties")), QStringLiteral("Get Info\tCtrl+I"), this, &MainWindow::showInfo);
     menu.addAction(m_addToSidebar);

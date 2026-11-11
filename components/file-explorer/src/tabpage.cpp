@@ -16,8 +16,9 @@ TabPage::TabPage(BrowserTab *primary, QWidget *parent)
     , m_active(primary)
 {
     setChildrenCollapsible(false);
+    // A hairline between the panes, drawn by FinderStyle (CE_Splitter). A style sheet here would hand every widget of
+    // both panes to Qt's style sheet style, which fills line edits with an opaque panel.
     setHandleWidth(1);
-    setStyleSheet(QStringLiteral("QSplitter::handle { background: rgba(255, 255, 255, 26); }"));
     addWidget(primary);
     // The pane that gets the keyboard, by a click or by Tab, becomes the active one.
     connect(qApp, &QApplication::focusChanged, this, [this](QWidget *, QWidget *now) {

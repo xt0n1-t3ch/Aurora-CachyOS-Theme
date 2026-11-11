@@ -7,6 +7,7 @@
 #include "browsertab.h"
 
 #include "core/paths.h"
+#include "filterbar.h"
 #include "searchscopebar.h"
 #include "searchservice.h"
 
@@ -22,6 +23,7 @@
 #include <KIO/StatJob>
 #include <KNewFileMenu>
 #include <KParts/FileInfoExtension>
+#include <KParts/ListingFilterExtension>
 #include <KParts/ListingNotificationExtension>
 #include <KParts/OpenUrlArguments>
 #include <KParts/PartLoader>
@@ -63,6 +65,7 @@ BrowserTab::BrowserTab(const QUrl &url, QWidget *parent)
     : QWidget(parent)
     , m_searchTimer(new QTimer(this))
     , m_scopeBar(new SearchScopeBar(this))
+    , m_filterBar(new FilterBar(this))
     , m_relistTimer(new QTimer(this))
 {
     auto *layout = new QVBoxLayout(this);
@@ -70,6 +73,16 @@ BrowserTab::BrowserTab(const QUrl &url, QWidget *parent)
     layout->setSpacing(0);
     layout->addWidget(m_scopeBar);
     m_scopeBar->hide();
+    layout->addWidget(m_filterBar);
+    // Dolphin's part filters by a case-insensitive part of the name (DolphinPartListingFilterExtension::setFilter and
+    // KFileItemModelFilter::matchesPattern, dolphin v26.08.3), the same rule as Dolphin's own filter bar.
+    connect(m_filterBar, &FilterBar::filterChanged, this, [this](const QString &text) {
+        if (auto *filter = m_part ? KParts::ListingFilterExtension::childObject(m_part) : nullptr) {
+            filter->setFilter(KParts::ListingFilterExtension::SubString, text);
+        }
+        refreshCounts();
+    });
+    connect(m_filterBar, &FilterBar::focusViewRequested, this, &BrowserTab::focusView);
     m_everywhere = KSharedConfig::openConfig(QStringLiteral("file-explorerrc"))->group(QStringLiteral("Search")).readEntry("Everywhere", true);
     connect(m_scopeBar, &SearchScopeBar::scopeChosen, this, [this](bool everywhere) {
         m_everywhere = everywhere;
@@ -213,6 +226,9 @@ void BrowserTab::showUrl(const QUrl &url)
     }
     m_message.clear();
     m_counts = {};
+    // The view keeps its name filter across folders (DolphinView::setNameFilter); a filter typed for one listing would
+    // hide items of the next, so it ends here.
+    m_filterBar->dismiss();
     m_part->openUrl(url);
     refreshFreeSpace();
     refreshCounts();
@@ -429,6 +445,23 @@ void BrowserTab::focusView()
     }
 }
 
+void BrowserTab::openFilter()
+{
+    if (m_part) {
+        m_filterBar->open();
+    }
+}
+
+QString BrowserTab::filterText() const
+{
+    return m_filterBar->text();
+}
+
+FilterBar *BrowserTab::filterBar() const
+{
+    return m_filterBar;
+}
+
 void BrowserTab::activateItems(const KFileItemList &items)
 {
     bool openedFolderHere = false;
@@ -497,6 +530,8 @@ void BrowserTab::refreshCounts()
     }
     const KFileItemList selected = info->queryFor(KParts::FileInfoExtension::SelectedItems);
     m_counts.items = info->queryFor(KParts::FileInfoExtension::AllItems).size();
+    // AllItems holds only what the filter lets through (DolphinPartFileInfoExtension::queryFor, dolphin v26.08.3).
+    m_filterBar->setMatchCount(m_counts.items);
     m_counts.selected = selected.size();
     m_counts.selectedFileBytes = 0;
     for (const KFileItem &item : selected) {

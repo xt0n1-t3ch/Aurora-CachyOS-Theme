@@ -23,6 +23,9 @@ it changes. A change that needs a fresh install, or that an earlier backup canno
   are already in, is refused. A segment dragged out carries its folder, to the sidebar, a tab or a terminal.
 - Screen readers read File Explorer's path bar as one link per folder, which they can press.
 - File Explorer's Edit menu has Undo (Ctrl+Z) for the last move, copy, rename, new folder or trash, named after it.
+- File Explorer filters the folder on screen as you type (Ctrl+Alt+F, or More > Filter by Name): only the items whose
+  names contain the text stay, with the number of matches beside it. Enter or the Down arrow goes to the first item,
+  Escape shows everything again, and moving to another folder ends the filter.
 - File Explorer searches the whole PC as you type: a helper keeps an index of every local disk's names and answers
   in a few milliseconds (490,544 names: under 3 ms for a word). It runs only while File Explorer is used and leaves
   a few minutes after, catches up on what changed meanwhile without reading everything again, follows changes live,

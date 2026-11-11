@@ -63,6 +63,7 @@ add_library(fe_app OBJECT
     src/crumbaccessible.cpp
     src/searchservice.cpp
     src/searchscopebar.cpp
+    src/filterbar.cpp
     src/bottombar.cpp
     src/contextmenu.cpp
     src/mainwindow.cpp
