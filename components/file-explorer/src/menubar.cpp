@@ -66,12 +66,18 @@ QAction *MainWindow::addPartProxy(QMenu *menu, const QString &text, const QStrin
 void MainWindow::syncPartProxies()
 {
     const fe::BrowserTab *tab = currentTab();
+    const bool columns = tab && tab->viewMode() == fe::ViewMode::Columns;
     for (const PartProxy &proxy : std::as_const(m_partProxies)) {
         const QAction *part = tab ? tab->partAction(proxy.partActionName) : nullptr;
         proxy.action->setEnabled(part && part->isEnabled());
         proxy.action->setCheckable(part && part->isCheckable());
-        proxy.action->setChecked(part && part->isCheckable() && part->isChecked());
+        // In the columns view the part shows a list, but the menu's choice is Columns.
+        const bool listUnderColumns = columns && proxy.partActionName == u"details";
+        proxy.action->setChecked(part && part->isCheckable() && part->isChecked() && !listUnderColumns);
         proxy.action->setShortcuts(part ? part->shortcuts() : QList<QKeySequence>());
+    }
+    if (m_columnsAction) {
+        m_columnsAction->setChecked(columns);
     }
 }
 
@@ -191,6 +197,9 @@ void MainWindow::buildMenuBar()
     addPartProxy(view, QStringLiteral("as Icons"), QStringLiteral("icons"));
     addPartProxy(view, QStringLiteral("as List"), QStringLiteral("details"));
     addPartProxy(view, QStringLiteral("as Compact List"), QStringLiteral("compact"));
+    // The columns view is the window's own; its last column is Dolphin's list.
+    m_columnsAction = addWindowAction(view, QStringLiteral("as Columns"), {}, [this] { currentTab()->setViewMode(fe::ViewMode::Columns); });
+    m_columnsAction->setCheckable(true);
     view->addSeparator();
     m_sortMenu = view->addMenu(QStringLiteral("Sort By"));
     addPartProxy(view, QStringLiteral("Show Hidden Files"), QStringLiteral("show_hidden_files"));

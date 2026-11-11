@@ -489,6 +489,23 @@ private Q_SLOTS:
                  fe::CrumbDrop::Transfer);
     }
 
+    // The columns view (core/paths).
+
+    void the_columns_lead_from_home_or_the_disk_to_the_folder_s_parent()
+    {
+        const auto local = [](const char *path) { return QUrl::fromLocalFile(QString::fromLatin1(path)); };
+        QCOMPARE(fe::columnFolders(local("/home/alex/Games/Mods/Skyrim"), HOME),
+                 QList<QUrl>({local("/home/alex"), local("/home/alex/Games"), local("/home/alex/Games/Mods")}));
+        QCOMPARE(fe::columnFolders(local("/home/alex/Games"), HOME), QList<QUrl>({local("/home/alex")}));
+        QCOMPARE(fe::columnFolders(local("/mnt/D/X"), HOME), QList<QUrl>({local("/"), local("/mnt"), local("/mnt/D")}));
+        QCOMPARE(fe::columnFolders(local("/mnt"), HOME), QList<QUrl>({local("/")}));
+        QVERIFY(fe::columnFolders(local("/home/alex"), HOME).isEmpty());
+        QVERIFY(fe::columnFolders(local("/"), HOME).isEmpty());
+        QVERIFY(fe::columnFolders(QUrl(QStringLiteral("trash:/")), HOME).isEmpty());
+        // A folder whose name starts like home's is not inside it.
+        QCOMPARE(fe::columnFolders(local("/home/alexfiles/a"), HOME).constFirst(), local("/"));
+    }
+
     // Batch rename (core/batchrename).
 
     void batch_replace_changes_every_match_without_case_and_keeps_the_extension()

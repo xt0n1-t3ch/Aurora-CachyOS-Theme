@@ -71,6 +71,7 @@ add_library(fe_app OBJECT
     src/commandpalette.cpp
     src/glassfield.cpp
     src/inspectorpanel.cpp
+    src/columnsstrip.cpp
     src/bottombar.cpp
     src/contextmenu.cpp
     src/mainwindow.cpp

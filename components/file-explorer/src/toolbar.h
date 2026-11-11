@@ -23,6 +23,8 @@ enum class ViewMode {
     Icons,
     List,
     Compact,
+    /// Finder's columns: a column per folder on the way, Dolphin's list as the last.
+    Columns,
 };
 
 /// An icon button of the macOS 27 toolbar. Alone it is a round glass button; inside a Capsule it

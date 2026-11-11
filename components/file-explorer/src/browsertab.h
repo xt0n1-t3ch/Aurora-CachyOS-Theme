@@ -20,6 +20,7 @@ class KNewFileMenu;
 class QTimer;
 
 namespace fe {
+class ColumnsStrip;
 class FilterBar;
 class SearchScopeBar;
 }
@@ -118,6 +119,7 @@ public:
     /// The filter's text; empty when no filter is on.
     [[nodiscard]] QString filterText() const;
     [[nodiscard]] FilterBar *filterBar() const;
+    [[nodiscard]] ColumnsStrip *columnsStrip() const;
 
 Q_SIGNALS:
     /// The location on screen changed.
@@ -145,6 +147,8 @@ private:
     /// Shows url in the part without touching the history.
     void showUrl(const QUrl &url);
     void endSearch();
+    /// Shows the columns that lead to the folder on screen, or none outside the columns view or while searching.
+    void syncColumns();
     /// Whether the listing on screen comes from aurora-search's index, which announces its changes.
     [[nodiscard]] bool listsFromIndex() const;
     void runSearch();
@@ -166,6 +170,9 @@ private:
     QTimer *m_searchTimer;
     SearchScopeBar *m_scopeBar;
     FilterBar *m_filterBar;
+    ColumnsStrip *m_columns;
+    /// The columns view is on: the columns show left of the view, which is a list.
+    bool m_columnsMode = false;
     /// The scope chosen in the scope row: the whole PC, or the folder the search started in.
     bool m_everywhere = true;
     /// Whether the search on screen lists from the index, which announces its changes.

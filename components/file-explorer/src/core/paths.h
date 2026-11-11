@@ -46,6 +46,11 @@ struct PathContext {
 [[nodiscard]] QUrl indexedSearchUrl(const QString &term, const QUrl &scope, const QString &title);
 
 /// A file-name search below a folder, in the form Dolphin's filenamesearch worker reads.
+/// The folders the columns view shows as columns left of the folder on screen, outermost first: from home (for a
+/// folder inside home) or the root of the disk, down to the folder's parent. Empty for home, the root, a folder outside
+/// this PC, or a location that is no folder (Trash, a search).
+[[nodiscard]] QList<QUrl> columnFolders(const QUrl &folder, const QString &homePath);
+
 /// The text Copy Path puts on the clipboard: each item's path (a local item's file path, anything else its URL as a
 /// person reads it), one per line in the given order, with no line break after the last.
 [[nodiscard]] QString copiedPaths(const QList<QUrl> &items);

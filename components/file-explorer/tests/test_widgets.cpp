@@ -9,6 +9,7 @@
 #include "batchrenamesheet.h"
 #include "bottombar.h"
 #include "browsertab.h"
+#include "columnsstrip.h"
 #include "commandpalette.h"
 #include "filterbar.h"
 #include "glassfield.h"
@@ -25,6 +26,7 @@
 #include <QDir>
 #include <QFile>
 #include <QLineEdit>
+#include <QListView>
 #include <QProcess>
 #include <QPushButton>
 #include <QStandardPaths>
@@ -509,6 +511,45 @@ private Q_SLOTS:
         QVERIFY(panel.compareText().startsWith(QStringLiteral("Matches")));
         compare->setText(QStringLiteral("0000000000000000000000000000000000000000000000000000000000000000"));
         QVERIFY(panel.compareText().startsWith(QStringLiteral("Does not match")));
+    }
+
+    void theColumnsLeadToTheFolderAndOpenWhatIsClicked()
+    {
+        QTemporaryDir dir;
+        QVERIFY(QDir(dir.path()).mkpath(QStringLiteral("a/b")));
+        QFile file(dir.filePath(QStringLiteral("a/note.txt")));
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        file.close();
+        const QUrl a = QUrl::fromLocalFile(dir.filePath(QStringLiteral("a")));
+        const QUrl b = QUrl::fromLocalFile(dir.filePath(QStringLiteral("a/b")));
+        fe::BrowserTab tab(b);
+        if (!tab.isLoaded()) {
+            QSKIP("Dolphin's part is not installed");
+        }
+        tab.resize(1200, 500);
+        tab.show();
+        fe::ColumnsStrip *strip = tab.columnsStrip();
+        // The mode the last tab was left in comes back; this test starts from the icons.
+        tab.setViewMode(fe::ViewMode::Icons);
+        QVERIFY(strip->isHidden());
+        tab.setViewMode(fe::ViewMode::Columns);
+        QCOMPARE(tab.viewMode(), fe::ViewMode::Columns);
+        QVERIFY(strip->isVisible());
+        QCOMPARE(strip->folders().constLast(), a);
+        // The last column lists a: b, marked as the folder on screen, and note.txt.
+        QListView *last = strip->column(strip->folders().size() - 1);
+        QTRY_COMPARE(last->model()->rowCount(), 2);
+        QTRY_COMPARE(last->currentIndex().data().toString(), QStringLiteral("b"));
+        // A click on the file opens its folder with it selected; a click on a folder opens it.
+        const QModelIndex note = last->model()->index(1, 0);
+        QCOMPARE(note.data().toString(), QStringLiteral("note.txt"));
+        QTest::mouseClick(last->viewport(), Qt::LeftButton, Qt::NoModifier, last->visualRect(note).center());
+        QTRY_COMPARE(tab.url().adjusted(QUrl::StripTrailingSlash), a);
+        QCOMPARE(strip->folders().constLast(), QUrl::fromLocalFile(QDir::cleanPath(dir.path())));
+        // Another mode takes the columns away.
+        tab.setViewMode(fe::ViewMode::Icons);
+        QVERIFY(strip->isHidden());
+        QCOMPARE(tab.viewMode(), fe::ViewMode::Icons);
     }
 
     void theSearchRowSavesAndHidesTheFolderTheIndexDoesNotHold()

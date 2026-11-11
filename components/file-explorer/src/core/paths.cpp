@@ -119,6 +119,28 @@ QUrl indexedSearchUrl(const QString &term, const QUrl &scope, const QString &tit
     return url;
 }
 
+QList<QUrl> columnFolders(const QUrl &folder, const QString &homePath)
+{
+    if (!folder.isLocalFile()) {
+        return {};
+    }
+    const QString path = QDir::cleanPath(folder.toLocalFile());
+    const QString home = QDir::cleanPath(homePath);
+    const bool inHome = path.startsWith(home + u'/');
+    QString base = inHome ? home : QStringLiteral("/");
+    if (path == base || path == home) {
+        return {};
+    }
+    QList<QUrl> columns{QUrl::fromLocalFile(base)};
+    const QStringList parts = path.mid(inHome ? home.size() : 0).split(u'/', Qt::SkipEmptyParts);
+    // Every part but the last: the folder itself is not a column but the view beside them.
+    for (qsizetype i = 0; i + 1 < parts.size(); ++i) {
+        base = base == u"/" ? base + parts.at(i) : base + u'/' + parts.at(i);
+        columns.append(QUrl::fromLocalFile(base));
+    }
+    return columns;
+}
+
 QString copiedPaths(const QList<QUrl> &items)
 {
     QStringList lines;

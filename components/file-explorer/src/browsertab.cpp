@@ -7,6 +7,7 @@
 #include "browsertab.h"
 
 #include "batchrenamesheet.h"
+#include "columnsstrip.h"
 #include "core/paths.h"
 #include "filterbar.h"
 #include "searchscopebar.h"
@@ -35,6 +36,8 @@
 
 #include <QApplication>
 #include <QClipboard>
+#include <QDir>
+#include <QHBoxLayout>
 #include <QFileInfo>
 #include <QMimeDatabase>
 #include <QLabel>
@@ -59,6 +62,9 @@ QString viewModeAction(ViewMode mode)
         return QStringLiteral("details");
     case ViewMode::Compact:
         return QStringLiteral("compact");
+    case ViewMode::Columns:
+        // The last column is Dolphin's list.
+        return QStringLiteral("details");
     case ViewMode::Icons:
         break;
     }
@@ -72,6 +78,7 @@ BrowserTab::BrowserTab(const QUrl &url, QWidget *parent)
     , m_searchTimer(new QTimer(this))
     , m_scopeBar(new SearchScopeBar(this))
     , m_filterBar(new FilterBar(this))
+    , m_columns(new ColumnsStrip(QDir::homePath(), this))
     , m_relistTimer(new QTimer(this))
 {
     auto *layout = new QVBoxLayout(this);
@@ -130,8 +137,24 @@ BrowserTab::BrowserTab(const QUrl &url, QWidget *parent)
     }
     m_part = result.plugin;
     m_extension = KParts::NavigationExtension::childObject(m_part);
-    layout->addWidget(m_part->widget());
+    // The columns view's columns, left of Dolphin's view, which is their last column.
+    auto *row = new QHBoxLayout;
+    row->setContentsMargins(0, 0, 0, 0);
+    row->setSpacing(0);
+    row->addWidget(m_columns);
+    row->addWidget(m_part->widget(), 1);
+    layout->addLayout(row, 1);
+    connect(m_columns, &ColumnsStrip::folderChosen, this, &BrowserTab::openFolder);
+    connect(m_columns, &ColumnsStrip::fileChosen, this, [this](const QUrl &file) {
+        openFolder(file.adjusted(QUrl::RemoveFilename | QUrl::StripTrailingSlash));
+        selectItems({file});
+    });
     connectPart();
+    if (QAction *hidden = partAction(QStringLiteral("show_hidden_files"))) {
+        m_columns->setShowHiddenFiles(hidden->isChecked());
+        connect(hidden, &QAction::toggled, m_columns, &ColumnsStrip::setShowHiddenFiles);
+    }
+    m_columnsMode = KSharedConfig::openConfig(QStringLiteral("file-explorerrc"))->group(QStringLiteral("View")).readEntry("Columns", false);
     makeViewTransparent();
     openFolder(url);
 }
@@ -196,10 +219,16 @@ void BrowserTab::connectPart()
     // Dolphin remembers a view mode per folder, so the mode can change on every navigation.
     for (const ViewMode mode : {ViewMode::Icons, ViewMode::List, ViewMode::Compact}) {
         if (QAction *action = partAction(viewModeAction(mode))) {
-            connect(action, &QAction::toggled, this, [this](bool checked) {
-                if (checked) {
-                    Q_EMIT viewModeChanged();
+            connect(action, &QAction::toggled, this, [this, mode](bool checked) {
+                if (!checked) {
+                    return;
                 }
+                // Dolphin remembers a mode per folder; in the columns view the last column stays a list.
+                if (m_columnsMode && mode != ViewMode::List) {
+                    QTimer::singleShot(0, this, [this] { triggerPartAction(viewModeAction(ViewMode::List)); });
+                    return;
+                }
+                Q_EMIT viewModeChanged();
             });
         }
     }
@@ -260,6 +289,7 @@ void BrowserTab::showUrl(const QUrl &url)
     m_part->openUrl(url);
     refreshFreeSpace();
     refreshCounts();
+    syncColumns();
     Q_EMIT locationChanged();
 }
 
@@ -404,11 +434,35 @@ void BrowserTab::runSearch()
 
 void BrowserTab::setViewMode(ViewMode mode)
 {
+    const bool columns = mode == ViewMode::Columns;
+    if (columns != m_columnsMode) {
+        m_columnsMode = columns;
+        // The next tab and window open the way this one was left.
+        KConfigGroup group = KSharedConfig::openConfig(QStringLiteral("file-explorerrc"))->group(QStringLiteral("View"));
+        group.writeEntry("Columns", columns);
+        group.sync();
+        syncColumns();
+    }
     triggerPartAction(viewModeAction(mode));
+    if (columns) {
+        Q_EMIT viewModeChanged();
+    }
+}
+
+void BrowserTab::syncColumns()
+{
+    if (m_columnsMode) {
+        m_columns->setFolder(isSearching() ? QUrl() : url());
+    } else {
+        m_columns->setFolder(QUrl());
+    }
 }
 
 ViewMode BrowserTab::viewMode() const
 {
+    if (m_columnsMode) {
+        return ViewMode::Columns;
+    }
     for (const ViewMode mode : {ViewMode::List, ViewMode::Compact}) {
         if (const QAction *action = partAction(viewModeAction(mode)); action && action->isChecked()) {
             return mode;
@@ -589,6 +643,11 @@ QString BrowserTab::filterText() const
 FilterBar *BrowserTab::filterBar() const
 {
     return m_filterBar;
+}
+
+ColumnsStrip *BrowserTab::columnsStrip() const
+{
+    return m_columns;
 }
 
 void BrowserTab::activateItems(const KFileItemList &items)
