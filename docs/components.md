@@ -16,7 +16,7 @@ section folds away, kept in `file-explorerrc [Sidebar Tree]`), tabs, a toolbar w
 Alt+D (rules in `core/address`: `~`, relative paths, suggestions, shell Tab) and the Group, Share
 (Purpose), Edit Tags and More menus, a row of file actions (`fe::ActionBar`), Quick Look (`fe::QuickLook`, Space;
 rules in `core/quicklook`), Split View (`fe::TabPage`, F3), a path bar that names the selected file and shows the item
-count, path segments in both bars (`fe::CrumbStrip`, rules in `core/crumbs`; below), Finder menus with shortcuts written the Windows way (`fe::shortcutLabel`: "Ctrl+Alt+C", "Alt+Enter", "Win+E"),
+count, Undo (Ctrl+Z) from KIO's undo history, which Dolphin's view records its operations in, path segments in both bars (`fe::CrumbStrip`, rules in `core/crumbs`; below), Finder menus with shortcuts written the Windows way (`fe::shortcutLabel`: "Ctrl+Alt+C", "Alt+Enter", "Win+E"),
 and the pointing hand on every clickable widget.
 
 Group offers the Finder's choices (None, Name, Kind, Date Modified, Date Created, Size, Tags) through Dolphin's own
@@ -71,7 +71,7 @@ segment and on the sidebar, a refused drop, Ctrl+L, Ctrl+click and middle click)
 mockup's scene: tags, the unfolded sidebar, the menu, a typed path, Quick Look, Split View, a tag's shelf, the Group
 menu and the folder grouped by Kind from it, and the window inactive behind another),
 `explorer-menus.sh`, `explorer-drives.sh`, `explorer-search.sh` (search from the index: whole home, scope row, hidden
-names), `show-in-folder.sh`, `open-save.sh`.
+names), `explorer-undo.sh` (Delete, then Ctrl+Z brings the file back; FAIL on the code before Undo), `show-in-folder.sh`, `open-save.sh`.
 
 ## Mission Center (`components/mission-center`)
 

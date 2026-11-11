@@ -9,6 +9,8 @@
 #include "sidebar.h"
 #include "toolbar.h"
 
+#include <KIO/FileUndoManager>
+
 #include <QAction>
 #include <QDir>
 #include <QMenu>
@@ -110,6 +112,18 @@ void MainWindow::buildMenuBar()
     addWindowAction(file, QStringLiteral("Close Window"), {keys(Qt::CTRL | Qt::SHIFT | Qt::Key_W)}, [this] { close(); });
 
     QMenu *edit = bar->addMenu(QStringLiteral("Edit"));
+    // Undo of the last file operation (a move, copy, rename, new folder or trash), from KIO's undo history, which
+    // Dolphin's view records its operations in; the text names the operation, as KIO words it.
+    KIO::FileUndoManager *undoHistory = KIO::FileUndoManager::self();
+    QAction *undo = addWindowAction(edit, QStringLiteral("Undo"), QKeySequence::keyBindings(QKeySequence::Undo), [this, undoHistory] {
+        undoHistory->uiInterface()->setParentWidget(this);
+        undoHistory->undo();
+    });
+    undo->setIcon(QIcon::fromTheme(QStringLiteral("edit-undo")));
+    undo->setEnabled(undoHistory->isUndoAvailable());
+    connect(undoHistory, &KIO::FileUndoManager::undoAvailable, undo, &QAction::setEnabled);
+    connect(undoHistory, &KIO::FileUndoManager::undoTextChanged, undo, &QAction::setText);
+    edit->addSeparator();
     m_actions.cut = addWindowAction(edit, QStringLiteral("Cut"), QKeySequence::keyBindings(QKeySequence::Cut), [this] { currentTab()->cut(); });
     m_actions.copy = addWindowAction(edit, QStringLiteral("Copy"), QKeySequence::keyBindings(QKeySequence::Copy), [this] { currentTab()->copy(); });
     m_actions.paste = addWindowAction(edit, QStringLiteral("Paste"), QKeySequence::keyBindings(QKeySequence::Paste), [this] { currentTab()->paste(); });

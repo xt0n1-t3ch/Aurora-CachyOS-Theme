@@ -636,7 +636,7 @@ section folds away, kept in `file-explorerrc [Sidebar Tree]`), tabs, a toolbar w
 Alt+D (rules in `core/address`: `~`, relative paths, suggestions, shell Tab) and the Group, Share
 (Purpose), Edit Tags and More menus, a row of file actions (`fe::ActionBar`), Quick Look (`fe::QuickLook`, Space;
 rules in `core/quicklook`), Split View (`fe::TabPage`, F3), a path bar that names the selected file and shows the item
-count, path segments in both bars (`fe::CrumbStrip`, rules in `core/crumbs`; below), Finder menus with shortcuts written the Windows way (`fe::shortcutLabel`: "Ctrl+Alt+C", "Alt+Enter", "Win+E"),
+count, Undo (Ctrl+Z) from KIO's undo history, which Dolphin's view records its operations in, path segments in both bars (`fe::CrumbStrip`, rules in `core/crumbs`; below), Finder menus with shortcuts written the Windows way (`fe::shortcutLabel`: "Ctrl+Alt+C", "Alt+Enter", "Win+E"),
 and the pointing hand on every clickable widget.
 
 Group offers the Finder's choices (None, Name, Kind, Date Modified, Date Created, Size, Tags) through Dolphin's own
@@ -691,7 +691,7 @@ segment and on the sidebar, a refused drop, Ctrl+L, Ctrl+click and middle click)
 mockup's scene: tags, the unfolded sidebar, the menu, a typed path, Quick Look, Split View, a tag's shelf, the Group
 menu and the folder grouped by Kind from it, and the window inactive behind another),
 `explorer-menus.sh`, `explorer-drives.sh`, `explorer-search.sh` (search from the index: whole home, scope row, hidden
-names), `show-in-folder.sh`, `open-save.sh`.
+names), `explorer-undo.sh` (Delete, then Ctrl+Z brings the file back; FAIL on the code before Undo), `show-in-folder.sh`, `open-save.sh`.
 
 ## Mission Center (`components/mission-center`)
 
@@ -1215,7 +1215,7 @@ others capture `tests/sandbox/shots/` to compare by eye.
 | `quick-menu-app-menu.sh` | the app menu: right-click, Pin to Top and the Pinned section, the Menu key (not the field's text menu), Unpin from Dock, an opened app in Suggestions and Remove from Suggestions, no QML warnings (8 PASS); labels found with `tests/helpers/find_text.py` |
 | `readme.sh` | the README's pictures, the notifications popover among them (run with `SANDBOX_SCALE=2`, then `assets/screenshots/make.py`, which also crops Mission Center's two from its own sandbox) |
 | `kali-menu.sh` | the Kali menu with PC labels |
-| `explorer.sh`, `explorer-menus.sh`, `explorer-drives.sh`, `explorer-sidebar-order.sh`, `explorer-crumbs.sh`, `explorer-search.sh`, `show-in-folder.sh`, `open-save.sh` | File Explorer, its menus (X11 client), its drives, dragging sidebar rows into a new order, the path segments (clicks, menus, drops, a segment opening under a drag, KIO's menu at the pointer, new tabs; 10 PASS), search from the index (the helper runs as the user on the sandbox's home; 3 PASS and the times in logs/search.txt), "Show in folder", Open and Save |
+| `explorer.sh`, `explorer-menus.sh`, `explorer-drives.sh`, `explorer-sidebar-order.sh`, `explorer-crumbs.sh`, `explorer-search.sh`, `explorer-undo.sh`, `show-in-folder.sh`, `open-save.sh` | File Explorer, its menus (X11 client), its drives, dragging sidebar rows into a new order, the path segments (clicks, menus, drops, a segment opening under a drag, KIO's menu at the pointer, new tabs; 10 PASS), search from the index (the helper runs as the user on the sandbox's home; 3 PASS and the times in logs/search.txt), Undo after Delete (2 PASS), "Show in folder", Open and Save |
 | `notifications.sh` | banners in the bottom-right corner, hover buttons |
 | `tray-click.sh`, `tray-drag.sh`, `tray-show.sh` | tray clicks, drag to reorder and hide, bring back |
 | `control-center.sh`, `control-center-panels.sh`, `control-center-bluetooth.sh`, `control-center-shortcut.sh` | the Control Center, its panels, reopening, its shortcut |
@@ -1498,6 +1498,7 @@ it changes. A change that needs a fresh install, or that an earlier backup canno
   a segment opens that folder, so you can go on deeper. Dropping a folder into itself, or files into the folder they
   are already in, is refused. A segment dragged out carries its folder, to the sidebar, a tab or a terminal.
 - Screen readers read File Explorer's path bar as one link per folder, which they can press.
+- File Explorer's Edit menu has Undo (Ctrl+Z) for the last move, copy, rename, new folder or trash, named after it.
 - File Explorer searches the whole PC as you type: a helper keeps an index of every local disk's names and answers
   in a few milliseconds (490,544 names: under 3 ms for a word). It runs only while File Explorer is used and leaves
   a few minutes after, catches up on what changed meanwhile without reading everything again, follows changes live,

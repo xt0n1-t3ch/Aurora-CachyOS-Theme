@@ -22,6 +22,7 @@ it changes. A change that needs a fresh install, or that an earlier backup canno
   a segment opens that folder, so you can go on deeper. Dropping a folder into itself, or files into the folder they
   are already in, is refused. A segment dragged out carries its folder, to the sidebar, a tab or a terminal.
 - Screen readers read File Explorer's path bar as one link per folder, which they can press.
+- File Explorer's Edit menu has Undo (Ctrl+Z) for the last move, copy, rename, new folder or trash, named after it.
 - File Explorer searches the whole PC as you type: a helper keeps an index of every local disk's names and answers
   in a few milliseconds (490,544 names: under 3 ms for a word). It runs only while File Explorer is used and leaves
   a few minutes after, catches up on what changed meanwhile without reading everything again, follows changes live,
