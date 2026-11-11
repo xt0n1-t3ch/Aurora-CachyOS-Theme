@@ -18,6 +18,8 @@ printf 'int main(void) { return 0; }\n' > "$DOCS/main.c"
 printf 'plan\n' > "$HOME/Crumbs/Projects/Notes/aurora-plan.txt"
 printf 'docs\n' > "$DOCS/aurora-notes.md"
 rm -f "$HOME/Crumbs/aurora-live-note.txt"
+# File Explorer keeps the last scope chosen; the scenario starts from This PC.
+kwriteconfig6 --file file-explorerrc --group Search --key Everywhere true
 
 check() {
     if python3 -I "$CHANGED" "$SHOTS/$2.png" "$SHOTS/$3.png" "$4" "$5" "$6" "$7" > /dev/null 2>&1; then
