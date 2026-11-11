@@ -11,6 +11,7 @@
 #include "browsertab.h"
 #include "columnsstrip.h"
 #include "commandpalette.h"
+#include "comparesheet.h"
 #include "filterbar.h"
 #include "gallerystage.h"
 #include "glassfield.h"
@@ -27,6 +28,7 @@
 #include <QClipboard>
 #include <QDir>
 #include <QFile>
+#include <QFileInfo>
 #include <QImage>
 #include <QLineEdit>
 #include <QListView>
@@ -630,6 +632,38 @@ private Q_SLOTS:
         job->end();
         QTRY_VERIFY(button.isHidden());
         QVERIFY(tracker.jobs().isEmpty());
+    }
+
+    void compareFoldersListsTheDifferencesAndCopiesAcross()
+    {
+        QTemporaryDir left;
+        QTemporaryDir right;
+        const auto write = [](const QString &path, const QByteArray &data) {
+            QDir().mkpath(QFileInfo(path).absolutePath());
+            QFile file(path);
+            QVERIFY(file.open(QIODevice::WriteOnly));
+            file.write(data);
+        };
+        write(left.filePath(QStringLiteral("same.txt")), "same");
+        write(right.filePath(QStringLiteral("same.txt")), "same");
+        write(left.filePath(QStringLiteral("photos/only-left.jpg")), "jpeg");
+        write(right.filePath(QStringLiteral("only-right.txt")), "r");
+        auto *sheet = new fe::CompareSheet(QUrl::fromLocalFile(left.path()), QUrl::fromLocalFile(right.path()));
+        QSignalSpy compared(sheet, &fe::CompareSheet::compared);
+        QVERIFY(compared.wait(5000));
+        QCOMPARE(fe::compareSummary(sheet->rows()), QStringLiteral("2 only left, 1 only right, 0 different, 1 the same"));
+        // The list leaves out what is the same; selecting the folder copies it with what is in it.
+        auto *list = sheet->findChild<QTreeWidget *>();
+        QCOMPARE(list->topLevelItemCount(), 3);
+        list->topLevelItem(1)->setSelected(true);
+        QCOMPARE(list->topLevelItem(1)->text(0), QStringLiteral("photos"));
+        const auto buttons = sheet->findChildren<QPushButton *>();
+        const auto toRight = std::find_if(buttons.cbegin(), buttons.cend(), [](const QPushButton *b) { return b->text() == QStringLiteral("Copy to Right"); });
+        QVERIFY(toRight != buttons.cend());
+        (*toRight)->click();
+        QTRY_VERIFY_WITH_TIMEOUT(QFile::exists(right.filePath(QStringLiteral("photos/only-left.jpg"))), 5000);
+        QTRY_COMPARE_WITH_TIMEOUT(fe::compareSummary(sheet->rows()), QStringLiteral("0 only left, 1 only right, 0 different, 3 the same"), 5000);
+        delete sheet;
     }
 
     void theSearchRowSavesAndHidesTheFolderTheIndexDoesNotHold()

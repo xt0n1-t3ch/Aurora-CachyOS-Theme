@@ -108,6 +108,8 @@ private:
     void runAction(fe::FileAction action);
     /// Splits the tab on screen into two panes, or closes the other pane.
     void toggleSplit();
+    /// Compares the two folders of Split View in a Compare Folders sheet; without a split, opens the second pane first.
+    void compareFolders();
     /// Shows the selected item in Quick Look, or closes Quick Look when it shows it already.
     void quickLook();
     [[nodiscard]] QList<QUrl> selectedUrls() const;
@@ -158,6 +160,7 @@ private:
     QAction *m_paletteAction = nullptr;
     QAction *m_columnsAction = nullptr;
     QAction *m_galleryAction = nullptr;
+    QAction *m_compareAction = nullptr;
     /// The menu bar, hidden without a global menu; the command palette lists its menus.
     QMenuBar *m_menuBar = nullptr;
     fe::CommandPalette *m_palette = nullptr;

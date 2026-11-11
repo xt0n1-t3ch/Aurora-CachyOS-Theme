@@ -47,7 +47,8 @@ add_library(fe_core STATIC
     src/core/batchrename.cpp
     src/core/palette.cpp
     src/core/inspector.cpp
-    src/core/transfers.cpp)
+    src/core/transfers.cpp
+    src/core/compare.cpp)
 target_include_directories(fe_core PUBLIC src)
 target_link_libraries(fe_core PUBLIC Qt6::Core Qt6::Gui)
 
@@ -75,6 +76,7 @@ add_library(fe_app OBJECT
     src/columnsstrip.cpp
     src/gallerystage.cpp
     src/transfers.cpp
+    src/comparesheet.cpp
     src/bottombar.cpp
     src/contextmenu.cpp
     src/mainwindow.cpp

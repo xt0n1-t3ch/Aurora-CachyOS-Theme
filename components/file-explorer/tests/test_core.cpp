@@ -13,6 +13,7 @@
 #include "core/chooser.h"
 #include "core/drives.h"
 #include "core/reveal.h"
+#include "core/compare.h"
 #include "core/inspector.h"
 #include "core/motion.h"
 #include "core/palette.h"
@@ -1102,6 +1103,59 @@ private Q_SLOTS:
         QCOMPARE(fe::transfersLabel({copy}), QStringLiteral("Copying, 45%"));
         QCOMPARE(fe::transfersLabel({copy, removal}), QStringLiteral("2 transfers, 0%"));
         QCOMPARE(fe::transfersLabel({}), QString());
+    }
+
+    // Comparing folders (core/compare).
+
+    void a_comparison_finds_what_is_only_on_one_side_and_what_differs()
+    {
+        const QHash<QString, fe::ItemFacts> left{
+            {QStringLiteral("docs"), {true, 0, 0}},
+            {QStringLiteral("docs/a.txt"), {false, 10, 1000}},
+            {QStringLiteral("docs/b.txt"), {false, 10, 1000}},
+            {QStringLiteral("only-left.txt"), {false, 1, 1}},
+            {QStringLiteral("kind"), {true, 0, 0}},
+            {QStringLiteral("fat.txt"), {false, 5, 2001}},
+        };
+        const QHash<QString, fe::ItemFacts> right{
+            {QStringLiteral("docs"), {true, 0, 0}},
+            {QStringLiteral("docs/a.txt"), {false, 10, 1000}},
+            {QStringLiteral("docs/b.txt"), {false, 12, 5000}},
+            {QStringLiteral("only-right.txt"), {false, 1, 1}},
+            {QStringLiteral("kind"), {false, 0, 0}},
+            {QStringLiteral("fat.txt"), {false, 5, 2000}},
+        };
+        const QList<fe::CompareRow> rows = fe::compareFolders(left, right);
+        QStringList shown;
+        for (const fe::CompareRow &row : rows) {
+            shown.append(QStringLiteral("%1 %2 %3").arg(row.path).arg(int(row.status)).arg(row.newer));
+        }
+        QCOMPARE(shown, QStringList({QStringLiteral("docs 3 0"), QStringLiteral("docs/a.txt 3 0"), QStringLiteral("docs/b.txt 2 -1"),
+                                     QStringLiteral("fat.txt 3 0"), QStringLiteral("kind 2 0"), QStringLiteral("only-left.txt 0 0"),
+                                     QStringLiteral("only-right.txt 1 0")}));
+        QCOMPARE(fe::compareSummary(rows), QStringLiteral("1 only left, 1 only right, 2 different, 3 the same"));
+    }
+
+    void contents_decide_when_asked_and_the_walk_reads_a_real_tree()
+    {
+        const QHash<QString, fe::ItemFacts> left{{QStringLiteral("x"), {false, 4, 100}}};
+        const QHash<QString, fe::ItemFacts> right{{QStringLiteral("x"), {false, 4, 900}}};
+        QCOMPARE(fe::compareFolders(left, right).constFirst().status, fe::CompareStatus::Different);
+        QCOMPARE(fe::compareFolders(left, right, [](const QString &) { return true; }).constFirst().status, fe::CompareStatus::Same);
+
+        QTemporaryDir dir;
+        QVERIFY(QDir(dir.path()).mkpath(QStringLiteral("sub/deeper")));
+        QFile file(dir.filePath(QStringLiteral("sub/deeper/f.bin")));
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        file.write("12345");
+        file.close();
+        std::atomic_bool cancel = false;
+        const QHash<QString, fe::ItemFacts> walked = fe::walkFolder(dir.path(), cancel);
+        QCOMPARE(walked.size(), 3);
+        QVERIFY(walked.value(QStringLiteral("sub")).folder);
+        QCOMPARE(walked.value(QStringLiteral("sub/deeper/f.bin")).size, 5);
+        cancel = true;
+        QVERIFY(fe::walkFolder(dir.path(), cancel).isEmpty());
     }
 
     void copy_path_writes_every_item_one_per_line()

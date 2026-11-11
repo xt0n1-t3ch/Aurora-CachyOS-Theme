@@ -7,6 +7,8 @@
 
 #include "browsertab.h"
 #include "commandpalette.h"
+#include "comparesheet.h"
+#include "tabpage.h"
 #include "inspectorpanel.h"
 #include "sidebar.h"
 #include "toolbar.h"
@@ -81,6 +83,27 @@ void MainWindow::syncPartProxies()
         m_columnsAction->setChecked(columns);
         m_galleryAction->setChecked(gallery);
     }
+}
+
+void MainWindow::compareFolders()
+{
+    fe::TabPage *page = currentPage();
+    if (!page) {
+        return;
+    }
+    // Two local folders are needed: the two panes of Split View, which opens with a second pane when it is closed.
+    if (!page->isSplit()) {
+        toggleSplit();
+        return;
+    }
+    const QList<fe::BrowserTab *> panes = page->panes();
+    const QUrl left = panes.value(0)->folderUrl();
+    const QUrl right = panes.value(1)->folderUrl();
+    if (!left.isLocalFile() || !right.isLocalFile()) {
+        return;
+    }
+    auto *sheet = new fe::CompareSheet(left, right, this);
+    sheet->show();
 }
 
 void MainWindow::showCommandPalette()
@@ -218,6 +241,8 @@ void MainWindow::buildMenuBar()
     view->addSeparator();
     // Dolphin's key for its split view.
     addWindowAction(view, QStringLiteral("Split View"), {keys(Qt::Key_F3)}, [this] { toggleSplit(); });
+    m_compareAction = addWindowAction(view, QStringLiteral("Compare Folders"), {keys(Qt::SHIFT | Qt::Key_F3)}, [this] { compareFolders(); });
+    m_compareAction->setIcon(QIcon::fromTheme(QStringLiteral("kompare")));
     // Finder's key for its Inspector is Option-Command-I.
     m_inspectorAction = addWindowAction(view, QStringLiteral("Show Inspector"), {keys(Qt::CTRL | Qt::ALT | Qt::Key_I)},
                                         [this] { setInspectorVisible(m_inspector->isHidden()); });
