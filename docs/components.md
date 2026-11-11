@@ -18,7 +18,11 @@ Alt+D (rules in `core/address`: `~`, relative paths, suggestions, shell Tab) and
 rules in `core/quicklook`), Split View (`fe::TabPage`, F3), a path bar that names the selected file and shows the item
 count, Undo (Ctrl+Z) from KIO's undo history, which Dolphin's view records its operations in, a filter row
 (`fe::FilterBar`, Ctrl+Alt+F or More > Filter by Name) that keeps the items whose names contain what is typed, case
-ignored, with the count of matches, and ends when the tab shows another folder or search, path segments in both bars (`fe::CrumbStrip`, rules in `core/crumbs`; below), Finder menus with shortcuts written the Windows way (`fe::shortcutLabel`: "Ctrl+Alt+C", "Alt+Enter", "Win+E"),
+ignored, with the count of matches, and ends when the tab shows another folder or search, a Rename sheet for several
+items (`fe::BatchRenameSheet`, F2 with more than one item selected; rules in `core/batchrename`: replace text or a
+regular expression, add text, a name with an index, a counter or each item's date, a change of case; extensions kept
+the way KIO keeps them) that shows every new name, marks the ones that cannot be taken and why, plans again against
+the folders when Rename is pressed, and runs one KIO batch job that one Undo takes back, path segments in both bars (`fe::CrumbStrip`, rules in `core/crumbs`; below), Finder menus with shortcuts written the Windows way (`fe::shortcutLabel`: "Ctrl+Alt+C", "Alt+Enter", "Win+E"),
 and the pointing hand on every clickable widget.
 
 Group offers the Finder's choices (None, Name, Kind, Date Modified, Date Created, Size, Tags) through Dolphin's own
@@ -66,15 +70,17 @@ It also serves `org.freedesktop.FileManager1` (`--service`: "Show in folder" sel
 portal backend (`--portal`: Open and Save panels with a chooser bar; it quits after three idle minutes). Installed as
 `~/.local/bin/file-explorer`; Win+E launches it. Folders without a view of their own show Finder's columns (Name,
 Modified, Size, Type) from `~/.local/share/file-explorer/view_properties/global/.directory`. Tests: `fe_tests` (79),
-`fe_finder_tests` (46), `fe_widget_tests` (14, offscreen: clicks, drops, a drag resting on a segment, the address
-field at rest, accessibility, the filter row over a real Dolphin view, the glass behind a field inside a tab), `tests/installer/test_tag_emblems.sh` (5). Sandbox: `explorer.sh`, `explorer-crumbs.sh` (the path
+`fe_finder_tests` (54), `fe_widget_tests` (17, offscreen: clicks, drops, a drag resting on a segment, the address
+field at rest, accessibility, the filter row over a real Dolphin view, the glass behind a field inside a tab, the
+Rename sheet renaming a real folder and one Undo taking it back, F2 on two items opening it), `tests/installer/test_tag_emblems.sh` (5). Sandbox: `explorer.sh`, `explorer-crumbs.sh` (the path
 segments: hover, both menus, a drop in the accent, a segment opening under a drag, KIO's menu at the pointer on a
 segment and on the sidebar, a refused drop, Ctrl+L, Ctrl+click and middle click), `explorer-finder.sh` (the
 mockup's scene: tags, the unfolded sidebar, the menu, a typed path, Quick Look, Split View, a tag's shelf, the Group
 menu and the folder grouped by Kind from it, and the window inactive behind another),
 `explorer-menus.sh`, `explorer-drives.sh`, `explorer-search.sh` (search from the index: whole home, scope row, hidden
 names), `explorer-undo.sh` (Delete, then Ctrl+Z brings the file back; FAIL on the code before Undo), `explorer-filter.sh`
-(Ctrl+Alt+F, a word hides the rest, no match empties the view, Escape brings everything back), `show-in-folder.sh`, `open-save.sh`.
+(Ctrl+Alt+F, a word hides the rest, no match empties the view, Escape brings everything back), `explorer-rename.sh`
+(Ctrl+A, F2, find and replace, Enter, then Ctrl+Z; 3 PASS), `show-in-folder.sh`, `open-save.sh`.
 
 ## Mission Center (`components/mission-center`)
 

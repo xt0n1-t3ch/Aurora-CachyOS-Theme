@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Additional terms (GPL-3.0 section 7, author attribution): see NOTICE.md.
 // Tests of File Explorer's widgets on Qt's offscreen platform: the path segments' clicks, drops and spring-loading,
-// the address field at rest, what assistive technology reads of the path bar, and the filter row over Dolphin's view.
+// the address field at rest, what assistive technology reads of the path bar, the filter row over Dolphin's view and the
+// Rename sheet.
 
 #include "addressfield.h"
+#include "batchrenamesheet.h"
 #include "bottombar.h"
 #include "browsertab.h"
 #include "filterbar.h"
@@ -17,6 +19,10 @@
 #include <QDir>
 #include <QFile>
 #include <QLineEdit>
+#include <QPushButton>
+#include <QTreeWidget>
+
+#include <KIO/FileUndoManager>
 #include <QMimeData>
 #include <QSignalSpy>
 #include <QTemporaryDir>
@@ -53,6 +59,14 @@ bool takesDrag(fe::CrumbStrip *strip, QPoint pos, const QList<QUrl> &urls)
     move.setAccepted(false);
     strip->dragMove(&move);
     return move.isAccepted();
+}
+
+/// The Rename button of a Rename sheet.
+QPushButton *renameButton(const fe::BatchRenameSheet *sheet)
+{
+    const auto buttons = sheet->findChildren<QPushButton *>();
+    const auto found = std::find_if(buttons.cbegin(), buttons.cend(), [](const QPushButton *b) { return b->text() == QStringLiteral("Rename"); });
+    return found == buttons.cend() ? nullptr : *found;
 }
 
 } // namespace
@@ -262,6 +276,93 @@ private Q_SLOTS:
         QCOMPARE(tab.filterText(), QString());
         tab.goBack();
         QTRY_COMPARE(tab.statusText().section(u',', 0, 0), QStringLiteral("4 items"));
+    }
+
+    void theRenameSheetRenamesABatchThatOneUndoTakesBack()
+    {
+        QTemporaryDir dir;
+        const QStringList names{QStringLiteral("IMG_001.jpg"), QStringLiteral("IMG_002.jpg"), QStringLiteral("notes.txt")};
+        KFileItemList items;
+        for (const QString &name : names) {
+            QFile file(dir.filePath(name));
+            QVERIFY(file.open(QIODevice::WriteOnly));
+            items.append(KFileItem(QUrl::fromLocalFile(dir.filePath(name))));
+        }
+        QWidget window;
+        auto *sheet = new fe::BatchRenameSheet(items, &window);
+        fe::RenameRule rule;
+        rule.find = QStringLiteral("img_");
+        rule.replaceWith = QStringLiteral("Trip ");
+        sheet->setRule(rule);
+        QCOMPARE(sheet->plan().changed, 2);
+        auto *preview = sheet->findChild<QTreeWidget *>();
+        QCOMPARE(preview->topLevelItem(1)->text(1), QStringLiteral("Trip 002.jpg"));
+        QSignalSpy renamed(sheet, &fe::BatchRenameSheet::renamed);
+        renameButton(sheet)->click();
+        QVERIFY(renamed.wait(5000));
+        QCOMPARE(renamed.at(0).at(0).value<QList<QUrl>>().size(), 2);
+        QVERIFY(QFile::exists(dir.filePath(QStringLiteral("Trip 001.jpg"))));
+        QVERIFY(QFile::exists(dir.filePath(QStringLiteral("Trip 002.jpg"))));
+        QVERIFY(QFile::exists(dir.filePath(QStringLiteral("notes.txt"))));
+
+        KIO::FileUndoManager *undo = KIO::FileUndoManager::self();
+        QTRY_VERIFY(undo->isUndoAvailable());
+        QSignalSpy undone(undo, &KIO::FileUndoManager::undoJobFinished);
+        undo->undo();
+        QVERIFY(undone.wait(5000));
+        QVERIFY(QFile::exists(dir.filePath(QStringLiteral("IMG_001.jpg"))));
+        QVERIFY(QFile::exists(dir.filePath(QStringLiteral("IMG_002.jpg"))));
+    }
+
+    void theRenameSheetWaitsWhileANameIsTaken()
+    {
+        QTemporaryDir dir;
+        KFileItemList items;
+        for (const char *name : {"draft-a.txt", "draft-b.txt"}) {
+            QFile file(dir.filePath(QString::fromLatin1(name)));
+            QVERIFY(file.open(QIODevice::WriteOnly));
+            items.append(KFileItem(QUrl::fromLocalFile(file.fileName())));
+        }
+        QFile taken(dir.filePath(QStringLiteral("a.txt")));
+        QVERIFY(taken.open(QIODevice::WriteOnly));
+        QWidget window;
+        auto *sheet = new fe::BatchRenameSheet(items, &window);
+        fe::RenameRule rule;
+        rule.find = QStringLiteral("draft-");
+        sheet->setRule(rule);
+        QVERIFY(!sheet->plan().canRun());
+        QVERIFY(!renameButton(sheet)->isEnabled());
+        // A name that leaves the folder while the sheet is open is free when Rename is pressed, which plans again.
+        QVERIFY(taken.remove());
+        QSignalSpy renamed(sheet, &fe::BatchRenameSheet::renamed);
+        QMetaObject::invokeMethod(sheet, "accept");
+        QVERIFY(renamed.wait(5000));
+        QVERIFY(QFile::exists(dir.filePath(QStringLiteral("a.txt"))));
+        QVERIFY(QFile::exists(dir.filePath(QStringLiteral("b.txt"))));
+    }
+
+    void renameWithSeveralItemsSelectedOpensTheSheet()
+    {
+        QTemporaryDir dir;
+        QList<QUrl> urls;
+        for (const char *name : {"one.txt", "two.txt"}) {
+            QFile file(dir.filePath(QString::fromLatin1(name)));
+            QVERIFY(file.open(QIODevice::WriteOnly));
+            urls.append(QUrl::fromLocalFile(file.fileName()));
+        }
+        fe::BrowserTab tab(QUrl::fromLocalFile(dir.path()));
+        if (!tab.isLoaded()) {
+            QSKIP("Dolphin's part is not installed");
+        }
+        tab.resize(800, 500);
+        tab.show();
+        tab.selectInPlace(urls);
+        QTRY_COMPARE(tab.selectedItems().size(), 2);
+        tab.triggerPartAction(QStringLiteral("renamefile"));
+        auto *sheet = tab.window()->findChild<fe::BatchRenameSheet *>();
+        QVERIFY(sheet);
+        QCOMPARE(sheet->windowTitle(), QStringLiteral("Rename 2 Items"));
+        sheet->close();
     }
 
     void aFieldInsideATabShowsTheGlassBehindIt()

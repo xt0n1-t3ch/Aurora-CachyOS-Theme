@@ -6,6 +6,7 @@
 
 #include "browsertab.h"
 
+#include "batchrenamesheet.h"
 #include "core/paths.h"
 #include "filterbar.h"
 #include "searchscopebar.h"
@@ -137,6 +138,12 @@ void BrowserTab::connectPart()
     // The toolbar search field owns Ctrl+F; Dolphin's "Find File…" would start KFind instead.
     if (QAction *find = actions->action(QStringLiteral("edit_find"))) {
         find->setShortcuts({});
+    }
+    // Several items get the Rename sheet with Finder's rules; Dolphin's own dialog for them only numbers them
+    // (DolphinView::renameSelectedItems, dolphinview.cpp, v26.08.3, line 878). One item is still renamed in place.
+    if (QAction *rename = actions->action(QStringLiteral("renamefile"))) {
+        disconnect(rename, &QAction::triggered, nullptr, nullptr);
+        connect(rename, &QAction::triggered, this, &BrowserTab::renameSelection);
     }
     // Finder's name for it; the part says "Duplicate Here".
     if (QAction *duplicate = actions->action(QStringLiteral("duplicate"))) {
@@ -443,6 +450,25 @@ void BrowserTab::focusView()
     if (m_part && m_part->widget()) {
         m_part->widget()->setFocus();
     }
+}
+
+void BrowserTab::renameSelection()
+{
+    const KFileItemList items = selectedItems();
+    if (items.isEmpty()) {
+        return;
+    }
+    // DolphinPart's widget is its DolphinView, whose renameSelectedItems is a public slot.
+    if (items.size() == 1 && QMetaObject::invokeMethod(m_part->widget(), "renameSelectedItems")) {
+        return;
+    }
+    auto *sheet = new BatchRenameSheet(items, window());
+    connect(sheet, &BatchRenameSheet::renamed, this, [this](const QList<QUrl> &urls) {
+        if (!urls.isEmpty()) {
+            selectInPlace(urls);
+        }
+    });
+    sheet->open();
 }
 
 void BrowserTab::openFilter()

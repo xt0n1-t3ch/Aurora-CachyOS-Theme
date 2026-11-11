@@ -43,7 +43,8 @@ add_library(fe_core STATIC
     src/core/address.cpp
     src/core/tags.cpp
     src/core/tree.cpp
-    src/core/quicklook.cpp)
+    src/core/quicklook.cpp
+    src/core/batchrename.cpp)
 target_include_directories(fe_core PUBLIC src)
 target_link_libraries(fe_core PUBLIC Qt6::Core Qt6::Gui)
 
@@ -64,6 +65,7 @@ add_library(fe_app OBJECT
     src/searchservice.cpp
     src/searchscopebar.cpp
     src/filterbar.cpp
+    src/batchrenamesheet.cpp
     src/bottombar.cpp
     src/contextmenu.cpp
     src/mainwindow.cpp

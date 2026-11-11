@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Additional terms (GPL-3.0 section 7, author attribution): see NOTICE.md.
 // Unit tests for the widget-free logic of the Finder features: the typed address, the path segments, color tags, the
-// sidebar's folder tree and Quick Look.
+// sidebar's folder tree, Quick Look and batch rename.
 
 #include "core/address.h"
+#include "core/batchrename.h"
 #include "core/crumbs.h"
 #include "core/paths.h"
 #include "core/quicklook.h"
@@ -28,6 +29,31 @@ const QHash<QString, QStringList> DISK{
     {QStringLiteral("/mnt/D/X/2-Dev/Aurora"), {QStringLiteral("docs")}},
     {QStringLiteral("/mnt/D/X/Music"), {}},
 };
+
+/// Items of one folder "/p", with no date.
+QList<fe::RenameItem> items(const QStringList &names)
+{
+    QList<fe::RenameItem> out;
+    for (const QString &name : names) {
+        out.append({QStringLiteral("/p"), name, {}});
+    }
+    return out;
+}
+
+QStringList namesOf(const fe::RenamePlan &plan)
+{
+    QStringList out;
+    for (const fe::RenameRow &row : plan.rows) {
+        out.append(row.newName);
+    }
+    return out;
+}
+
+/// The new names of names in one folder under rule.
+QStringList newNames(const QStringList &names, const fe::RenameRule &rule)
+{
+    return namesOf(fe::planRenames(items(names), rule, {}));
+}
 
 QUrl local(const char *path)
 {
@@ -461,6 +487,150 @@ private Q_SLOTS:
         // Without shelves the folder is just a folder.
         QCOMPARE(fe::crumbDrop(QUrl::fromLocalFile(TAGS + QStringLiteral("/Red")), true, {local("/home/alex/a.txt")}, QString()),
                  fe::CrumbDrop::Transfer);
+    }
+
+    // Batch rename (core/batchrename).
+
+    void batch_replace_changes_every_match_without_case_and_keeps_the_extension()
+    {
+        fe::RenameRule rule;
+        rule.find = QStringLiteral("img_");
+        rule.replaceWith = QStringLiteral("Trip ");
+        QCOMPARE(newNames({QStringLiteral("IMG_001.JPG"), QStringLiteral("img_002.jpg")}, rule),
+                 QStringList({QStringLiteral("Trip 001.JPG"), QStringLiteral("Trip 002.jpg")}));
+        rule.find = QStringLiteral("jpg");
+        rule.replaceWith = QStringLiteral("png");
+        QCOMPARE(newNames({QStringLiteral("jpg-notes.jpg")}, rule), QStringList({QStringLiteral("png-notes.jpg")}));
+        rule.matchCase = true;
+        QCOMPARE(newNames({QStringLiteral("JPG-notes.jpg")}, rule), QStringList({QStringLiteral("JPG-notes.jpg")}));
+    }
+
+    void batch_replace_takes_a_regular_expression_with_groups()
+    {
+        fe::RenameRule rule;
+        rule.regularExpression = true;
+        rule.find = QStringLiteral("^IMG_(\\d+)$");
+        rule.replaceWith = QStringLiteral("Photo \\1");
+        QCOMPARE(newNames({QStringLiteral("img_0042.jpg"), QStringLiteral("notes.txt")}, rule),
+                 QStringList({QStringLiteral("Photo 0042.jpg"), QStringLiteral("notes.txt")}));
+        rule.find = QStringLiteral("(");
+        const fe::RenamePlan plan = fe::planRenames(items({QStringLiteral("a.txt")}), rule, {});
+        QVERIFY(!plan.ruleError.isEmpty());
+        QCOMPARE(plan.rows.at(0).newName, QStringLiteral("a.txt"));
+        QVERIFY(!plan.canRun());
+    }
+
+    void batch_add_puts_text_before_or_after_the_name()
+    {
+        fe::RenameRule rule;
+        rule.mode = fe::RenameMode::Add;
+        rule.text = QStringLiteral("-old");
+        QCOMPARE(newNames({QStringLiteral("backup.tar.gz"), QStringLiteral("README"), QStringLiteral("photo.JPEG")}, rule),
+                 QStringList({QStringLiteral("backup-old.tar.gz"), QStringLiteral("README-old"), QStringLiteral("photo-old.JPEG")}));
+        // Whatever the rule, a new name ends with the old name's suffix, so KIO's batch rename adds nothing to it.
+        for (const QString &name : {QStringLiteral(".tar.gz"), QStringLiteral(".bashrc"), QStringLiteral("a.b.c.pdf"), QStringLiteral("x.")}) {
+            const auto [stem, extension] = fe::splitExtension(name);
+            QCOMPARE(stem + extension, name);
+            QVERIFY(newNames({name}, rule).at(0).endsWith(extension));
+        }
+        rule.position = fe::RenamePosition::Before;
+        rule.text = QStringLiteral("2026 ");
+        QCOMPARE(newNames({QStringLiteral("a.txt")}, rule), QStringList({QStringLiteral("2026 a.txt")}));
+    }
+
+    void batch_format_numbers_items_in_order()
+    {
+        fe::RenameRule rule;
+        rule.mode = fe::RenameMode::Format;
+        rule.customName = QStringLiteral("Photo");
+        const QStringList three{QStringLiteral("z.jpg"), QStringLiteral("a.jpg"), QStringLiteral("m.png")};
+        QCOMPARE(newNames(three, rule), QStringList({QStringLiteral("Photo1.jpg"), QStringLiteral("Photo2.jpg"), QStringLiteral("Photo3.png")}));
+        rule.format = fe::RenameFormat::Counter;
+        rule.startAt = 9;
+        QCOMPARE(newNames(three, rule),
+                 QStringList({QStringLiteral("Photo00009.jpg"), QStringLiteral("Photo00010.jpg"), QStringLiteral("Photo00011.png")}));
+        rule.numberPosition = fe::RenamePosition::Before;
+        rule.format = fe::RenameFormat::Index;
+        rule.startAt = 1;
+        QCOMPARE(newNames(three, rule).at(0), QStringLiteral("1Photo.jpg"));
+    }
+
+    void batch_date_format_uses_each_items_day_and_numbers_a_shared_day()
+    {
+        fe::RenameRule rule;
+        rule.mode = fe::RenameMode::Format;
+        rule.format = fe::RenameFormat::Date;
+        rule.customName = QStringLiteral("Trip");
+        const QDateTime tenth(QDate(2026, 11, 10), QTime(9, 0));
+        QList<fe::RenameItem> list{{QStringLiteral("/p"), QStringLiteral("a.jpg"), tenth},
+                                   {QStringLiteral("/p"), QStringLiteral("b.jpg"), tenth.addSecs(3600)},
+                                   {QStringLiteral("/p"), QStringLiteral("c.jpg"), tenth.addDays(1)},
+                                   {QStringLiteral("/q"), QStringLiteral("d.jpg"), tenth}};
+        const fe::RenamePlan plan = fe::planRenames(list, rule, {});
+        QCOMPARE(namesOf(plan), QStringList({QStringLiteral("Trip 2026-11-10.jpg"), QStringLiteral("Trip 2026-11-10 2.jpg"),
+                                             QStringLiteral("Trip 2026-11-11.jpg"), QStringLiteral("Trip 2026-11-10.jpg")}));
+        QVERIFY(plan.canRun());
+    }
+
+    void batch_case_changes_the_name_not_the_extension()
+    {
+        fe::RenameRule rule;
+        rule.mode = fe::RenameMode::Case;
+        QCOMPARE(newNames({QStringLiteral("Report FINAL.PDF")}, rule), QStringList({QStringLiteral("report final.PDF")}));
+        rule.letterCase = fe::RenameCase::Upper;
+        QCOMPARE(newNames({QStringLiteral("ñandú.txt")}, rule), QStringList({QStringLiteral("ÑANDÚ.txt")}));
+        rule.letterCase = fe::RenameCase::Title;
+        QCOMPARE(newNames({QStringLiteral("my HOLIDAY photos 2nd-day.jpg")}, rule),
+                 QStringList({QStringLiteral("My Holiday Photos 2nd-Day.jpg")}));
+    }
+
+    void batch_problems_stop_the_batch_before_it_starts()
+    {
+        fe::RenameRule rule;
+        rule.regularExpression = true;
+        rule.find = QStringLiteral(".*");
+        rule.replaceWith = QString();
+        fe::RenamePlan plan = fe::planRenames(items({QStringLiteral("a.txt"), QStringLiteral("README")}), rule, {});
+        // ".*" also matches the empty end, so "a" becomes "" and "README" becomes "".
+        QCOMPARE(plan.rows.at(1).problem, fe::RenameProblem::Empty);
+        QVERIFY(!plan.canRun());
+
+        rule.regularExpression = false;
+        rule.find = QStringLiteral("a");
+        rule.replaceWith = QStringLiteral("x/y");
+        QCOMPARE(fe::planRenames(items({QStringLiteral("a")}), rule, {}).rows.at(0).problem, fe::RenameProblem::Invalid);
+        rule.replaceWith = QStringLiteral("..");
+        QCOMPARE(fe::planRenames(items({QStringLiteral("a")}), rule, {}).rows.at(0).problem, fe::RenameProblem::Invalid);
+        rule.replaceWith = QString(256, QLatin1Char('n'));
+        QCOMPARE(fe::planRenames(items({QStringLiteral("a")}), rule, {}).rows.at(0).problem, fe::RenameProblem::TooLong);
+
+        // Two items that would end up with one name, in one folder; in two folders they may.
+        rule.find = QStringLiteral("draft-");
+        rule.replaceWith = QString();
+        plan = fe::planRenames(items({QStringLiteral("draft-a.txt"), QStringLiteral("a.txt")}), rule, {});
+        QCOMPARE(plan.rows.at(0).problem, fe::RenameProblem::Exists);
+        plan = fe::planRenames(items({QStringLiteral("draft-a.txt"), QStringLiteral("Draft-a.txt")}), rule, {});
+        QCOMPARE(plan.rows.at(0).problem, fe::RenameProblem::Duplicate);
+        QCOMPARE(plan.rows.at(1).problem, fe::RenameProblem::Duplicate);
+        QList<fe::RenameItem> apart{{QStringLiteral("/p"), QStringLiteral("draft-a.txt"), {}}, {QStringLiteral("/q"), QStringLiteral("Draft-a.txt"), {}}};
+        QVERIFY(fe::planRenames(apart, rule, {}).canRun());
+        // A name the folder holds already, which is not part of the batch.
+        plan = fe::planRenames(items({QStringLiteral("draft-b.txt")}), rule, {{QStringLiteral("/p"), {QStringLiteral("draft-b.txt"), QStringLiteral("b.txt")}}});
+        QCOMPARE(plan.rows.at(0).problem, fe::RenameProblem::Exists);
+        QCOMPARE(fe::renameProblemText(fe::RenameProblem::Exists), QStringLiteral("An item with this name is already there"));
+    }
+
+    void batch_counts_only_items_that_change()
+    {
+        fe::RenameRule rule;
+        rule.find = QStringLiteral("x");
+        rule.replaceWith = QStringLiteral("y");
+        fe::RenamePlan plan = fe::planRenames(items({QStringLiteral("x.txt"), QStringLiteral("a.txt")}), rule, {});
+        QCOMPARE(plan.changed, 1);
+        QVERIFY(plan.canRun());
+        plan = fe::planRenames(items({QStringLiteral("a.txt")}), rule, {});
+        QCOMPARE(plan.changed, 0);
+        QVERIFY(!plan.canRun());
     }
 };
 

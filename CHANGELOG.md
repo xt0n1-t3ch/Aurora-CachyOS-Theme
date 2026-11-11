@@ -26,6 +26,10 @@ it changes. A change that needs a fresh install, or that an earlier backup canno
 - File Explorer filters the folder on screen as you type (Ctrl+Alt+F, or More > Filter by Name): only the items whose
   names contain the text stay, with the number of matches beside it. Enter or the Down arrow goes to the first item,
   Escape shows everything again, and moving to another folder ends the filter.
+- Renaming several items in File Explorer (F2) opens a Rename sheet with Finder's choices: replace a text (or a
+  regular expression), add a text before or after the name, or give them one name with an index, a counter or each
+  item's date, and also a change of case. Every new name shows before anything changes, a name that cannot be taken
+  is marked with the reason, extensions stay, and one Ctrl+Z takes the whole batch back.
 - File Explorer searches the whole PC as you type: a helper keeps an index of every local disk's names and answers
   in a few milliseconds (490,544 names: under 3 ms for a word). It runs only while File Explorer is used and leaves
   a few minutes after, catches up on what changed meanwhile without reading everything again, follows changes live,

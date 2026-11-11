@@ -95,6 +95,9 @@ public:
     void paste();
     void focusView();
 
+    /// Renames the selection: one item in place, as Dolphin does; several in the Rename sheet (BatchRenameSheet), whose
+    /// one job Undo takes back whole. Dolphin's Rename action (F2) comes here.
+    void renameSelection();
     /// Opens the filter row: the view keeps only the items whose names contain what is typed in it. The filter
     /// belongs to the listing on screen and ends when the tab shows another folder or search.
     void openFilter();
