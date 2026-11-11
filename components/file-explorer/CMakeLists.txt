@@ -32,6 +32,7 @@ add_compile_options(-Wall -Wextra -Wpedantic -Wshadow -Werror)
 add_library(fe_core STATIC
     src/core/history.cpp
     src/core/paths.cpp
+    src/core/crumbs.cpp
     src/core/edges.cpp
     src/core/format.cpp
     src/core/places.cpp
@@ -58,6 +59,7 @@ add_library(fe_app OBJECT
     src/toolbar.cpp
     src/tabbar.cpp
     src/browsertab.cpp
+    src/crumbstrip.cpp
     src/bottombar.cpp
     src/contextmenu.cpp
     src/mainwindow.cpp

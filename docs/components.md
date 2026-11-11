@@ -11,11 +11,12 @@ source is, what is installed and how it is tested. Build commands are in [build.
 A Finder-style file manager in C++ and Qt Widgets on top of Dolphin's KParts view. A sidebar with Favorites, drives
 and color Tags (drives can be renamed inline, kept in `file-explorerrc [Drive Names]`; SF-style symbols; a capacity bar
 with a tooltip, amber above 90 % and red above 95 %; a folder the user added unfolds into its subfolders and each
-section folds away, kept in `file-explorerrc [Sidebar Tree]`), tabs, a toolbar with a typed address field
-(`fe::AddressField`, rules in `core/address`: `~`, relative paths, suggestions, shell Tab) and the Group, Share
+section folds away, kept in `file-explorerrc [Sidebar Tree]`), tabs, a toolbar with an address field
+(`fe::AddressField`) that shows the path as clickable segments and takes a typed path on a click beside them, Ctrl+L or
+Alt+D (rules in `core/address`: `~`, relative paths, suggestions, shell Tab) and the Group, Share
 (Purpose), Edit Tags and More menus, a row of file actions (`fe::ActionBar`), Quick Look (`fe::QuickLook`, Space;
 rules in `core/quicklook`), Split View (`fe::TabPage`, F3), a path bar that names the selected file and shows the item
-count, Finder menus with shortcuts written the Windows way (`fe::shortcutLabel`: "Ctrl+Alt+C", "Alt+Enter", "Win+E"),
+count, path segments in both bars (`fe::CrumbStrip`, rules in `core/crumbs`; below), Finder menus with shortcuts written the Windows way (`fe::shortcutLabel`: "Ctrl+Alt+C", "Alt+Enter", "Win+E"),
 and the pointing hand on every clickable widget.
 
 Group offers the Finder's choices (None, Name, Kind, Date Modified, Date Created, Size, Tags) through Dolphin's own
@@ -25,6 +26,20 @@ focus ring (`style::paintFocusRing`); `FinderStyle` drops the `QFocusFrame` Bree
 or a shortcut. The window is glass with KWin's blur while it is active and opaque while it is not, as macOS materials
 are when their window is not key, so nothing behind shows through it whether KWin blurs or not; selections turn gray
 with it.
+
+The address field and the path bar show the path as segments (`fe::CrumbStrip`, which each bar feeds its events;
+the layout, the hit test and the drop rules are pure functions in `core/crumbs`, tested). The address field shows them
+at rest without icons, as Windows' address bar does, and opens for typing on a click beside them, Ctrl+L or Alt+D (its
+focus policy is Tab, so a click on a segment opens the folder instead of the field). A click opens a segment and a
+middle click or Ctrl+click opens it in a background tab; the chevron after a segment lists its visible folders (250 at
+most, the next one of the path in bold, then Show All); a path too long for its bar folds the segments after the
+first into an ellipsis, outermost first, which lists them, and the folder on screen keeps the rest of the room; a
+right-click offers Open, Open in New Tab, Open Terminal Here, Copy Path and Get Info. Files dropped on a segment go
+through `KIO::drop`, as on the sidebar, so KIO asks Move, Copy or Link; a tag's shelf tags them instead. Refused: a
+folder into itself or a folder inside it, files into the folder they are in, Recents, a search, Network, the shelf
+of all tags, a folder that is not writable, and the selected file the path bar can end with. A drag resting 700 ms on
+a segment opens it (Finder's spring-loaded folders), except the folder on screen. A segment dragged out carries its
+URL. The tooltip of a segment is its whole path.
 
 Color tags (`tagging.cpp`, rules in `core/tags`) live in the file's `user.xdg.tags` attribute through KFileMetaData, so
 Dolphin and Baloo read them too. Each tag's sidebar row opens its shelf, `~/.local/share/file-explorer/tags/<Tag>`, a
@@ -37,7 +52,9 @@ It also serves `org.freedesktop.FileManager1` (`--service`: "Show in folder" sel
 portal backend (`--portal`: Open and Save panels with a chooser bar; it quits after three idle minutes). Installed as
 `~/.local/bin/file-explorer`; Win+E launches it. Folders without a view of their own show Finder's columns (Name,
 Modified, Size, Type) from `~/.local/share/file-explorer/view_properties/global/.directory`. Tests: `fe_tests` (78),
-`fe_finder_tests` (33), `tests/installer/test_tag_emblems.sh` (5). Sandbox: `explorer.sh`, `explorer-finder.sh` (the
+`fe_finder_tests` (45), `tests/installer/test_tag_emblems.sh` (5). Sandbox: `explorer.sh`, `explorer-crumbs.sh` (the path
+segments: hover, both menus, a drop in the accent, a segment opening under a drag, KIO's menu, a refused drop, Ctrl+L,
+Ctrl+click), `explorer-finder.sh` (the
 mockup's scene: tags, the unfolded sidebar, the menu, a typed path, Quick Look, Split View, a tag's shelf, the Group
 menu and the folder grouped by Kind from it, and the window inactive behind another),
 `explorer-menus.sh`, `explorer-drives.sh`, `show-in-folder.sh`, `open-save.sh`.

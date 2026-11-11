@@ -29,6 +29,7 @@ class QuickLook;
 class SidebarPanel;
 class TabPage;
 class Toolbar;
+enum class CrumbOpen;
 enum class FileAction;
 }
 
@@ -112,6 +113,13 @@ private:
     void showMoreMenu();
     /// Opens url in the current tab and gives the keyboard to its view.
     void openFolderHere(const QUrl &url);
+    /// Opens a path segment of the address field or the path bar: here or in a new tab; the selected file the path bar
+    /// can end with opens like a double click.
+    void openCrumb(const QUrl &url, fe::CrumbOpen how);
+    /// The menu of a path segment at globalPos: open in a new tab, copy the path, a terminal there, Get Info.
+    void showCrumbMenu(const QUrl &url, const QPoint &globalPos);
+    /// Whether url is the selected file, which the path bar shows as its last segment.
+    [[nodiscard]] bool isSelectedFile(const QUrl &url) const;
     /// Opens another window on the home folder.
     void openNewWindow();
     void buildMenuBar();

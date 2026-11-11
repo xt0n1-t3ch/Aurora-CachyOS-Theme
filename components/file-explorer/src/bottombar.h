@@ -11,8 +11,10 @@
 
 namespace fe {
 
-/// The path bar under the files: one segment per folder, each one a link, and the item count and free space at its
-/// right end.
+class CrumbStrip;
+
+/// The path bar under the files: one segment per folder (fe::CrumbStrip: click, chevron, drag and drop), and the item
+/// count and free space at its right end.
 class PathBar : public QWidget
 {
     Q_OBJECT
@@ -20,40 +22,34 @@ class PathBar : public QWidget
 public:
     explicit PathBar(QWidget *parent = nullptr);
     /// Replaces the segments. A path wider than the bar folds its middle segments into an ellipsis. lastIconName,
-    /// when given, is the icon of the last segment (a selected file's type).
-    void setCrumbs(const QList<Crumb> &crumbs, const QString &lastIconName = {});
+    /// when given, is the icon of the last segment, and lastIsFolder is false when that segment is the selected file.
+    void setCrumbs(const QList<Crumb> &crumbs, const QString &lastIconName = {}, bool lastIsFolder = true);
     /// Sets the text at the right end (the item count and free space).
     void setStatusText(const QString &text);
-
-Q_SIGNALS:
-    /// A segment was clicked.
-    void crumbClicked(const QUrl &url);
+    /// The segments, whose signals say what the user chose.
+    [[nodiscard]] CrumbStrip *crumbs() const;
 
 protected:
+    bool event(QEvent *event) override;
     void paintEvent(QPaintEvent *event) override;
     void resizeEvent(QResizeEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;
     void mousePressEvent(QMouseEvent *event) override;
+    void mouseReleaseEvent(QMouseEvent *event) override;
     void leaveEvent(QEvent *event) override;
+    void contextMenuEvent(QContextMenuEvent *event) override;
+    void dragEnterEvent(QDragEnterEvent *event) override;
+    void dragMoveEvent(QDragMoveEvent *event) override;
+    void dragLeaveEvent(QDragLeaveEvent *event) override;
+    void dropEvent(QDropEvent *event) override;
 
 private:
-    struct Segment {
-        Crumb crumb;
-        QString iconName;
-        QRectF rect;
-        bool ellipsis = false;
-    };
-
-    void layoutSegments();
     /// The width the status text takes at the right end, with its gap.
     [[nodiscard]] qreal statusWidth() const;
-    [[nodiscard]] int segmentAt(QPointF pos) const;
+    void placeCrumbs();
 
-    QList<Crumb> m_crumbs;
-    QString m_lastIconName;
+    CrumbStrip *m_crumbs;
     QString m_status;
-    QList<Segment> m_segments;
-    int m_hover = -1;
 };
 
 } // namespace fe

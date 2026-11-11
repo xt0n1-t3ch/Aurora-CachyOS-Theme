@@ -11,6 +11,17 @@ it changes. A change that needs a fresh install, or that an earlier backup canno
 
 ## [Unreleased]
 
+### Added
+
+- File Explorer's address field shows the path as segments you can click, as Windows' File Explorer does; a click
+  beside them, Ctrl+L or Alt+D still opens it for typing. In both the address field and the path bar, the arrow after
+  a segment lists the folders inside it, the ellipsis of a long path lists the folders it hides, a middle click or
+  Ctrl+click opens a segment in a new tab, and a right-click offers Open, Open in New Tab, Open Terminal Here, Copy
+  Path and Get Info.
+- Files dropped on a segment move, copy or link there (it asks which), or get the tag of a tag's shelf. A drag held on
+  a segment opens that folder, so you can go on deeper. Dropping a folder into itself, or files into the folder they
+  are already in, is refused. A segment dragged out carries its folder, to the sidebar, a tab or a terminal.
+
 ### Changed
 
 - `aurora` looks for a newer Aurora when its menu opens, unless it looked in the last 5 minutes, so a new release
