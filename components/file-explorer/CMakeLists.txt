@@ -61,6 +61,8 @@ add_library(fe_app OBJECT
     src/browsertab.cpp
     src/crumbstrip.cpp
     src/crumbaccessible.cpp
+    src/searchservice.cpp
+    src/searchscopebar.cpp
     src/bottombar.cpp
     src/contextmenu.cpp
     src/mainwindow.cpp
@@ -98,6 +100,11 @@ target_link_libraries(aurora-tags PRIVATE fe_core KF6::KIOCore KF6::FileMetaData
 set_target_properties(aurora-tags PROPERTIES PREFIX "" LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/kf6/overlayicon")
 # A module links fe_core's code into a shared object.
 set_target_properties(fe_core PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
+# The KIO worker of aurora-search: URLs, which lists the search helper's matches into Dolphin's view.
+add_library(aurora-search-worker MODULE src/plugins/searchworker.cpp)
+target_link_libraries(aurora-search-worker PRIVATE KF6::KIOCore)
+set_target_properties(aurora-search-worker PROPERTIES PREFIX "" OUTPUT_NAME "aurora-search" LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/kf6/kio")
 
 add_executable(file-explorer src/main.cpp)
 target_link_libraries(file-explorer PRIVATE fe_app)

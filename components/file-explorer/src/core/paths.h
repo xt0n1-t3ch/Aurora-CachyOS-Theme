@@ -32,6 +32,10 @@ struct PathContext {
 /// The name the toolbar and the window show for a folder.
 [[nodiscard]] QString folderTitle(const QUrl &url, const PathContext &context);
 
+/// A search of the aurora-search index (its KIO worker, src/plugins/searchworker.cpp): everywhere when scope is
+/// empty, else below that folder.
+[[nodiscard]] QUrl indexedSearchUrl(const QString &term, const QUrl &scope, const QString &title);
+
 /// A file-name search below a folder, in the form Dolphin's filenamesearch worker reads.
 [[nodiscard]] QUrl filenameSearchUrl(const QString &term, const QUrl &folder, const QString &title);
 

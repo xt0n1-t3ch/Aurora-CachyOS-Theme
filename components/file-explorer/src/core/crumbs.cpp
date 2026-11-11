@@ -17,7 +17,7 @@ namespace {
 bool isVirtualPlace(const QUrl &url)
 {
     static const QStringList schemes{QStringLiteral("recentlyused"), QStringLiteral("filenamesearch"),
-                                     QStringLiteral("baloosearch"),  QStringLiteral("remote"),
+                                     QStringLiteral("baloosearch"),  QStringLiteral("aurora-search"), QStringLiteral("remote"),
                                      QStringLiteral("network"),      QStringLiteral("timeline"),
                                      QStringLiteral("tags"),         QStringLiteral("applications"),
                                      QStringLiteral("settings")};

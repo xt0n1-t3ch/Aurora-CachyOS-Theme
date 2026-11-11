@@ -22,7 +22,7 @@ QString remoteTitle(const QUrl &url)
     if (scheme == u"recentlyused") {
         return QStringLiteral("Recents");
     }
-    if (scheme == u"filenamesearch" || scheme == u"baloosearch") {
+    if (scheme == u"filenamesearch" || scheme == u"baloosearch" || scheme == u"aurora-search") {
         const QString title = QUrlQuery(url).queryItemValue(QStringLiteral("title"), QUrl::FullyDecoded);
         return title.isEmpty() ? QStringLiteral("Search") : title;
     }
@@ -83,6 +83,22 @@ QList<Crumb> crumbsFor(const QUrl &url, const PathContext &context)
 QString folderTitle(const QUrl &url, const PathContext &context)
 {
     return crumbsFor(url, context).constLast().label;
+}
+
+QUrl indexedSearchUrl(const QString &term, const QUrl &scope, const QString &title)
+{
+    // Encoded as filenameSearchUrl encodes, so a term with & or = survives.
+    QUrlQuery query;
+    query.addQueryItem(QStringLiteral("q"), QString::fromLatin1(QUrl::toPercentEncoding(term)));
+    if (scope.isLocalFile()) {
+        query.addQueryItem(QStringLiteral("scope"), QString::fromLatin1(QUrl::toPercentEncoding(scope.toLocalFile())));
+    }
+    query.addQueryItem(QStringLiteral("title"), QString::fromLatin1(QUrl::toPercentEncoding(title)));
+    QUrl url;
+    url.setScheme(QStringLiteral("aurora-search"));
+    url.setPath(QStringLiteral("/"));
+    url.setQuery(query);
+    return url;
 }
 
 QUrl filenameSearchUrl(const QString &term, const QUrl &folder, const QString &title)

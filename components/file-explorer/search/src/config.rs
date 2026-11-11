@@ -4,7 +4,8 @@
 //! The helper's settings, from `/etc/aurora/search.conf`: `key = value` lines, `#` for comments.
 //!
 //! `idle_minutes` (default 5) is how long the helper stays without a client; `exclude` (repeatable) names a folder
-//! never to index. Unknown keys and bad values are ignored, so a typo never stops the search.
+//! never to index; `root` (repeatable) indexes only that folder instead of every local mount, for tests and the
+//! sandbox. Unknown keys and bad values are ignored, so a typo never stops the search.
 
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -18,11 +19,13 @@ const ALWAYS_EXCLUDED: &[&str] = &["/proc", "/sys", "/dev", "/run", "/tmp", "/va
 pub struct Config {
     pub idle: Duration,
     pub exclude: Vec<PathBuf>,
+    /// When set, only these folders are indexed, each as a volume, instead of every local mount (tests, the sandbox).
+    pub roots: Vec<PathBuf>,
 }
 
 impl Default for Config {
     fn default() -> Self {
-        Self { idle: DEFAULT_IDLE, exclude: ALWAYS_EXCLUDED.iter().map(PathBuf::from).collect() }
+        Self { idle: DEFAULT_IDLE, exclude: ALWAYS_EXCLUDED.iter().map(PathBuf::from).collect(), roots: Vec::new() }
     }
 }
 
@@ -53,6 +56,7 @@ impl Config {
                     }
                 }
                 "exclude" if value.starts_with('/') => config.exclude.push(PathBuf::from(value)),
+                "root" if value.starts_with('/') => config.roots.push(PathBuf::from(value)),
                 _ => {}
             }
         }

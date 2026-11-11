@@ -8,6 +8,8 @@
 //! word with `*` or `?` matches the whole name as a wildcard. `ext:jpg;png` keeps those extensions, `regex:` takes a
 //! regular expression on the name, `folder:` and `file:` keep one kind, `size:` (`>10mb`, `<1kb`, `500b`) and `dm:`
 //! (`today`, `yesterday`, `7d`, `>30d`) read each candidate's size and modification time, so they come last.
+//! Hidden names (starting with a dot, or inside such a folder) are left out unless the query holds `hidden:`, as
+//! File Explorer adds while it shows hidden files.
 
 use memchr::memmem;
 use regex::bytes::Regex;
@@ -61,6 +63,7 @@ struct Term {
 #[derive(Debug, Clone)]
 pub struct Query {
     alternatives: Vec<Vec<Term>>,
+    hidden: bool,
 }
 
 /// What a query found.
@@ -85,7 +88,12 @@ pub struct Found {
 /// Never: there is always an alternative to add a term to.
 pub fn parse(text: &str) -> Result<Query, String> {
     let mut alternatives = vec![Vec::new()];
+    let mut hidden = false;
     for word in text.split_whitespace() {
+        if word.eq_ignore_ascii_case("hidden:") {
+            hidden = true;
+            continue;
+        }
         if word == "|" {
             alternatives.push(Vec::new());
             continue;
@@ -106,7 +114,7 @@ pub fn parse(text: &str) -> Result<Query, String> {
         }
     }
     alternatives.retain(|a| !a.is_empty());
-    Ok(Query { alternatives })
+    Ok(Query { alternatives, hidden })
 }
 
 fn parse_test(body: &str) -> Result<Test, String> {
@@ -247,7 +255,6 @@ impl Query {
     }
 
     fn collect(&self, index: &Index, terms: &[Term], scope: Option<EntryId>, out: &mut Vec<(u32, EntryId)>) {
-        let _ = self;
         let first_word = terms.iter().find_map(|t| match (&t.test, t.negated) {
             (Test::Name(word), false) => Some(word.as_slice()),
             _ => None,
@@ -260,8 +267,9 @@ impl Query {
                 _ => None,
             })
             .max_by_key(|w| w.len());
+        let hidden = self.hidden;
         let mut consider = |id: EntryId| {
-            if scope.is_some_and(|s| !index.is_within(id, s)) {
+            if scope.is_some_and(|s| !index.is_within(id, s)) || (!hidden && is_hidden(index, id, scope)) {
                 return;
             }
             if terms.iter().all(|t| holds_on_name(index, id, t)) {
@@ -312,6 +320,21 @@ impl Query {
             })
         })
     }
+}
+
+/// Whether the entry or a folder above it, below the scope, has a name starting with a dot.
+fn is_hidden(index: &Index, id: EntryId, scope: Option<EntryId>) -> bool {
+    let mut at = Some(id);
+    while let Some(current) = at {
+        if Some(current) == scope {
+            return false;
+        }
+        if index.name(current).first() == Some(&b'.') {
+            return true;
+        }
+        at = index.parent(current);
+    }
+    false
 }
 
 fn compares(compare: Compare, value: u64, bound: u64) -> bool {

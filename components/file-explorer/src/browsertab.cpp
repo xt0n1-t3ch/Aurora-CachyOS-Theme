@@ -7,8 +7,12 @@
 #include "browsertab.h"
 
 #include "core/paths.h"
+#include "searchscopebar.h"
+#include "searchservice.h"
 
 #include <KActionCollection>
+#include <KConfigGroup>
+#include <KSharedConfig>
 #include <KFileItemListProperties>
 #include <KFormat>
 #include <KIO/FileSystemFreeSpaceJob>
@@ -33,7 +37,11 @@ namespace fe {
 
 namespace {
 
+/// The pause after typing before a search below the folder starts: that search reads the disk, so it waits for a
+/// word. A search of the index answers within a frame and starts on every key.
 constexpr int SEARCH_DELAY_MS = 300;
+/// How long change notices of the index gather before a search on screen lists again, in milliseconds.
+constexpr int RELIST_MS = 250;
 
 // The name of the part's action that selects a view mode.
 QString viewModeAction(ViewMode mode)
@@ -54,10 +62,34 @@ QString viewModeAction(ViewMode mode)
 BrowserTab::BrowserTab(const QUrl &url, QWidget *parent)
     : QWidget(parent)
     , m_searchTimer(new QTimer(this))
+    , m_scopeBar(new SearchScopeBar(this))
+    , m_relistTimer(new QTimer(this))
 {
     auto *layout = new QVBoxLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(0);
+    layout->addWidget(m_scopeBar);
+    m_scopeBar->hide();
+    m_everywhere = KSharedConfig::openConfig(QStringLiteral("file-explorerrc"))->group(QStringLiteral("Search")).readEntry("Everywhere", true);
+    connect(m_scopeBar, &SearchScopeBar::scopeChosen, this, [this](bool everywhere) {
+        m_everywhere = everywhere;
+        KConfigGroup group = KSharedConfig::openConfig(QStringLiteral("file-explorerrc"))->group(QStringLiteral("Search"));
+        group.writeEntry("Everywhere", everywhere);
+        group.sync();
+        runSearch();
+    });
+    m_relistTimer->setSingleShot(true);
+    m_relistTimer->setInterval(RELIST_MS);
+    connect(m_relistTimer, &QTimer::timeout, this, [this] {
+        if (isSearching() && m_indexed) {
+            reload();
+        }
+    });
+    connect(&SearchService::instance(), &SearchService::indexChanged, this, [this] {
+        if (isSearching() && m_indexed) {
+            m_relistTimer->start();
+        }
+    });
 
     m_searchTimer->setSingleShot(true);
     m_searchTimer->setInterval(SEARCH_DELAY_MS);
@@ -197,6 +229,9 @@ void BrowserTab::openFolder(const QUrl &url)
 void BrowserTab::endSearch()
 {
     m_searchTimer->stop();
+    m_relistTimer->stop();
+    m_indexed = false;
+    m_scopeBar->hide();
     m_searchOrigin.clear();
     m_searchTerm.clear();
 }
@@ -263,7 +298,8 @@ void BrowserTab::search(const QString &term)
 {
     m_searchTerm = term.trimmed();
     if (!m_searchTerm.isEmpty()) {
-        m_searchTimer->start();
+        SearchService::instance().warm();
+        m_searchTimer->start(m_indexed ? 0 : SEARCH_DELAY_MS);
         return;
     }
     if (isSearching()) {
@@ -284,7 +320,24 @@ void BrowserTab::runSearch()
         m_searchOrigin = url();
     }
     const QString title = QStringLiteral("Searching “%1”").arg(m_searchTerm);
-    showUrl(filenameSearchUrl(m_searchTerm, m_searchOrigin, title));
+    // The index answers for the whole PC or for a folder it holds; anywhere else (a network share, a phone) the
+    // folder is searched in place, as before the index existed.
+    SearchService &service = SearchService::instance();
+    const bool indexAnswers = service.covers(QUrl());
+    const bool folderIndexed = indexAnswers && service.covers(m_searchOrigin);
+    m_indexed = indexAnswers && (m_everywhere || folderIndexed);
+    if (m_indexed) {
+        const QString folderName = m_searchOrigin.isLocalFile() ? QFileInfo(m_searchOrigin.toLocalFile()).fileName() : m_searchOrigin.fileName();
+        m_scopeBar->setScope(folderName.isEmpty() ? QStringLiteral("/") : folderName, m_everywhere);
+        m_scopeBar->setVisible(folderIndexed);
+        // Hidden names are matched only while the view shows hidden files, as in the folder itself.
+        const QAction *hidden = partAction(QStringLiteral("show_hidden_files"));
+        const QString text = hidden && hidden->isChecked() ? m_searchTerm + QStringLiteral(" hidden:") : m_searchTerm;
+        showUrl(indexedSearchUrl(text, m_everywhere ? QUrl() : m_searchOrigin, title));
+    } else {
+        m_scopeBar->hide();
+        showUrl(filenameSearchUrl(m_searchTerm, m_searchOrigin, title));
+    }
 }
 
 void BrowserTab::setViewMode(ViewMode mode)

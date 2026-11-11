@@ -192,6 +192,13 @@ pub fn act_as(uid: u32, gid: u32, groups: &[u32]) -> io::Result<()> {
     if now == libc::c_long::from(uid) { Ok(()) } else { Err(io::Error::from(io::ErrorKind::PermissionDenied)) }
 }
 
+/// Whether the process runs as root, as the system service does; tests and development run it as the user.
+#[must_use]
+pub fn is_root() -> bool {
+    // SAFETY: plain syscall.
+    unsafe { libc::geteuid() == 0 }
+}
+
 /// Whether the calling thread's filesystem identity may access `path` with `mode` (`faccessat2` with `AT_EACCESS`,
 /// so the fsuid, fsgid, groups and ACLs decide).
 #[must_use]

@@ -1,0 +1,13 @@
+{
+    "KDE-KIO-Protocols": {
+        "aurora-search": {
+            "Class": ":local",
+            "Icon": "edit-find",
+            "input": "none",
+            "output": "filesystem",
+            "listing": ["Name", "Type", "Size", "Date", "AccessDate", "Access", "Owner", "Group", "Link", "URL"],
+            "reading": false,
+            "maxInstances": 4
+        }
+    }
+}

@@ -98,7 +98,21 @@ impl Server {
             changed: false,
         };
         let mountinfo = fs::read_to_string("/proc/self/mountinfo").unwrap_or_default();
-        let mounts = local_mounts(&mountinfo, &server.setup.config.exclude);
+        let mut mounts = local_mounts(&mountinfo, &server.setup.config.exclude);
+        if !server.setup.config.roots.is_empty() {
+            // Only the folders asked for, each with the filesystem type of the mount it is on.
+            let all = local_mounts(&mountinfo, &[]);
+            mounts = server
+                .setup
+                .config
+                .roots
+                .iter()
+                .filter_map(|root| {
+                    let on = all.iter().filter(|m| root.starts_with(&m.path)).max_by_key(|m| m.path.as_os_str().len())?;
+                    Some(Mount { path: root.clone(), ..on.clone() })
+                })
+                .collect();
+        }
         // Watch before catching up: a change during the catch-up is then both found and heard, never lost.
         server.watch = Watch::new().ok();
         if let Some(watch) = server.watch.as_mut() {

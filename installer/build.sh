@@ -175,18 +175,41 @@ for line in sys.stdin:
             [ -n "$exe" ] && [ -x "$exe" ] || { echo "  build failed, see build/cli.build.log"; return 1; }
             install -Dm755 "$exe" "$BUILD/cli/aurora"
             return 0 ;;
+        search)
+            # aurora-search, File Explorer's whole-disk search helper (Rust). Optional like cli: without it File
+            # Explorer searches below the folder, as before. No built-for stamp: it depends on the kernel, not Plasma.
+            if ! command -v cargo > /dev/null; then
+                echo "search: skipped, cargo is not installed (File Explorer searches folders in place)"; return 0
+            fi
+            echo "search: aurora-search"
+            mkdir -p "$BUILD"
+            local bins
+            bins=$(cd "$ROOT/components/file-explorer/search" && nice -n 10 cargo build --release --locked --bins \
+                       --message-format=json-render-diagnostics 2> "$BUILD/search.build.log" | python3 -I -c '
+import json, sys
+for line in sys.stdin:
+    message = json.loads(line)
+    if message.get("reason") == "compiler-artifact" and message.get("executable"):
+        print(message["executable"])') || true
+            local helper query
+            helper=$(grep '/aurora-search$' <<< "$bins" | tail -1)
+            query=$(grep '/aurora-search-query$' <<< "$bins" | tail -1)
+            [ -x "$helper" ] && [ -x "$query" ] || { echo "  build failed, see build/search.build.log"; return 1; }
+            install -Dm755 "$helper" "$BUILD/search/aurora-search"
+            install -Dm755 "$query" "$BUILD/search/aurora-search-query"
+            return 0 ;;
         file-explorer|glass|energy-page)
             echo "$part"
             compile "$part" "$ROOT/components/$part" || return 1 ;;
         *)
-            echo "unknown part: $part (parts: $OWN_PARTS $PLASMA_PARTS cli)" >&2
+            echo "unknown part: $part (parts: $OWN_PARTS $PLASMA_PARTS cli search)" >&2
             return 2 ;;
     esac
     stamp_of "$part" > "$BUILD/$part/built-for"
 }
 
 # Every part is tried even when one fails; the failures are reported together at the end.
-parts=${*:-$OWN_PARTS $PLASMA_PARTS cli}
+parts=${*:-$OWN_PARTS $PLASMA_PARTS cli search}
 failed=""
 for part in $parts; do
     build_part "$part" || failed="$failed $part"

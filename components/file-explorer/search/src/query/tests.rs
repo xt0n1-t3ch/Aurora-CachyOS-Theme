@@ -104,6 +104,19 @@ fn hidden_entries_are_neither_shown_nor_counted() {
 }
 
 #[test]
+fn hidden_names_wait_for_hidden() {
+    let mut index = sample();
+    let root = index.volumes()[0].root;
+    let config = index.insert(root, b".config", Kind::Dir, 20);
+    index.insert(config, b"report.conf", Kind::File, 21);
+    index.insert(root, b".report-cache", Kind::File, 22);
+    assert_eq!(run(&index, "report").len(), 3);
+    assert_eq!(run(&index, "report hidden:").len(), 5);
+    // Inside a hidden folder that is the scope, its names are not hidden.
+    assert_eq!(run_in(&index, "report", Some(config)), ["/home/alex/.config/report.conf"]);
+}
+
+#[test]
 fn bad_words_are_named() {
     assert_eq!(parse("size:lots").unwrap_err(), "size:lots");
     assert!(parse("regex:(").unwrap_err().starts_with("regex:("));

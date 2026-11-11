@@ -15,6 +15,7 @@
 #include "core/places.h"
 #include "core/quicklook.h"
 #include "quicklook.h"
+#include "searchservice.h"
 #include "sidebar.h"
 #include "style.h"
 #include "tabbar.h"
@@ -259,7 +260,8 @@ void MainWindow::syncFromTab()
         return;
     }
     setWindowTitle(fe::folderTitle(tab->url(), m_context));
-    m_toolbar->addressField()->setLocation(tab->url());
+    // The folder, also while a search shows: the address names where the search started.
+    m_toolbar->addressField()->setLocation(tab->folderUrl());
     m_toolbar->addressField()->setCrumbs(fe::crumbsFor(tab->folderUrl(), m_context));
     m_actionBar->setSplit(currentPage()->isSplit());
     m_toolbar->setNavigationState(tab->canGoBack(), tab->canGoForward(), tab->canGoUp());
@@ -555,6 +557,11 @@ void MainWindow::openNewWindow()
 void MainWindow::changeEvent(QEvent *event)
 {
     GlassWindow::changeEvent(event);
+    // A window in use keeps the search helper's connection, so a search answers at once and the index follows
+    // changes; a window left alone lets it go (fe::SearchService).
+    if (event->type() == QEvent::ActivationChange && isActiveWindow()) {
+        fe::SearchService::instance().warm();
+    }
     if (event->type() == QEvent::WindowStateChange) {
         m_controls->setMaximized(isMaximized());
     }

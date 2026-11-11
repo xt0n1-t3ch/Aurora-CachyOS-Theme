@@ -30,13 +30,15 @@ pub struct Access {
 
 /// While alive, the calling thread checks access as the viewer; dropping it makes the thread root again.
 pub struct AsViewer {
-    _private: (),
+    switched: bool,
 }
 
 impl Drop for AsViewer {
     fn drop(&mut self) {
         // Back to root: if this failed the thread would keep reading as the user, so the helper must not go on.
-        sys::act_as(0, 0, &[]).expect("to become root again after a user's check");
+        if self.switched {
+            sys::act_as(0, 0, &[]).expect("to become root again after a user's check");
+        }
     }
 }
 
@@ -58,13 +60,17 @@ impl Access {
     ///
     /// The error of switching credentials.
     pub fn as_viewer(viewer: &Viewer) -> io::Result<AsViewer> {
+        // A helper running as a user (tests, development) checks as that user, the only one it can be.
+        if !sys::is_root() {
+            return Ok(AsViewer { switched: false });
+        }
         sys::act_as(viewer.uid, viewer.gid, &viewer.groups)?;
-        Ok(AsViewer { _private: () })
+        Ok(AsViewer { switched: true })
     }
 
     /// Whether `viewer` may see entry `id`. Call it under [`Access::as_viewer`]; root sees everything.
     pub fn visible(&mut self, index: &Index, viewer: &Viewer, id: EntryId) -> bool {
-        if viewer.uid == 0 {
+        if viewer.uid == 0 && sys::is_root() {
             return true;
         }
         let Some(parent) = index.parent(id) else {

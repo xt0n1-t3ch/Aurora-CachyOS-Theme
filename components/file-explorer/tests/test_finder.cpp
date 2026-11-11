@@ -12,6 +12,7 @@
 #include "core/tree.h"
 
 #include <QHash>
+#include <QUrlQuery>
 #include <QSet>
 #include <QTest>
 
@@ -82,6 +83,19 @@ private Q_SLOTS:
     {
         const QUrl search = fe::filenameSearchUrl(QStringLiteral("mods"), GAMES, QStringLiteral("Search in Games"));
         QCOMPARE(fe::addressText(search), QStringLiteral("/home/alex/Games"));
+    }
+
+    void anIndexedSearchCarriesItsWordsScopeAndTitle()
+    {
+        const QUrl everywhere = fe::indexedSearchUrl(QStringLiteral("a&b=c d"), QUrl(), QStringLiteral("Searching"));
+        QCOMPARE(everywhere.scheme(), QStringLiteral("aurora-search"));
+        QCOMPARE(QUrlQuery(everywhere).queryItemValue(QStringLiteral("q"), QUrl::FullyDecoded), QStringLiteral("a&b=c d"));
+        QVERIFY(!QUrlQuery(everywhere).hasQueryItem(QStringLiteral("scope")));
+        const QUrl here = fe::indexedSearchUrl(QStringLiteral("x"), GAMES, QStringLiteral("Searching"));
+        QCOMPARE(QUrlQuery(here).queryItemValue(QStringLiteral("scope"), QUrl::FullyDecoded), QStringLiteral("/home/alex/Games"));
+        const fe::PathContext context{HOME, QStringLiteral("alex"), QStringLiteral("CachyOS")};
+        QCOMPARE(fe::folderTitle(here, context), QStringLiteral("Searching"));
+        QCOMPARE(fe::crumbDrop(here, true, {local("/tmp/x")}, TAGS), fe::CrumbDrop::Refused);
     }
 
     void aTagsShelfReadsAsTagsThenTheTag()

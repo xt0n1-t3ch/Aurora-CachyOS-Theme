@@ -19,6 +19,10 @@
 class KNewFileMenu;
 class QTimer;
 
+namespace fe {
+class SearchScopeBar;
+}
+
 namespace KParts {
 class OpenUrlArguments;
 class ReadOnlyPart;
@@ -62,7 +66,8 @@ public:
     [[nodiscard]] bool canGoForward() const;
     [[nodiscard]] bool canGoUp() const;
 
-    /// Searches file names below the folder after a short pause in typing; an empty term ends the search.
+    /// Searches file names: the whole PC or the folder, from aurora-search's index as each key is typed, or, without
+    /// the index, below the folder after a short pause in typing. An empty term ends the search.
     void search(const QString &term);
 
     void setViewMode(ViewMode mode);
@@ -128,6 +133,13 @@ private:
     bool m_picking = false;
     QString m_searchTerm;
     QTimer *m_searchTimer;
+    SearchScopeBar *m_scopeBar;
+    /// The scope chosen in the scope row: the whole PC, or the folder the search started in.
+    bool m_everywhere = true;
+    /// Whether the search on screen lists from the index, which announces its changes.
+    bool m_indexed = false;
+    /// Gathers the index's change notices into one listing again.
+    QTimer *m_relistTimer;
     QHash<QByteArray, bool> m_enabledActions;
     FolderCounts m_counts;
     QString m_message;
