@@ -936,6 +936,15 @@ private Q_SLOTS:
         QVERIFY2(fade.progress() <= reached && fade.progress() > 0.0, "no jump back to fully hovered or to none");
     }
 
+    void the_version_control_submenu_is_named_after_its_tool()
+    {
+        QCOMPARE(fe::versionControlMenuTitle({QStringLiteral("Git &Commit…"), QStringLiteral("Git Push…"), QStringLiteral("Git Log")}),
+                 QStringLiteral("Git"));
+        QCOMPARE(fe::versionControlMenuTitle({QStringLiteral("Git Push…"), QStringLiteral("SVN Update")}), QStringLiteral("Version Control"));
+        QCOMPARE(fe::versionControlMenuTitle({QStringLiteral("Update")}), QStringLiteral("Version Control"));
+        QCOMPARE(fe::versionControlMenuTitle({}), QStringLiteral("Version Control"));
+    }
+
     void a_filter_counts_its_matches_in_words()
     {
         QCOMPARE(fe::filterMatchText(0), QStringLiteral("No matches"));

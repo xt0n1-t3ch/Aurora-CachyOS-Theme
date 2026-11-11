@@ -24,7 +24,7 @@ depends=(
     'kglobalaccel' 'ki18n' 'kiconthemes' 'kio' 'kitemmodels' 'kjobwidgets' 'knotifications' 'kparts' 'kfilemetadata'
     'purpose' 'kpackage' 'krunner' 'kservice' 'kstatusnotifieritem' 'kwindowsystem' 'kxmlgui' 'kcmutils' 'solid'
     'kirigami' 'kirigami-addons' 'kdeclarative' 'ksvg' 'kquickcharts' 'plasma-workspace' 'plasma-activities'
-    'libplasma' 'kwin' 'kdecoration' 'layer-shell-qt' 'wayland' 'dolphin' 'kinfocenter' 'xdg-desktop-portal'
+    'libplasma' 'kwin' 'kdecoration' 'layer-shell-qt' 'wayland' 'dolphin' 'dolphin-plugins' 'kinfocenter' 'xdg-desktop-portal'
     'xdg-desktop-portal-kde' 'plasma5support' 'milou' 'plasma-nm' 'plasma-pa' 'bluez-qt' 'powerdevil' 'kvantum' 'dconf'
     'xsettingsd' 'fontconfig' 'inter-font' 'ttf-jetbrains-mono-nerd' 'systemd' 'dbus' 'python' 'python-pillow' 'glibc'
     'libgcc' 'curl' 'tar' 'pacman-contrib' 'libnotify' 'konsole'

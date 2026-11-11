@@ -50,6 +50,7 @@ kdecoration
 layer-shell-qt
 wayland
 dolphin                # the file view inside File Explorer
+dolphin-plugins        # File Explorer's Git status on files and its Git menu (Dolphin's version control plugins)
 kinfocenter            # the Energy page lives in Info Center
 xdg-desktop-portal
 xdg-desktop-portal-kde

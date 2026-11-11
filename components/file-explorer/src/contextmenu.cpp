@@ -6,6 +6,8 @@
 
 #include "contextmenu.h"
 
+#include "core/format.h"
+
 #include "browsertab.h"
 #include "core/places.h"
 #include "tagging.h"
@@ -208,7 +210,7 @@ void fillBackgroundMenu(QMenu &menu, BrowserTab *tab, KFileItemActions &fileActi
 } // namespace
 
 void execContextMenu(BrowserTab *tab, const QPoint &globalPos, const KFileItemList &items,
-                     const WindowActions &actions, QWidget *window)
+                     const WindowActions &actions, QWidget *window, const QList<QAction *> &versionControl)
 {
     if (items.isEmpty()) {
         return;
@@ -223,6 +225,15 @@ void execContextMenu(BrowserTab *tab, const QPoint &globalPos, const KFileItemLi
         fillBackgroundMenu(menu, tab, fileActions, actions, window);
     } else {
         fillItemMenu(menu, tab, items, fileActions, actions, window);
+    }
+    if (!versionControl.isEmpty()) {
+        QStringList texts;
+        for (const QAction *action : versionControl) {
+            texts.append(action->text());
+        }
+        menu.addSeparator();
+        QMenu *submenu = menu.addMenu(icon("vcs-normal"), versionControlMenuTitle(texts));
+        submenu->addActions(versionControl);
     }
     menu.exec(globalPos);
 }

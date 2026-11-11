@@ -60,6 +60,7 @@ pkgbase = aurora-theme
 	depends = layer-shell-qt
 	depends = wayland
 	depends = dolphin
+	depends = dolphin-plugins
 	depends = kinfocenter
 	depends = xdg-desktop-portal
 	depends = xdg-desktop-portal-kde

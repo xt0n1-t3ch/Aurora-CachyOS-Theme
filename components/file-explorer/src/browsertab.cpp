@@ -412,6 +412,23 @@ void BrowserTab::triggerPartAction(const QString &name) const
     }
 }
 
+QList<QAction *> BrowserTab::versionControlActions(const KParts::NavigationExtension::ActionGroupMap &groups) const
+{
+    QList<QAction *> found;
+    if (!m_part) {
+        return found;
+    }
+    const QList<QAction *> own = m_part->actionCollection()->actions();
+    const auto edit = groups.value(QStringLiteral("editactions"));
+    for (QAction *action : edit) {
+        // DolphinRemoveAction is the part's Trash-or-Delete action, made outside its action collection.
+        if (action && !own.contains(action) && !action->inherits("DolphinRemoveAction")) {
+            found.append(action);
+        }
+    }
+    return found;
+}
+
 KNewFileMenu *BrowserTab::newFileMenu() const
 {
     return m_part ? m_part->findChild<KNewFileMenu *>() : nullptr;

@@ -24,5 +24,6 @@ exec timeout "$TO" env -i HOME="$SBX/home" REALHOME="$REALHOME" USER="$USER" LOG
   QT_PLUGIN_PATH="$SBX/home/.local/lib/qt6/plugins:/usr/lib/qt6/plugins" \
   QML_IMPORT_PATH="$SBX/home/.local/lib/qml:$SBX/home/.local/lib/qt6/qml" SB="$SB" SBX="$SBX" \
   KV_NAME="$KV_NAME" SCEN_TAG="$SCEN_TAG" POINTER_DEBUG="$POINTER_DEBUG" SANDBOX_SCALE="${SANDBOX_SCALE:-1}" \
+  AURORA_DOLPHIN_PLUGINS="${AURORA_DOLPHIN_PLUGINS:-}" \
   dbus-run-session -- kwin_wayland --virtual --width 2560 --height 1440 --scale "${SANDBOX_SCALE:-1}" --socket wayland-sbx --xwayland \
   --no-lockscreen --exit-with-session "$SCEN"

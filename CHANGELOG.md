@@ -39,6 +39,9 @@ it changes. A change that needs a fresh install, or that an earlier backup canno
 - File Explorer opens a zip, tar or 7z archive as a folder on a double click, as Windows' File Explorer does, with
   the path bar reading through the archive and Up leaving it for its folder. View > Open Archives as Folders turns it
   off; documents that are zips inside, like OpenDocument files, still open in their applications.
+- In a Git repository, File Explorer and Dolphin show each file's Git status, and File Explorer's context menu has
+  a Git submenu (Log, Add, Commit, Push and more). Aurora now installs `dolphin-plugins` for it and turns its Git
+  plugin on, leaving any other plugin you turned on as it is.
 - File Explorer searches the whole PC as you type: a helper keeps an index of every local disk's names and answers
   in a few milliseconds (490,544 names: under 3 ms for a word). It runs only while File Explorer is used and leaves
   a few minutes after, catches up on what changed meanwhile without reading everything again, follows changes live,

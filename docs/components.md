@@ -36,7 +36,10 @@ archives as folders (`fe::BrowserTab::archiveFolderUrl`, View > Open Archives as
 `file-explorerrc [General] ArchivesAsFolders`: a double click opens a zip, tar or 7z through kio-extras' archive worker,
 as Windows' File Explorer opens a zip; OpenDocument and other zip-based documents still open in their applications;
 the path reads as the archive's own path, then the folders in it, and Up from its top opens its folder with the
-archive selected), path segments in both bars (`fe::CrumbStrip`, rules in `core/crumbs`; below), Finder menus with shortcuts written the Windows way (`fe::shortcutLabel`: "Ctrl+Alt+C", "Alt+Enter", "Win+E"),
+archive selected), Git (Dolphin's Git plugin from `dolphin-plugins`, which the installer turns on in `dolphinrc
+[VersionControl] enabledPlugins` without turning off the user's others: each file in a repository shows its status,
+and the context menu has a Git submenu with Log, Add, Commit, Push and the rest, taken from the part's action groups
+by `fe::BrowserTab::versionControlActions`), path segments in both bars (`fe::CrumbStrip`, rules in `core/crumbs`; below), Finder menus with shortcuts written the Windows way (`fe::shortcutLabel`: "Ctrl+Alt+C", "Alt+Enter", "Win+E"),
 and the pointing hand on every clickable widget.
 
 Group offers the Finder's choices (None, Name, Kind, Date Modified, Date Created, Size, Tags) through Dolphin's own
@@ -83,7 +86,7 @@ Dolphin, with the 63 emblems `themes/icons/tag_emblems.py` adds to the icon them
 It also serves `org.freedesktop.FileManager1` (`--service`: "Show in folder" selects the file) and the FileChooser
 portal backend (`--portal`: Open and Save panels with a chooser bar; it quits after three idle minutes). Installed as
 `~/.local/bin/file-explorer`; Win+E launches it. Folders without a view of their own show Finder's columns (Name,
-Modified, Size, Type) from `~/.local/share/file-explorer/view_properties/global/.directory`. Tests: `fe_tests` (89),
+Modified, Size, Type) from `~/.local/share/file-explorer/view_properties/global/.directory`. Tests: `fe_tests` (90),
 `fe_finder_tests` (54), `fe_widget_tests` (22, offscreen: clicks, drops, a drag resting on a segment, the address
 field at rest, accessibility, the filter row over a real Dolphin view, the glass behind a field inside a tab, the
 Rename sheet renaming a real folder and one Undo taking it back, F2 on two items opening it, the command palette
@@ -101,7 +104,9 @@ names), `explorer-undo.sh` (Delete, then Ctrl+Z brings the file back; FAIL on th
 Enter; 3 PASS), `explorer-copypaths.sh` (Ctrl+A, Ctrl+Alt+C, the three paths read
 from Klipper and pasted into KWrite), `explorer-inspector.sh` (Ctrl+Alt+I on a
 folder, a picture, Compute and a typed SHA-256 that matches; 3 PASS), `explorer-archive.sh` (a double click on a
-zip, then Alt+Up; 2 PASS), `show-in-folder.sh`, `open-save.sh`.
+zip, then Alt+Up; 2 PASS), `explorer-git.sh` (a repository's
+status emblems, the context menu and its Git submenu; needs `dolphin-plugins` or `AURORA_DOLPHIN_PLUGINS` naming its
+unpacked package; 2 PASS), `show-in-folder.sh`, `open-save.sh`.
 
 ## Mission Center (`components/mission-center`)
 

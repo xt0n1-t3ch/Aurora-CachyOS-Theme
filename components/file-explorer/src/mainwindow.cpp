@@ -235,8 +235,8 @@ void MainWindow::connectTab(fe::BrowserTab *tab)
     });
     connect(tab, &fe::BrowserTab::newTabRequested, this, [this](const QUrl &target) { openTab(target, false); });
     connect(tab, &fe::BrowserTab::contextMenuRequested, this,
-            [this, tab](const QPoint &pos, const KFileItemList &items, const KParts::NavigationExtension::ActionGroupMap &) {
-                fe::execContextMenu(tab, pos, items, m_actions, this);
+            [this, tab](const QPoint &pos, const KFileItemList &items, const KParts::NavigationExtension::ActionGroupMap &groups) {
+                fe::execContextMenu(tab, pos, items, m_actions, this, tab->versionControlActions(groups));
             });
 }
 

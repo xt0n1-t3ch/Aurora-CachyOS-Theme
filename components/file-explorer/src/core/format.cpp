@@ -84,6 +84,19 @@ QString statusLine(const FolderCounts &counts, const std::function<QString(qint6
     return line;
 }
 
+QString versionControlMenuTitle(const QStringList &actionTexts)
+{
+    QString shared;
+    for (const QString &text : actionTexts) {
+        const QString word = QString(text).remove(QLatin1Char('&')).section(QLatin1Char(' '), 0, 0);
+        if (word.isEmpty() || word == text || (!shared.isEmpty() && word != shared)) {
+            return QStringLiteral("Version Control");
+        }
+        shared = word;
+    }
+    return shared.isEmpty() ? QStringLiteral("Version Control") : shared;
+}
+
 QString filterMatchText(qsizetype matches)
 {
     if (matches == 0) {

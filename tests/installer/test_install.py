@@ -40,6 +40,27 @@ def tree(home, skip):
     return paths
 
 
+class GitStatus(unittest.TestCase):
+    """install.enable_git_status turns Dolphin's Git plugin on and leaves the user's other plugins on."""
+
+    def enabled(self, before):
+        with tempfile.TemporaryDirectory() as home, unittest.mock.patch.object(install, "HOME", home):
+            if before is not None:
+                os.makedirs(os.path.join(home, ".config"))
+                with open(os.path.join(home, ".config/dolphinrc"), "w") as f:
+                    f.write(f"[VersionControl]\nenabledPlugins={before}\n")
+            install.enable_git_status()
+            install.enable_git_status()
+            return install.kread(".config/dolphinrc", "VersionControl", "enabledPlugins")
+
+    def test_a_new_home_gets_git(self):
+        self.assertEqual(self.enabled(None), "Git")
+
+    def test_the_user_s_plugins_stay_and_git_is_added_once(self):
+        self.assertEqual(self.enabled("Subversion"), "Subversion,Git")
+        self.assertEqual(self.enabled("Git,Mercurial"), "Git,Mercurial")
+
+
 class Panels(unittest.TestCase):
     """install.has_theme_panels tells a desktop that has the theme's menu bar from a stock one."""
 

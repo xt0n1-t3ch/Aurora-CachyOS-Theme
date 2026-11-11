@@ -77,6 +77,10 @@ public:
     [[nodiscard]] QAction *partAction(const QString &name) const;
     /// Triggers the part's action of this name when it exists and is enabled.
     void triggerPartAction(const QString &name) const;
+    /// The actions of Dolphin's version control plugin among a context menu's action groups: DolphinPart puts them in
+    /// "editactions" with its own Move to Trash, Delete and Rename (DolphinPart::slotOpenContextMenu, dolphinpart.cpp,
+    /// v26.08.3, line 386), which the menu already offers and are left out here.
+    [[nodiscard]] QList<QAction *> versionControlActions(const KParts::NavigationExtension::ActionGroupMap &groups) const;
     /// The part's New menu, or null without a part.
     [[nodiscard]] KNewFileMenu *newFileMenu() const;
     [[nodiscard]] KFileItemList selectedItems() const;

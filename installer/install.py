@@ -348,6 +348,17 @@ def reload_effect_timing(factor, seconds=3):
     return caught_up
 
 
+def enable_git_status():
+    """Turns on Dolphin's Git plugin, so File Explorer and Dolphin show each file's Git status and a Git menu.
+
+    The plugin comes with dolphin-plugins; Dolphin loads a version control plugin only when dolphinrc names it
+    (VersionControlObserver, versioncontrolobserver.cpp, v26.08.3, line 296). Plugins the user turned on stay on.
+    """
+    plugins = [p for p in kread(".config/dolphinrc", "VersionControl", "enabledPlugins").split(",") if p]
+    if "Git" not in plugins:
+        kwrite(".config/dolphinrc", ["VersionControl"], "enabledPlugins", ",".join(plugins + ["Git"]))
+
+
 def kread(file, group, key):
     """The value of `key` in `group` of a config file under the home folder."""
     return output("kreadconfig6", "--file", os.path.join(HOME, file), "--group", group, "--key", key)
@@ -699,6 +710,7 @@ def look():
     # own take it from here; a .directory file there comes before the folder's attributes (Dolphin's
     # src/views/viewproperties.cpp, v26.08.2, lines 42-82).
     kwrite(VIEW_DEFAULTS, ["Dolphin"], "VisibleRoles", "Details_text,Details_modificationtime,Details_size,Details_type")
+    enable_git_status()
     kwrite(".config/Kvantum/kvantum.kvconfig", ["General"], "theme", KVANTUM)
     # Banners rise from the bottom-right corner, where CachyOS puts notifications.
     kwrite(".config/plasmanotifyrc", ["Notifications"], "PopupPosition", "BottomRight")
