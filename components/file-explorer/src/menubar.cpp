@@ -195,6 +195,13 @@ void MainWindow::buildMenuBar()
     m_sortMenu = view->addMenu(QStringLiteral("Sort By"));
     addPartProxy(view, QStringLiteral("Show Hidden Files"), QStringLiteral("show_hidden_files"));
     addPartProxy(view, QStringLiteral("Show Previews"), QStringLiteral("show_preview"));
+    // Windows' File Explorer opens a zip as a folder; Ark and Open With still open it as a file.
+    QAction *archives = view->addAction(QStringLiteral("Open Archives as Folders"));
+    archives->setCheckable(true);
+    archives->setChecked(fe::BrowserTab::opensArchivesAsFolders());
+    connect(archives, &QAction::toggled, this, [](bool asFolders) { fe::BrowserTab::setOpensArchivesAsFolders(asFolders); });
+    // Another window may have changed it.
+    connect(view, &QMenu::aboutToShow, archives, [archives] { archives->setChecked(fe::BrowserTab::opensArchivesAsFolders()); });
     view->addSeparator();
     // Dolphin's key for its split view.
     addWindowAction(view, QStringLiteral("Split View"), {keys(Qt::Key_F3)}, [this] { toggleSplit(); });

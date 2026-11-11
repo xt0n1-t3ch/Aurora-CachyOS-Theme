@@ -24,7 +24,7 @@ struct Tally {
     qint64 folders = 0;
     /// The sum of the files' sizes, as their length in bytes.
     qint64 bytes = 0;
-    /// The space their blocks take on disk.
+    /// The space their blocks take on disk; -1 when it is not known (items on another machine or in an archive).
     qint64 onDisk = 0;
     /// Folders that could not be read; their contents are missing from the sums.
     qint64 unreadable = 0;

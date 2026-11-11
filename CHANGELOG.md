@@ -36,6 +36,9 @@ it changes. A change that needs a fresh install, or that an earlier backup canno
   real size of folders and selections with the space they take on disk, kept current while it is open, where the
   item is, its dates, owner and permissions, and for a file its SHA-256, SHA-512, SHA-1 or MD5 with a field that
   says whether a pasted hash matches. Closed, it does nothing.
+- File Explorer opens a zip, tar or 7z archive as a folder on a double click, as Windows' File Explorer does, with
+  the path bar reading through the archive and Up leaving it for its folder. View > Open Archives as Folders turns it
+  off; documents that are zips inside, like OpenDocument files, still open in their applications.
 - File Explorer searches the whole PC as you type: a helper keeps an index of every local disk's names and answers
   in a few milliseconds (490,544 names: under 3 ms for a word). It runs only while File Explorer is used and leaves
   a few minutes after, catches up on what changed meanwhile without reading everything again, follows changes live,

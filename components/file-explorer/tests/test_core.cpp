@@ -314,6 +314,20 @@ private Q_SLOTS:
 
     void theTrashIsOneCrumbNamedTrash()
     {
+        fe::PathContext archives = HOME_CONTEXT;
+        archives.archiveSchemes = {QStringLiteral("zip"), QStringLiteral("tar")};
+        archives.isFile = [](const QString &path) { return path == u"/home/alex/Trips/Holiday.zip"; };
+        const QList<fe::Crumb> inZip = fe::crumbsFor(QUrl(QStringLiteral("zip:/home/alex/Trips/Holiday.zip/Photos")), archives);
+        QCOMPARE(inZip.size(), 4);
+        QCOMPARE(inZip.at(1).url, folder(QStringLiteral("/home/alex/Trips")));
+        QCOMPARE(inZip.at(2).label, QStringLiteral("Holiday.zip"));
+        QCOMPARE(inZip.at(2).url, QUrl(QStringLiteral("zip:/home/alex/Trips/Holiday.zip")));
+        QCOMPARE(inZip.at(3).url, QUrl(QStringLiteral("zip:/home/alex/Trips/Holiday.zip/Photos")));
+        QCOMPARE(fe::folderTitle(QUrl(QStringLiteral("zip:/home/alex/Trips/Holiday.zip")), archives), QStringLiteral("Holiday.zip"));
+        // No archive on the way, or a scheme that is not an archive's: one segment, as before.
+        QCOMPARE(fe::crumbsFor(QUrl(QStringLiteral("zip:/home/alex/Trips")), archives).size(), 1);
+        QCOMPARE(fe::crumbsFor(QUrl(QStringLiteral("smb://nas/share")), archives).size(), 1);
+
         const QList<fe::Crumb> crumbs = fe::crumbsFor(QUrl(QStringLiteral("trash:/")), HOME_CONTEXT);
 
         QCOMPARE(crumbs.size(), 1);
@@ -992,6 +1006,8 @@ private Q_SLOTS:
         tally = {1, 0, 10, 4096, 2};
         QCOMPARE(fe::tallyText(tally, false, bytes),
                  QStringLiteral("Counting: [10 B] ([4096 B] on disk), 1 item; 2 folders could not be read"));
+        tally = {2, 1, 30, -1, 0};
+        QCOMPARE(fe::tallyText(tally, true, bytes), QStringLiteral("[30 B], 3 items"));
     }
 
     void a_file_hash_matches_the_known_digest_and_stops_when_cancelled()

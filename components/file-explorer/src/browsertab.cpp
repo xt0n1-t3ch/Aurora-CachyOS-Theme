@@ -30,10 +30,13 @@
 #include <KParts/PartLoader>
 #include <KParts/ReadOnlyPart>
 #include <KPluginMetaData>
+#include <KProtocolInfo>
+#include <KProtocolManager>
 
 #include <QApplication>
 #include <QClipboard>
 #include <QFileInfo>
+#include <QMimeDatabase>
 #include <QLabel>
 #include <QTimer>
 #include <QVBoxLayout>
@@ -288,8 +291,19 @@ void BrowserTab::goForward()
 
 void BrowserTab::goUp()
 {
+    // Up from the top of an archive opens the folder it is in, with the archive selected.
+    const QUrl folder = folderUrl();
+    if (!folder.isLocalFile() && !KProtocolInfo::archiveMimetypes(folder.scheme()).isEmpty()) {
+        const QString path = folder.adjusted(QUrl::StripTrailingSlash).path();
+        if (QFileInfo(path).isFile()) {
+            const QUrl archive = QUrl::fromLocalFile(path);
+            openFolder(archive.adjusted(QUrl::RemoveFilename));
+            selectItems({archive});
+            return;
+        }
+    }
     if (canGoUp()) {
-        openFolder(KIO::upUrl(folderUrl()));
+        openFolder(KIO::upUrl(folder));
     }
 }
 
@@ -460,6 +474,36 @@ void BrowserTab::focusView()
     }
 }
 
+bool BrowserTab::opensArchivesAsFolders()
+{
+    return KSharedConfig::openConfig(QStringLiteral("file-explorerrc"))->group(QStringLiteral("General")).readEntry("ArchivesAsFolders", true);
+}
+
+void BrowserTab::setOpensArchivesAsFolders(bool asFolders)
+{
+    KConfigGroup group = KSharedConfig::openConfig(QStringLiteral("file-explorerrc"))->group(QStringLiteral("General"));
+    group.writeEntry("ArchivesAsFolders", asFolders);
+    group.sync();
+}
+
+QUrl BrowserTab::archiveFolderUrl(const QUrl &url, const QString &mimeType)
+{
+    if (!url.isLocalFile() || !opensArchivesAsFolders() || !QFileInfo(url.toLocalFile()).isFile()) {
+        return {};
+    }
+    const QString type = mimeType.isEmpty() ? QMimeDatabase().mimeTypeForFile(url.toLocalFile()).name() : mimeType;
+    // The archive worker names the kinds it opens (kio-extras' archive worker: tar, zip, 7z, ar); only exact types
+    // count, so an OpenDocument file, which is a zip inside, still opens in its application (the same rule as
+    // DolphinView::openItemAsFolderUrl, dolphinview.cpp, v26.08.3, line 1849).
+    const QString protocol = KProtocolManager::protocolForArchiveMimetype(type);
+    if (protocol.isEmpty()) {
+        return {};
+    }
+    QUrl inside = url;
+    inside.setScheme(protocol);
+    return inside;
+}
+
 void BrowserTab::copyPaths()
 {
     QList<QUrl> urls;
@@ -540,6 +584,10 @@ void BrowserTab::handleOpenRequest(const QUrl &url, const KParts::OpenUrlArgumen
     }
     if (m_picking && !(url.isLocalFile() && QFileInfo(url.toLocalFile()).isDir())) {
         Q_EMIT filePicked(url);
+        return;
+    }
+    if (const QUrl inside = archiveFolderUrl(url, mimeType); !inside.isEmpty()) {
+        openFolder(inside);
         return;
     }
     if (!mimeType.isEmpty()) {

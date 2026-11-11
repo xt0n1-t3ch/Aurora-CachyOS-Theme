@@ -105,9 +105,9 @@ QString tallyText(const Tally &tally, bool done, const std::function<QString(qin
 {
     const QLocale locale;
     const qint64 items = tally.files + tally.folders;
-    QString text = QStringLiteral("%1 (%2 on disk), %3")
-                       .arg(formatSize(tally.bytes), formatSize(tally.onDisk),
-                            items == 1 ? QStringLiteral("1 item") : QStringLiteral("%1 items").arg(locale.toString(items)));
+    const QString count = items == 1 ? QStringLiteral("1 item") : QStringLiteral("%1 items").arg(locale.toString(items));
+    QString text = tally.onDisk < 0 ? QStringLiteral("%1, %2").arg(formatSize(tally.bytes), count)
+                                    : QStringLiteral("%1 (%2 on disk), %3").arg(formatSize(tally.bytes), formatSize(tally.onDisk), count);
     if (tally.unreadable > 0) {
         text += tally.unreadable == 1 ? QStringLiteral("; 1 folder could not be read")
                                       : QStringLiteral("; %1 folders could not be read").arg(locale.toString(tally.unreadable));

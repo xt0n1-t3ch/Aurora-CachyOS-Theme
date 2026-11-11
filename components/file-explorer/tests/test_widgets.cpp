@@ -24,7 +24,9 @@
 #include <QDir>
 #include <QFile>
 #include <QLineEdit>
+#include <QProcess>
 #include <QPushButton>
+#include <QStandardPaths>
 #include <QTreeWidget>
 
 #include <KIO/FileUndoManager>
@@ -83,6 +85,8 @@ class WidgetTest : public QObject
 private Q_SLOTS:
     void initTestCase()
     {
+        // Settings the widgets write (the archive choice, the search scope) go to a test folder, not the user's.
+        QStandardPaths::setTestModeEnabled(true);
         qRegisterMetaType<fe::CrumbOpen>();
         fe::installCrumbAccessibility();
     }
@@ -403,6 +407,55 @@ private Q_SLOTS:
         QStringList expected{dir.filePath(QStringLiteral("one.txt")), dir.filePath(QStringLiteral("three")), dir.filePath(QStringLiteral("two.txt"))};
         expected.sort();
         QCOMPARE(lines, expected);
+    }
+
+    void anArchiveOpensAsAFolderAndUpLeavesIt()
+    {
+        QTemporaryDir dir;
+        QVERIFY(QDir(dir.path()).mkpath(QStringLiteral("src/inner")));
+        QFile inner(dir.filePath(QStringLiteral("src/inner/readme.txt")));
+        QVERIFY(inner.open(QIODevice::WriteOnly));
+        inner.write("hi");
+        inner.close();
+        QVERIFY(QProcess::execute(QStringLiteral("tar"), {QStringLiteral("-czf"), dir.filePath(QStringLiteral("pack.tar.gz")), QStringLiteral("-C"),
+                                                         dir.filePath(QStringLiteral("src")), QStringLiteral("inner")}) == 0);
+        QFile document(dir.filePath(QStringLiteral("letter.odt")));
+        QVERIFY(document.open(QIODevice::WriteOnly));
+        document.write("PK");
+        document.close();
+        const QUrl archive = QUrl::fromLocalFile(dir.filePath(QStringLiteral("pack.tar.gz")));
+        fe::BrowserTab::setOpensArchivesAsFolders(true);
+        QCOMPARE(fe::BrowserTab::archiveFolderUrl(archive, {}).scheme(), QStringLiteral("tar"));
+        QCOMPARE(fe::BrowserTab::archiveFolderUrl(QUrl::fromLocalFile(document.fileName()), {}), QUrl());
+        QCOMPARE(fe::BrowserTab::archiveFolderUrl(QUrl::fromLocalFile(dir.path()), {}), QUrl());
+
+        fe::BrowserTab tab(QUrl::fromLocalFile(dir.path()));
+        if (!tab.isLoaded()) {
+            QSKIP("Dolphin's part is not installed");
+        }
+        tab.resize(800, 500);
+        tab.show();
+        KFileItem item(archive);
+        item.refresh();
+        tab.activateItems({item});
+        QCOMPARE(tab.url().scheme(), QStringLiteral("tar"));
+        QTRY_COMPARE(tab.statusText().section(u',', 0, 0), QStringLiteral("1 item"));
+        tab.goUp();
+        QCOMPARE(tab.url().adjusted(QUrl::StripTrailingSlash), QUrl::fromLocalFile(dir.path()));
+
+        // The Inspector reads the archive's folder through KIO.
+        fe::InspectorPanel panel;
+        panel.resize(290, 700);
+        panel.show();
+        QSignalSpy counted(&panel, &fe::InspectorPanel::sizeCounted);
+        panel.setItems({}, fe::BrowserTab::archiveFolderUrl(archive, {}));
+        QVERIFY(counted.wait(5000));
+        QVERIFY2(panel.sizeText().endsWith(QStringLiteral(", 2 items")), qPrintable(panel.sizeText()));
+
+        // Turned off, the archive opens in its application instead: the tab stays where it is.
+        fe::BrowserTab::setOpensArchivesAsFolders(false);
+        QCOMPARE(fe::BrowserTab::archiveFolderUrl(archive, {}), QUrl());
+        fe::BrowserTab::setOpensArchivesAsFolders(true);
     }
 
     void theInspectorCountsAFolderAndCountsAgainWhenItChanges()

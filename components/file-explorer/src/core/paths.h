@@ -7,7 +7,10 @@
 
 #include <QList>
 #include <QString>
+#include <QStringList>
 #include <QUrl>
+
+#include <functional>
 
 namespace fe {
 
@@ -24,6 +27,12 @@ struct PathContext {
     QString rootLabel;
     /// The folder of the tag shelves (fe::tagging::shelfRoot); a shelf reads as "Tags", then its tag. Empty for none.
     QString tagsPath = {};
+    /// The schemes of the archive worker (tar, zip, ...): a folder inside an archive reads as the archive's path, then
+    /// the folders in it. Empty for none.
+    QStringList archiveSchemes = {};
+    /// Whether a local path is a file, so the path of an archive can be told from the folders around it; unset, no
+    /// path is.
+    std::function<bool(const QString &)> isFile = {};
 };
 
 /// The path bar segments for a folder, from the outermost place (home or the root disk) to the folder.

@@ -40,6 +40,24 @@ QString remoteTitle(const QUrl &url)
 QList<Crumb> crumbsFor(const QUrl &url, const PathContext &context)
 {
     if (!url.isLocalFile()) {
+        if (context.archiveSchemes.contains(url.scheme()) && url.host().isEmpty() && context.isFile) {
+            // The archive's own path, then the folders inside it: from the archive on, the segments stay in the
+            // archive's scheme; before it, they are the local folders around it.
+            QList<Crumb> crumbs = crumbsFor(QUrl::fromLocalFile(url.path()), context);
+            bool inside = false;
+            for (Crumb &crumb : crumbs) {
+                const QString path = crumb.url.toLocalFile();
+                inside = inside || context.isFile(path);
+                if (inside) {
+                    crumb.url = QUrl();
+                    crumb.url.setScheme(url.scheme());
+                    crumb.url.setPath(path);
+                }
+            }
+            if (inside) {
+                return crumbs;
+            }
+        }
         return {{remoteTitle(url), url}};
     }
 

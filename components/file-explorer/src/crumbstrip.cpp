@@ -13,7 +13,11 @@
 
 #include <QAccessible>
 #include <QApplication>
+#include <KProtocolInfo>
+#include <KProtocolManager>
+
 #include <QCollator>
+#include <QMimeDatabase>
 #include <QContextMenuEvent>
 #include <QDirListing>
 #include <QDrag>
@@ -53,6 +57,12 @@ QString crumbIcon(const Crumb &crumb, bool first)
     }
     if (scheme == u"recentlyused") {
         return QStringLiteral("document-open-recent");
+    }
+    if (!crumb.url.isLocalFile() && !KProtocolInfo::archiveMimetypes(scheme).isEmpty()) {
+        // In an archive: the archive itself shows its kind's icon, the folders in it a folder. The name decides, so a
+        // paint never reads the disk.
+        const QMimeType type = QMimeDatabase().mimeTypeForFile(crumb.url.path(), QMimeDatabase::MatchExtension);
+        return KProtocolManager::protocolForArchiveMimetype(type.name()).isEmpty() ? QStringLiteral("folder") : type.iconName();
     }
     if (!crumb.url.isLocalFile()) {
         return QStringLiteral("folder-network");

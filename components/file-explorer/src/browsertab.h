@@ -95,6 +95,13 @@ public:
     void paste();
     void focusView();
 
+    /// Whether a double-clicked archive (zip, tar, 7z) opens as a folder here, as in Windows' File Explorer, instead of
+    /// in its application; kept in file-explorerrc, on by default.
+    [[nodiscard]] static bool opensArchivesAsFolders();
+    static void setOpensArchivesAsFolders(bool asFolders);
+    /// The folder view of the archive at url (`tar:/path/a.tar.gz`), or an empty URL when url is not an archive the
+    /// archive worker opens or archives open in their application. mimeType may be empty; it is then read.
+    [[nodiscard]] static QUrl archiveFolderUrl(const QUrl &url, const QString &mimeType);
     /// Puts the paths of every selected item on the clipboard, one per line; with nothing selected, the folder's path.
     /// Dolphin's Copy Location action (Ctrl+Alt+C) comes here.
     void copyPaths();

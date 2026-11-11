@@ -17,6 +17,7 @@
 #include <memory>
 
 class KDirWatch;
+class KJob;
 class QComboBox;
 class QFormLayout;
 class QLabel;
@@ -77,6 +78,8 @@ private:
     std::shared_ptr<std::atomic_bool> m_countCancel;
     std::shared_ptr<std::atomic_bool> m_hashCancel;
     QList<QPointer<QThread>> m_threads;
+    /// The KIO job that reads the folder on screen or counts items that are not on this PC.
+    QPointer<KJob> m_job;
     KDirWatch *m_watch;
     QTimer *m_recount;
 

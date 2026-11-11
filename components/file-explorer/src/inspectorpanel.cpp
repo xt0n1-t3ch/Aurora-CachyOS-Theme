@@ -10,8 +10,11 @@
 #include "toolbar.h"
 
 #include <KDirWatch>
+#include <KProtocolInfo>
 #include <KFormat>
+#include <KIO/DirectorySizeJob>
 #include <KIO/PreviewJob>
+#include <KIO/StatJob>
 
 #include <QApplication>
 #include <QClipboard>
@@ -68,7 +71,7 @@ QLabel *label(QWidget *parent, qreal size, const QColor &color, QFont::Weight we
 
 QString dateOf(const QDateTime &time)
 {
-    return time.isValid() ? KFormat().formatRelativeDateTime(time, QLocale::ShortFormat) : QStringLiteral("Unknown");
+    return KFormat().formatRelativeDateTime(time, QLocale::ShortFormat);
 }
 
 /// Runs work on a new thread at the given priority and deletes the thread when it ends.
@@ -208,11 +211,31 @@ void InspectorPanel::setItems(const KFileItemList &items, const QUrl &folder)
     m_shownUrls = urls;
     m_items = items;
     m_folder = folder;
+    m_compare->clear();
     if (m_items.isEmpty() && folder.isValid()) {
+        if (!folder.isLocalFile()) {
+            // A folder in an archive or on another machine is read through KIO before anything is shown of it.
+            if (m_job) {
+                m_job->kill();
+            }
+            auto *stat = KIO::stat(folder, KIO::StatJob::SourceSide, KIO::StatDefaultDetails, KIO::HideProgressInfo);
+            m_job = stat;
+            connect(stat, &KJob::result, this, [this, stat, folder] {
+                // The job is done; stopWork must not kill it again while refresh runs.
+                m_job.clear();
+                if (stat->error() || m_shownUrls != QList<QUrl>{folder}) {
+                    return;
+                }
+                m_items = {KFileItem(stat->statResult(), folder)};
+                if (isVisible()) {
+                    refresh();
+                }
+            });
+            return;
+        }
         m_items.append(KFileItem(folder));
         m_items.first().refresh();
     }
-    m_compare->clear();
     if (isVisible()) {
         refresh();
     }
@@ -229,6 +252,9 @@ void InspectorPanel::stopWork()
     m_countCancel.reset();
     m_hashCancel.reset();
     m_recount->stop();
+    if (m_job) {
+        m_job->kill();
+    }
     // A fresh watch drops every path of the old one at once, whatever was added to it.
     delete m_watch;
     m_watch = new KDirWatch(this);
@@ -278,7 +304,9 @@ void InspectorPanel::refresh()
     addRow(QStringLiteral("Size"), m_size);
     if (single) {
         const QUrl parent = first.url().adjusted(QUrl::RemoveFilename | QUrl::StripTrailingSlash);
-        QString where = parent.isLocalFile() ? parent.toLocalFile() : parent.toDisplayString();
+        // In an archive the path is the archive's own, so it reads as a path on this PC.
+        const bool inArchive = !KProtocolInfo::archiveMimetypes(parent.scheme()).isEmpty();
+        QString where = parent.isLocalFile() ? parent.toLocalFile() : inArchive ? parent.path() : parent.toDisplayString();
         if (const QString home = QDir::homePath(); where == home || where.startsWith(home + QLatin1Char('/'))) {
             where = QLatin1Char('~') + where.mid(home.size());
         }
@@ -289,14 +317,24 @@ void InspectorPanel::refresh()
         whereLabel->setTextInteractionFlags(Qt::NoTextInteraction);
         whereLabel->setToolTip(where);
         addRow(QStringLiteral("Where"), whereLabel);
-        addText(QStringLiteral("Created"), dateOf(first.time(KFileItem::CreationTime)));
-        addText(QStringLiteral("Modified"), dateOf(first.time(KFileItem::ModificationTime)));
-        addText(QStringLiteral("Opened"), dateOf(first.time(KFileItem::AccessTime)));
+        // A date the filesystem or the archive does not keep is left out rather than shown as unknown.
+        const struct {
+            const char *title;
+            KFileItem::FileTimes which;
+        } dates[] = {{"Created", KFileItem::CreationTime}, {"Modified", KFileItem::ModificationTime}, {"Opened", KFileItem::AccessTime}};
+        for (const auto &date : dates) {
+            if (const QDateTime time = first.time(date.which); time.isValid()) {
+                addText(QString::fromLatin1(date.title), dateOf(time));
+            }
+        }
         if (first.isLink()) {
             addText(QStringLiteral("Links to"), first.linkDest());
         }
-        addText(QStringLiteral("Owner"), QStringLiteral("%1, group %2").arg(first.user(), first.group()));
-        addText(QStringLiteral("Permissions"), permissionsText(first.permissions() | (first.isDir() ? S_IFDIR : 0)));
+        // Owners and permissions are this PC's; an archive's or a share's entries carry made-up ones.
+        if (first.isLocalFile()) {
+            addText(QStringLiteral("Owner"), QStringLiteral("%1, group %2").arg(first.user(), first.group()));
+            addText(QStringLiteral("Permissions"), permissionsText(first.permissions() | (first.isDir() ? S_IFDIR : 0)));
+        }
     }
     showPreview();
     const bool hashable = single && first.isLocalFile() && first.isFile() && !first.isDir();
@@ -337,8 +375,25 @@ void InspectorPanel::startCount()
         folders = folders || item.isDir();
         bytes += item.isDir() ? 0 : qint64(item.size());
     }
-    if (!folders || paths.size() != m_items.size()) {
-        // Files only, or items elsewhere than on this PC: their listed sizes are all there is to show.
+    if (folders && paths.size() != m_items.size()) {
+        // Folders in an archive or on another machine: KIO lists them through, the way Dolphin's Properties does.
+        m_size->setText(QStringLiteral("Counting"));
+        auto *job = KIO::directorySize(m_items);
+        m_job = job;
+        QPointer<QLabel> sizeLabel(m_size);
+        connect(job, &KJob::result, this, [this, job, sizeLabel] {
+            m_job.clear();
+            if (job->error() || !sizeLabel) {
+                return;
+            }
+            const Tally tally{qint64(job->totalFiles()), qint64(job->totalSubdirs()), qint64(job->totalSize()), -1, 0};
+            sizeLabel->setText(tallyText(tally, true, sizeOf));
+            Q_EMIT sizeCounted();
+        });
+        return;
+    }
+    if (!folders) {
+        // Files only: their listed sizes are all there is to show.
         m_size->setText(sizeOf(bytes));
         for (const QString &path : paths) {
             m_watch->addFile(path);
