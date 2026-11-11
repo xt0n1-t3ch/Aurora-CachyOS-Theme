@@ -22,6 +22,19 @@ pub fn fstatfs_type(fd: RawFd) -> io::Result<i64> {
     Ok(unsafe { stat.assume_init() }.f_type)
 }
 
+/// Lowers the calling thread to the idle I/O class and nice 19, so its reading never delays the user's programs.
+/// Linux keeps both per thread (`ioprio_set` with `IOPRIO_WHO_PROCESS` and `setpriority` on a thread id).
+pub fn lower_this_thread() {
+    // From linux/ioprio.h: IOPRIO_CLASS_IDLE = 3, shifted by IOPRIO_CLASS_SHIFT = 13; IOPRIO_WHO_PROCESS = 1.
+    const IOPRIO_IDLE: libc::c_long = 3 << 13;
+    // SAFETY: plain syscalls on the calling thread (id 0 for ioprio, gettid for setpriority); no memory is passed.
+    unsafe {
+        let tid = libc::gettid();
+        libc::syscall(libc::SYS_ioprio_set, 1 as libc::c_long, 0 as libc::c_long, IOPRIO_IDLE);
+        libc::setpriority(libc::PRIO_PROCESS, libc::id_t::try_from(tid).unwrap_or(0), 19);
+    }
+}
+
 /// Calls ioctl `request` on `fd` with `args` as the argument structure, read and written in place.
 ///
 /// The caller sizes `args` to at least the structure the request names: the size is encoded in `request`, and the

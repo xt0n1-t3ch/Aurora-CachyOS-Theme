@@ -11,6 +11,7 @@ license = "GPL-3.0-or-later"
 publish = false
 
 [dependencies]
+crc32fast = "1.5"
 libc = "0.2"
 memchr = "2.8"
 regex = { version = "1.12", default-features = false, features = ["std", "perf", "unicode-case", "unicode-perl"] }

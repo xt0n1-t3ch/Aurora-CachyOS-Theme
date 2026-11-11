@@ -9,7 +9,11 @@
 //! frame, and exits when nobody has asked for a while. See docs/search.md.
 
 pub mod btrfs;
+pub mod catchup;
 pub mod index;
+pub mod mounts;
 pub mod query;
+pub mod scan;
+pub mod store;
 #[expect(unsafe_code, reason = "the one module that calls the kernel through libc; each block states why it is sound")]
 mod sys;

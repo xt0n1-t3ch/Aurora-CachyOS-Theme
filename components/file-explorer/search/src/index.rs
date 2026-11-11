@@ -56,6 +56,13 @@ struct Entry {
 pub struct Volume {
     pub path: PathBuf,
     pub root: EntryId,
+    /// `st_dev` of the root while mounted; it can change between boots, so it is checked anew each start.
+    pub dev: u64,
+    /// `f_fsid` of the filesystem, which stays from boot to boot on btrfs and ext4; 0 when unknown.
+    pub fsid: u64,
+    pub btrfs: bool,
+    /// On btrfs, the last transaction whose changes the index holds.
+    pub generation: u64,
 }
 
 /// The index. Not thread-safe; the helper's main thread owns it.
@@ -103,8 +110,13 @@ impl Index {
     pub fn add_volume(&mut self, path: &Path, ino: u64) -> u16 {
         let volume = u16::try_from(self.volumes.len()).expect("fewer than 65536 volumes");
         let root = self.allocate(NONE, b"", Kind::Dir, ino, volume);
-        self.volumes.push(Volume { path: path.to_path_buf(), root });
+        self.volumes.push(Volume { path: path.to_path_buf(), root, dev: 0, fsid: 0, btrfs: false, generation: 0 });
         volume
+    }
+
+    /// A volume's details, to fill in after [`Index::add_volume`].
+    pub fn volume_mut(&mut self, volume: u16) -> &mut Volume {
+        &mut self.volumes[volume as usize]
     }
 
     #[must_use]
