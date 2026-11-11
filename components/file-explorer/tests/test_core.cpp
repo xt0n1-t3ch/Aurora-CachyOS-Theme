@@ -16,6 +16,7 @@
 #include "core/inspector.h"
 #include "core/motion.h"
 #include "core/palette.h"
+#include "core/transfers.h"
 
 #include <algorithm>
 
@@ -1057,6 +1058,50 @@ private Q_SLOTS:
         QCOMPARE(fe::permissionsText(01777), QStringLiteral("rwxrwxrwt (1777)"));
         QCOMPARE(fe::permissionsText(04644), QStringLiteral("rwSr--r-- (4644)"));
         QCOMPARE(fe::permissionsText(02755 | 0040000), QStringLiteral("rwxr-sr-x (2755)"));
+    }
+
+    // The transfer center's texts (core/transfers).
+
+    void transfers_combine_by_bytes_or_by_kio_s_percents()
+    {
+        fe::TransferState a;
+        a.processedBytes = 50;
+        a.totalBytes = 100;
+        fe::TransferState b;
+        b.processedBytes = 0;
+        b.totalBytes = 300;
+        QCOMPARE(fe::combinedPercent({a, b}), 12);
+        // A transfer without byte totals: the percents KIO reports, averaged.
+        fe::TransferState c;
+        c.percent = 80;
+        QCOMPARE(fe::combinedPercent({a, c}), (0 + 80) / 2);
+        QCOMPARE(fe::combinedPercent({}), 0);
+    }
+
+    void the_time_left_reads_in_plain_words()
+    {
+        QCOMPARE(fe::timeLeftText(5, 1), QStringLiteral("A few seconds left"));
+        QCOMPARE(fe::timeLeftText(42, 1), QStringLiteral("About 40 seconds left"));
+        QCOMPARE(fe::timeLeftText(70, 1), QStringLiteral("About a minute left"));
+        QCOMPARE(fe::timeLeftText(150, 1), QStringLiteral("About 3 minutes left"));
+        QCOMPARE(fe::timeLeftText(2 * 3600, 1), QStringLiteral("About 2 hours left"));
+        QCOMPARE(fe::timeLeftText(100, 0), QString());
+        QCOMPARE(fe::timeLeftText(0, 10), QString());
+    }
+
+    void a_transfer_says_how_far_it_is()
+    {
+        fe::TransferState copy{QStringLiteral("Copying"), {}, {}, 450, 1000, 0, 0, 5, 0, false};
+        QCOMPARE(fe::transferProgressText(copy, bytes), QStringLiteral("[450 B] of [1000 B], [5 B]/s, About 2 minutes left"));
+        fe::TransferState removal{QStringLiteral("Deleting"), {}, {}, 0, 0, 3, 10, 0, 0, false};
+        QCOMPARE(fe::transferProgressText(removal, bytes), QStringLiteral("3 of 10 files"));
+        copy.suspended = true;
+        QCOMPARE(fe::transferProgressText(copy, bytes), QStringLiteral("Paused"));
+        QCOMPARE(fe::transferProgressText(fe::TransferState(), bytes), QStringLiteral("Starting"));
+        copy.suspended = false;
+        QCOMPARE(fe::transfersLabel({copy}), QStringLiteral("Copying, 45%"));
+        QCOMPARE(fe::transfersLabel({copy, removal}), QStringLiteral("2 transfers, 0%"));
+        QCOMPARE(fe::transfersLabel({}), QString());
     }
 
     void copy_path_writes_every_item_one_per_line()

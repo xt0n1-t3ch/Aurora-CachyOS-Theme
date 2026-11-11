@@ -49,6 +49,9 @@ it changes. A change that needs a fresh install, or that an earlier backup canno
   there, and you can drop files on a column's folders.
 - File Explorer has Finder's gallery view (the fifth view button, or View > as Gallery): the selected picture,
   video or document large, with its name and kind, above a strip of thumbnails.
+- File Explorer shows copies, moves and deletions while they run: a ring and their percent in the row of file
+  actions, and a panel with each one's progress, speed and time left, where you can pause, resume or stop it.
+  Plasma's notifications still show them too.
 - File Explorer searches the whole PC as you type: a helper keeps an index of every local disk's names and answers
   in a few milliseconds (490,544 names: under 3 ms for a word). It runs only while File Explorer is used and leaves
   a few minutes after, catches up on what changed meanwhile without reading everything again, follows changes live,

@@ -48,7 +48,10 @@ as the last column, so every file action stays Dolphin's; a click on a folder op
 with it selected, and files dropped on a column's folder go into it), a gallery view (`fe::GalleryStage`, the fifth
 view button, View > as Gallery: the selected item as large as the window allows, its preview from KIO's thumbnailers
 or its icon, with its name and kind, above Dolphin's icons as the strip; previews are asked for only while it shows
-and once per pause in the selection), path segments in both bars (`fe::CrumbStrip`, rules in `core/crumbs`; below), Finder menus with shortcuts written the Windows way (`fe::shortcutLabel`: "Ctrl+Alt+C", "Alt+Enter", "Win+E"),
+and once per pause in the selection), a transfer center (`fe::TransferTracker`, set in front of KIO's job tracker so
+Plasma's notifications still get every job; texts in `core/transfers`): while copies, moves or deletions run, the action
+row shows a ring and "Copying, 45%", and a click opens a panel with each job's route, bar, size, speed and time left
+and buttons to pause, resume or stop it), path segments in both bars (`fe::CrumbStrip`, rules in `core/crumbs`; below), Finder menus with shortcuts written the Windows way (`fe::shortcutLabel`: "Ctrl+Alt+C", "Alt+Enter", "Win+E"),
 and the pointing hand on every clickable widget.
 
 Group offers the Finder's choices (None, Name, Kind, Date Modified, Date Created, Size, Tags) through Dolphin's own
@@ -95,15 +98,16 @@ Dolphin, with the 63 emblems `themes/icons/tag_emblems.py` adds to the icon them
 It also serves `org.freedesktop.FileManager1` (`--service`: "Show in folder" selects the file) and the FileChooser
 portal backend (`--portal`: Open and Save panels with a chooser bar; it quits after three idle minutes). Installed as
 `~/.local/bin/file-explorer`; Win+E launches it. Folders without a view of their own show Finder's columns (Name,
-Modified, Size, Type) from `~/.local/share/file-explorer/view_properties/global/.directory`. Tests: `fe_tests` (90),
-`fe_finder_tests` (55), `fe_widget_tests` (25, offscreen: clicks, drops, a drag resting on a segment, the address
+Modified, Size, Type) from `~/.local/share/file-explorer/view_properties/global/.directory`. Tests: `fe_tests` (93),
+`fe_finder_tests` (55), `fe_widget_tests` (26, offscreen: clicks, drops, a drag resting on a segment, the address
 field at rest, accessibility, the filter row over a real Dolphin view, the glass behind a field inside a tab, the
 Rename sheet renaming a real folder and one Undo taking it back, F2 on two items opening it, the command palette
 finding, running and closing, Copy Path with three items and with none, the Inspector counting a
 folder and again after a change, hashing a file and comparing a pasted hash, a tar.gz opened as a
 folder, Up out of it, the Inspector counting inside it, the search row's Save and its folder capsule hidden when the index
 does not hold the folder, the columns leading to a folder and opening
-what is clicked, the gallery showing the selected picture), `tests/installer/test_tag_emblems.sh` (5). Sandbox: `explorer.sh`, `explorer-crumbs.sh` (the path
+what is clicked, the gallery showing the selected picture, the transfer center
+following a job until it ends), `tests/installer/test_tag_emblems.sh` (5). Sandbox: `explorer.sh`, `explorer-crumbs.sh` (the path
 segments: hover, both menus, a drop in the accent, a segment opening under a drag, KIO's menu at the pointer on a
 segment and on the sidebar, a refused drop, Ctrl+L, Ctrl+click and middle click), `explorer-finder.sh` (the
 mockup's scene: tags, the unfolded sidebar, the menu, a typed path, Quick Look, Split View, a tag's shelf, the Group
@@ -119,7 +123,8 @@ zip, then Alt+Up; 2 PASS), `explorer-git.sh` (a repository's
 status emblems, the context menu and its Git submenu; needs `dolphin-plugins` or `AURORA_DOLPHIN_PLUGINS` naming its
 unpacked package; 2 PASS), `explorer-columns.sh` (the
 columns view from the palette, a click in a column; 2 PASS), `explorer-gallery.sh` (the gallery from the palette,
-the first picture large, Right to the next; 2 PASS), `show-in-folder.sh`, `open-save.sh`.
+the first picture large, Right to the next; 2 PASS), `explorer-transfers.sh` (a copy of 30,000 small files: the
+ring in the action row, the panel, the button gone at the end, every file there; 4 PASS), `show-in-folder.sh`, `open-save.sh`.
 
 ## Mission Center (`components/mission-center`)
 

@@ -16,6 +16,7 @@
 #include "glassfield.h"
 #include "inspectorpanel.h"
 #include "searchscopebar.h"
+#include "transfers.h"
 #include "toolbar.h"
 #include "tabpage.h"
 #include "crumbaccessible.h"
@@ -80,6 +81,29 @@ QPushButton *renameButton(const fe::BatchRenameSheet *sheet)
     const auto found = std::find_if(buttons.cbegin(), buttons.cend(), [](const QPushButton *b) { return b->text() == QStringLiteral("Rename"); });
     return found == buttons.cend() ? nullptr : *found;
 }
+
+/// A job that reports what the test tells it to, as KIO's copy jobs report.
+class FakeTransfer : public KJob
+{
+public:
+    void start() override
+    {
+    }
+    void report(qulonglong done, qulonglong total)
+    {
+        setTotalAmount(KJob::Bytes, total);
+        setProcessedAmount(KJob::Bytes, done);
+    }
+    void describe()
+    {
+        Q_EMIT description(this, QStringLiteral("Copying"), {QStringLiteral("Source"), QStringLiteral("/home/alex/a.iso")},
+                           {QStringLiteral("Destination"), QStringLiteral("/mnt/usb")});
+    }
+    void end()
+    {
+        emitResult();
+    }
+};
 
 } // namespace
 
@@ -586,6 +610,26 @@ private Q_SLOTS:
         }
         tab.setViewMode(fe::ViewMode::List);
         QVERIFY(stage->isHidden());
+    }
+
+    void theTransferCenterFollowsAJobUntilItEnds()
+    {
+        fe::TransferTracker tracker(nullptr);
+        QWidget window;
+        auto &button = *new fe::TransferButton(&tracker, &window);
+        window.show();
+        QVERIFY(button.isHidden());
+        auto *job = new FakeTransfer;
+        tracker.registerJob(job);
+        job->describe();
+        job->report(250, 1000);
+        QVERIFY(button.isVisible());
+        QCOMPARE(button.label(), QStringLiteral("Copying, 25%"));
+        QCOMPARE(tracker.state(job).destination, QStringLiteral("/mnt/usb"));
+        // A job that ends leaves the center; the button goes with the last one.
+        job->end();
+        QTRY_VERIFY(button.isHidden());
+        QVERIFY(tracker.jobs().isEmpty());
     }
 
     void theSearchRowSavesAndHidesTheFolderTheIndexDoesNotHold()

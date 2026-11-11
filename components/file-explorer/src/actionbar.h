@@ -42,6 +42,8 @@ public:
     void setActionEnabled(FileAction action, bool enabled);
     /// Shows whether the window is split, on the Split View button.
     void setSplit(bool split);
+    /// Puts widget in the row's open middle, right of the editing buttons (the transfer center's button).
+    void addMiddleWidget(QWidget *widget);
     /// The button of action, for a menu to drop down below it.
     [[nodiscard]] GlassButton *button(FileAction action) const;
 
@@ -57,6 +59,8 @@ private:
     void addDivider();
 
     QHBoxLayout *m_layout;
+    /// The place of the stretch between the editing buttons and the ones at the right end.
+    int m_middle = 0;
     QHash<FileAction, GlassButton *> m_buttons;
     /// The gaps that draw a hairline between groups.
     QList<QSpacerItem *> m_dividers;

@@ -45,6 +45,8 @@ ActionBar::ActionBar(QWidget *parent)
     add(FileAction::Copy, symbol("copy"), QStringLiteral("Copy (Ctrl+C)"));
     add(FileAction::Paste, symbol("paste"), QStringLiteral("Paste (Ctrl+V)"));
     m_layout->addStretch(1);
+    m_middle = m_layout->count();
+    m_layout->addStretch(1);
     add(FileAction::OpenTerminal, symbol("terminal"), QStringLiteral("Open a terminal in this folder"),
         QStringLiteral("Open Terminal Here"));
     addDivider();
@@ -62,6 +64,11 @@ GlassButton *ActionBar::add(FileAction action, const QString &icon, const QStrin
     m_layout->addWidget(button);
     m_buttons.insert(action, button);
     return button;
+}
+
+void ActionBar::addMiddleWidget(QWidget *widget)
+{
+    m_layout->insertWidget(m_middle, widget);
 }
 
 void ActionBar::addDivider()

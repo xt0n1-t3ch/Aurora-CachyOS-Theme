@@ -46,7 +46,8 @@ add_library(fe_core STATIC
     src/core/quicklook.cpp
     src/core/batchrename.cpp
     src/core/palette.cpp
-    src/core/inspector.cpp)
+    src/core/inspector.cpp
+    src/core/transfers.cpp)
 target_include_directories(fe_core PUBLIC src)
 target_link_libraries(fe_core PUBLIC Qt6::Core Qt6::Gui)
 
@@ -73,6 +74,7 @@ add_library(fe_app OBJECT
     src/inspectorpanel.cpp
     src/columnsstrip.cpp
     src/gallerystage.cpp
+    src/transfers.cpp
     src/bottombar.cpp
     src/contextmenu.cpp
     src/mainwindow.cpp

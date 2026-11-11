@@ -15,6 +15,7 @@
 #include "core/places.h"
 #include "core/quicklook.h"
 #include "inspectorpanel.h"
+#include "transfers.h"
 #include "quicklook.h"
 #include "searchservice.h"
 #include "sidebar.h"
@@ -169,6 +170,8 @@ MainWindow::MainWindow(const QUrl &url, fe::PathContext context, QWidget *parent
         }
     };
     m_actions.quickLook = [this] { quickLook(); };
+    // The transfer center: KIO's copies, moves and deletions of every window, while they run.
+    m_actionBar->addMiddleWidget(new fe::TransferButton(fe::TransferTracker::install(), m_actionBar));
     buildMenuBar();
     qApp->installEventFilter(this);
     m_lastTyped.invalidate();
