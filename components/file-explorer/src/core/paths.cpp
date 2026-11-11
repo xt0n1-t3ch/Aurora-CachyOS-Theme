@@ -101,6 +101,16 @@ QUrl indexedSearchUrl(const QString &term, const QUrl &scope, const QString &tit
     return url;
 }
 
+QString copiedPaths(const QList<QUrl> &items)
+{
+    QStringList lines;
+    lines.reserve(items.size());
+    for (const QUrl &item : items) {
+        lines.append(item.isLocalFile() ? item.toLocalFile() : item.toDisplayString(QUrl::PreferLocalFile));
+    }
+    return lines.join(QLatin1Char('\n'));
+}
+
 QUrl filenameSearchUrl(const QString &term, const QUrl &folder, const QString &title)
 {
     // The same query items, in the same encoding, as Dolphin's DolphinQuery::toUrl

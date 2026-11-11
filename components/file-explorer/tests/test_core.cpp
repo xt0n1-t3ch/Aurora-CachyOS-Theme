@@ -920,6 +920,15 @@ private Q_SLOTS:
         QCOMPARE(fe::filterMatchText(1204), QStringLiteral("1204 matches"));
     }
 
+    void copy_path_writes_every_item_one_per_line()
+    {
+        QCOMPARE(fe::copiedPaths({folder(QStringLiteral("/home/alex/a b.txt"))}), QStringLiteral("/home/alex/a b.txt"));
+        QCOMPARE(fe::copiedPaths({folder(QStringLiteral("/home/alex/Ñandú")), folder(QStringLiteral("/home/alex/Games")),
+                                  QUrl(QStringLiteral("smb://nas/share/doc%20one.pdf"))}),
+                 QStringLiteral("/home/alex/Ñandú\n/home/alex/Games\nsmb://nas/share/doc one.pdf"));
+        QCOMPARE(fe::copiedPaths({}), QString());
+    }
+
     void a_palette_query_finds_letters_in_order_without_case()
     {
         QVERIFY(fe::fuzzyScore(u"nf", u"New Folder").has_value());

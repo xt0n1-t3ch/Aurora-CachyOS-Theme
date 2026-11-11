@@ -95,6 +95,9 @@ public:
     void paste();
     void focusView();
 
+    /// Puts the paths of every selected item on the clipboard, one per line; with nothing selected, the folder's path.
+    /// Dolphin's Copy Location action (Ctrl+Alt+C) comes here.
+    void copyPaths();
     /// Renames the selection: one item in place, as Dolphin does; several in the Rename sheet (BatchRenameSheet), whose
     /// one job Undo takes back whole. Dolphin's Rename action (F2) comes here.
     void renameSelection();

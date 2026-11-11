@@ -644,7 +644,9 @@ regular expression, add text, a name with an index, a counter or each item's dat
 the way KIO keeps them) that shows every new name, marks the ones that cannot be taken and why, plans again against
 the folders when Rename is pressed, and runs one KIO batch job that one Undo takes back, a command palette (`fe::CommandPalette`, Ctrl+Shift+P or
 More > Command Palette; ranking in `core/palette`: letters in order, word starts and runs count more) that lists every
-command of the menus, refreshed for the tab on screen, with its menu and its shortcut, path segments in both bars (`fe::CrumbStrip`, rules in `core/crumbs`; below), Finder menus with shortcuts written the Windows way (`fe::shortcutLabel`: "Ctrl+Alt+C", "Alt+Enter", "Win+E"),
+command of the menus, refreshed for the tab on screen, with its menu and its shortcut, Copy Path (Ctrl+Alt+C, `fe::BrowserTab::copyPaths`, rules in `core/paths`) that
+copies every selected item's path, one per line, or the folder's path when nothing is selected (Dolphin copies the
+first item only), path segments in both bars (`fe::CrumbStrip`, rules in `core/crumbs`; below), Finder menus with shortcuts written the Windows way (`fe::shortcutLabel`: "Ctrl+Alt+C", "Alt+Enter", "Win+E"),
 and the pointing hand on every clickable widget.
 
 Group offers the Finder's choices (None, Name, Kind, Date Modified, Date Created, Size, Tags) through Dolphin's own
@@ -691,11 +693,11 @@ Dolphin, with the 63 emblems `themes/icons/tag_emblems.py` adds to the icon them
 It also serves `org.freedesktop.FileManager1` (`--service`: "Show in folder" selects the file) and the FileChooser
 portal backend (`--portal`: Open and Save panels with a chooser bar; it quits after three idle minutes). Installed as
 `~/.local/bin/file-explorer`; Win+E launches it. Folders without a view of their own show Finder's columns (Name,
-Modified, Size, Type) from `~/.local/share/file-explorer/view_properties/global/.directory`. Tests: `fe_tests` (82),
-`fe_finder_tests` (54), `fe_widget_tests` (18, offscreen: clicks, drops, a drag resting on a segment, the address
+Modified, Size, Type) from `~/.local/share/file-explorer/view_properties/global/.directory`. Tests: `fe_tests` (83),
+`fe_finder_tests` (54), `fe_widget_tests` (19, offscreen: clicks, drops, a drag resting on a segment, the address
 field at rest, accessibility, the filter row over a real Dolphin view, the glass behind a field inside a tab, the
 Rename sheet renaming a real folder and one Undo taking it back, F2 on two items opening it, the command palette
-finding, running and closing), `tests/installer/test_tag_emblems.sh` (5). Sandbox: `explorer.sh`, `explorer-crumbs.sh` (the path
+finding, running and closing, Copy Path with three items and with none), `tests/installer/test_tag_emblems.sh` (5). Sandbox: `explorer.sh`, `explorer-crumbs.sh` (the path
 segments: hover, both menus, a drop in the accent, a segment opening under a drag, KIO's menu at the pointer on a
 segment and on the sidebar, a refused drop, Ctrl+L, Ctrl+click and middle click), `explorer-finder.sh` (the
 mockup's scene: tags, the unfolded sidebar, the menu, a typed path, Quick Look, Split View, a tag's shelf, the Group
@@ -704,7 +706,8 @@ menu and the folder grouped by Kind from it, and the window inactive behind anot
 names), `explorer-undo.sh` (Delete, then Ctrl+Z brings the file back; FAIL on the code before Undo), `explorer-filter.sh`
 (Ctrl+Alt+F, a word hides the rest, no match empties the view, Escape brings everything back), `explorer-rename.sh`
 (Ctrl+A, F2, find and replace, Enter, then Ctrl+Z; 3 PASS), `explorer-palette.sh` (Ctrl+Shift+P, "show hidden",
-Enter; 3 PASS), `show-in-folder.sh`, `open-save.sh`.
+Enter; 3 PASS), `explorer-copypaths.sh` (Ctrl+A, Ctrl+Alt+C, the three paths read
+from Klipper and pasted into KWrite), `show-in-folder.sh`, `open-save.sh`.
 
 ## Mission Center (`components/mission-center`)
 
@@ -1203,10 +1206,10 @@ export QT_QPA_PLATFORM=offscreen q=/usr/lib/qt6/bin/qmltestrunner B=$PWD/build
 
 | Part | Command | Result |
 | --- | --- | --- |
-| File Explorer core | `build/file-explorer/fe_tests` | 82 pass |
+| File Explorer core | `build/file-explorer/fe_tests` | 83 pass |
 | File Explorer's Finder features (typed paths and their suggestions and Tab, the path segments' layout, folding, hit test and which drops they take, color tags and their emblems, the tag shelf's names and path, the sidebar's folder tree, Quick Look's kinds and when Space opens it, batch rename's rules: replace without case or with a regular expression, add, index, counter, a date per item numbered within a day, case, extensions kept as KIO keeps them, and every reason a name cannot be taken) | `build/file-explorer/fe_finder_tests` | 54 pass |
-| File Explorer's widgets on the offscreen platform: a click, middle click and Ctrl+click on a segment, a click beside them, a slot that replaces the segments still gets its URL, which drops a segment takes (files from elsewhere, not a folder into itself or files into their own folder, not a read-only folder), a drag resting on a segment opens it but not the folder on screen, the address field at rest opens a segment without taking the keyboard, screen readers read each segment as a link they can press, the filter row sends each key and closes on Escape, a filter over a real Dolphin view hides what does not match and ends with the folder, a field inside a tab shows the glass behind it (no style sheet above it), the Rename sheet renames a real folder and one Undo takes the batch back, waits while a name is taken and plans again on Rename, and F2 on two selected items opens it, the command palette finds a command by a few letters, runs it with Enter, moves with Down and runs nothing disabled or on Escape | `QT_QPA_PLATFORM=offscreen build/file-explorer/fe_widget_tests` | 18 pass |
-| The same three File Explorer suites under AddressSanitizer and UBSan (configure `build/file-explorer-asan` with `-fsanitize=address,undefined`; `ASAN_OPTIONS=detect_leaks=0:max_free_fill_size=1048576:free_fill_byte=85` makes a read of freed memory crash, so the URL test bites) | `build/file-explorer-asan/fe_tests`, `fe_finder_tests`, `fe_widget_tests` | 82, 54, 18 pass, no findings |
+| File Explorer's widgets on the offscreen platform: a click, middle click and Ctrl+click on a segment, a click beside them, a slot that replaces the segments still gets its URL, which drops a segment takes (files from elsewhere, not a folder into itself or files into their own folder, not a read-only folder), a drag resting on a segment opens it but not the folder on screen, the address field at rest opens a segment without taking the keyboard, screen readers read each segment as a link they can press, the filter row sends each key and closes on Escape, a filter over a real Dolphin view hides what does not match and ends with the folder, a field inside a tab shows the glass behind it (no style sheet above it), the Rename sheet renames a real folder and one Undo takes the batch back, waits while a name is taken and plans again on Rename, and F2 on two selected items opens it, the command palette finds a command by a few letters, runs it with Enter, moves with Down and runs nothing disabled or on Escape, Copy Path (Ctrl+Alt+C) copies every selected item, or the folder with nothing selected | `QT_QPA_PLATFORM=offscreen build/file-explorer/fe_widget_tests` | 19 pass |
+| The same three File Explorer suites under AddressSanitizer and UBSan (configure `build/file-explorer-asan` with `-fsanitize=address,undefined`; `ASAN_OPTIONS=detect_leaks=0:max_free_fill_size=1048576:free_fill_byte=85` makes a read of freed memory crash, so the URL test bites) | `build/file-explorer-asan/fe_tests`, `fe_finder_tests`, `fe_widget_tests` | 83, 54, 19 pass, no findings |
 | aurora-search, File Explorer's search helper: the index against random histories of a model disk (300 seeds), the query syntax and ranking, hidden names, scan, store (damaged files refused), the catch-up by folder times, mountinfo, fanotify's event layout, the config, the ioctl numbers checked against `linux/btrfs.h` | `cargo test --manifest-path components/file-explorer/search/Cargo.toml` | 25 pass |
 | The helper as root on a real btrfs, in a virtme-ng machine on this PC's kernel (no sudo): the changed folders come from transaction ids after a commit; it indexes, follows a create, a move and a delete live, hides a 0700 folder's names and their count from nobody, scopes, leaves when idle and catches up after a restart | `components/file-explorer/search/tests/vm.sh` | 3 pass |
 | Window buttons | `build/window-buttons/decoration_tests` | 11 pass |
@@ -1245,7 +1248,7 @@ others capture `tests/sandbox/shots/` to compare by eye.
 | `quick-menu-app-menu.sh` | the app menu: right-click, Pin to Top and the Pinned section, the Menu key (not the field's text menu), Unpin from Dock, an opened app in Suggestions and Remove from Suggestions, no QML warnings (8 PASS); labels found with `tests/helpers/find_text.py` |
 | `readme.sh` | the README's pictures, the notifications popover among them (run with `SANDBOX_SCALE=2`, then `assets/screenshots/make.py`, which also crops Mission Center's two from its own sandbox) |
 | `kali-menu.sh` | the Kali menu with PC labels |
-| `explorer.sh`, `explorer-menus.sh`, `explorer-drives.sh`, `explorer-sidebar-order.sh`, `explorer-crumbs.sh`, `explorer-search.sh`, `explorer-undo.sh`, `explorer-filter.sh`, `explorer-rename.sh`, `explorer-palette.sh`, `show-in-folder.sh`, `open-save.sh` | File Explorer, its menus (X11 client), its drives, dragging sidebar rows into a new order, the path segments (clicks, menus, drops, a segment opening under a drag, KIO's menu at the pointer, new tabs; 10 PASS), search from the index (the helper runs as the user on the sandbox's home; 3 PASS and the times in logs/search.txt), Undo after Delete (2 PASS), the filter row (3 PASS), the Rename sheet and its Undo (3 PASS), the command palette (3 PASS), "Show in folder", Open and Save |
+| `explorer.sh`, `explorer-menus.sh`, `explorer-drives.sh`, `explorer-sidebar-order.sh`, `explorer-crumbs.sh`, `explorer-search.sh`, `explorer-undo.sh`, `explorer-filter.sh`, `explorer-rename.sh`, `explorer-palette.sh`, `explorer-copypaths.sh`, `show-in-folder.sh`, `open-save.sh` | File Explorer, its menus (X11 client), its drives, dragging sidebar rows into a new order, the path segments (clicks, menus, drops, a segment opening under a drag, KIO's menu at the pointer, new tabs; 10 PASS), search from the index (the helper runs as the user on the sandbox's home; 3 PASS and the times in logs/search.txt), Undo after Delete (2 PASS), the filter row (3 PASS), the Rename sheet and its Undo (3 PASS), the command palette (3 PASS), Copy Path with several items (1 PASS), "Show in folder", Open and Save |
 | `notifications.sh` | banners in the bottom-right corner, hover buttons |
 | `tray-click.sh`, `tray-drag.sh`, `tray-show.sh` | tray clicks, drag to reorder and hide, bring back |
 | `control-center.sh`, `control-center-panels.sh`, `control-center-bluetooth.sh`, `control-center-shortcut.sh` | the Control Center, its panels, reopening, its shortcut |
@@ -1547,6 +1550,8 @@ it changes. A change that needs a fresh install, or that an earlier backup canno
 
 ### Changed
 
+- Copy Path in File Explorer (Ctrl+Alt+C) copies the paths of every selected item, one per line, instead of only the
+  first; with nothing selected it copies the folder's path.
 - `aurora` looks for a newer Aurora when its menu opens, unless it looked in the last 5 minutes, so a new release
   shows up right away instead of after the next daily check.
 - `aurora update` sets up Aurora's repository by itself when it needs it: when pacman.conf's `[aurora]` section is

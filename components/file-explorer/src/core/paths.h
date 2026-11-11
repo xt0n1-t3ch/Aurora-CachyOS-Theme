@@ -37,6 +37,10 @@ struct PathContext {
 [[nodiscard]] QUrl indexedSearchUrl(const QString &term, const QUrl &scope, const QString &title);
 
 /// A file-name search below a folder, in the form Dolphin's filenamesearch worker reads.
+/// The text Copy Path puts on the clipboard: each item's path (a local item's file path, anything else its URL as a
+/// person reads it), one per line in the given order, with no line break after the last.
+[[nodiscard]] QString copiedPaths(const QList<QUrl> &items);
+
 [[nodiscard]] QUrl filenameSearchUrl(const QString &term, const QUrl &folder, const QString &title);
 
 } // namespace fe

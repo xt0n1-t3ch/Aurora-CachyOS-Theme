@@ -31,6 +31,8 @@
 #include <KParts/ReadOnlyPart>
 #include <KPluginMetaData>
 
+#include <QApplication>
+#include <QClipboard>
 #include <QFileInfo>
 #include <QLabel>
 #include <QTimer>
@@ -144,6 +146,12 @@ void BrowserTab::connectPart()
     if (QAction *rename = actions->action(QStringLiteral("renamefile"))) {
         disconnect(rename, &QAction::triggered, nullptr, nullptr);
         connect(rename, &QAction::triggered, this, &BrowserTab::renameSelection);
+    }
+    // Dolphin's Copy Location (Ctrl+Alt+C) copies the first selected item only (DolphinView::copyPathToClipboard,
+    // dolphinview.cpp, v26.08.3, line 2763); here it copies them all, and the folder when nothing is selected.
+    if (QAction *copyPath = actions->action(QStringLiteral("copy_location"))) {
+        disconnect(copyPath, &QAction::triggered, nullptr, nullptr);
+        connect(copyPath, &QAction::triggered, this, &BrowserTab::copyPaths);
     }
     // Finder's name for it; the part says "Duplicate Here".
     if (QAction *duplicate = actions->action(QStringLiteral("duplicate"))) {
@@ -449,6 +457,23 @@ void BrowserTab::focusView()
 {
     if (m_part && m_part->widget()) {
         m_part->widget()->setFocus();
+    }
+}
+
+void BrowserTab::copyPaths()
+{
+    QList<QUrl> urls;
+    const KFileItemList items = selectedItems();
+    for (const KFileItem &item : items) {
+        // An item of a search or of the desktop can have a local file behind another URL; the file's path is copied.
+        const QString local = item.localPath();
+        urls.append(local.isEmpty() ? item.url() : QUrl::fromLocalFile(local));
+    }
+    if (urls.isEmpty()) {
+        urls.append(folderUrl());
+    }
+    if (QClipboard *clipboard = QApplication::clipboard()) {
+        clipboard->setText(copiedPaths(urls));
     }
 }
 

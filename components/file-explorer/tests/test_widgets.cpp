@@ -17,6 +17,7 @@
 
 #include <QAccessible>
 #include <QApplication>
+#include <QClipboard>
 #include <QDir>
 #include <QFile>
 #include <QLineEdit>
@@ -364,6 +365,41 @@ private Q_SLOTS:
         QVERIFY(sheet);
         QCOMPARE(sheet->windowTitle(), QStringLiteral("Rename 2 Items"));
         sheet->close();
+    }
+
+    void copyPathTakesEverySelectedItemOrTheFolder()
+    {
+        QTemporaryDir dir;
+        QList<QUrl> urls;
+        for (const char *name : {"one.txt", "two.txt", "three"}) {
+            const QString path = dir.filePath(QString::fromLatin1(name));
+            if (QByteArrayView(name) == "three") {
+                QVERIFY(QDir(dir.path()).mkdir(QStringLiteral("three")));
+            } else {
+                QFile file(path);
+                QVERIFY(file.open(QIODevice::WriteOnly));
+            }
+            urls.append(QUrl::fromLocalFile(path));
+        }
+        fe::BrowserTab tab(QUrl::fromLocalFile(dir.path()));
+        if (!tab.isLoaded()) {
+            QSKIP("Dolphin's part is not installed");
+        }
+        tab.resize(800, 500);
+        tab.show();
+        QTRY_COMPARE(tab.statusText().section(u',', 0, 0), QStringLiteral("3 items"));
+        // Nothing selected: the folder.
+        QApplication::clipboard()->clear();
+        tab.partAction(QStringLiteral("copy_location"))->trigger();
+        QCOMPARE(QApplication::clipboard()->text(), dir.path());
+        tab.selectInPlace(urls);
+        QTRY_COMPARE(tab.selectedItems().size(), 3);
+        tab.partAction(QStringLiteral("copy_location"))->trigger();
+        QStringList lines = QApplication::clipboard()->text().split(QLatin1Char('\n'));
+        lines.sort();
+        QStringList expected{dir.filePath(QStringLiteral("one.txt")), dir.filePath(QStringLiteral("three")), dir.filePath(QStringLiteral("two.txt"))};
+        expected.sort();
+        QCOMPARE(lines, expected);
     }
 
     void theCommandPaletteFindsAndRunsACommand()

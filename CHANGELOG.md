@@ -41,6 +41,8 @@ it changes. A change that needs a fresh install, or that an earlier backup canno
 
 ### Changed
 
+- Copy Path in File Explorer (Ctrl+Alt+C) copies the paths of every selected item, one per line, instead of only the
+  first; with nothing selected it copies the folder's path.
 - `aurora` looks for a newer Aurora when its menu opens, unless it looked in the last 5 minutes, so a new release
   shows up right away instead of after the next daily check.
 - `aurora update` sets up Aurora's repository by itself when it needs it: when pacman.conf's `[aurora]` section is
