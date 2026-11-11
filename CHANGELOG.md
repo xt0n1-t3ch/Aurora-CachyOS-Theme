@@ -30,6 +30,8 @@ it changes. A change that needs a fresh install, or that an earlier backup canno
   regular expression), add a text before or after the name, or give them one name with an index, a counter or each
   item's date, and also a change of case. Every new name shows before anything changes, a name that cannot be taken
   is marked with the reason, extensions stay, and one Ctrl+Z takes the whole batch back.
+- File Explorer has a command palette (Ctrl+Shift+P, or More > Command Palette): a few letters find any command of
+  its menus, shown with where it lives and its shortcut, and Enter runs it.
 - File Explorer searches the whole PC as you type: a helper keeps an index of every local disk's names and answers
   in a few milliseconds (490,544 names: under 3 ms for a word). It runs only while File Explorer is used and leaves
   a few minutes after, catches up on what changed meanwhile without reading everything again, follows changes live,

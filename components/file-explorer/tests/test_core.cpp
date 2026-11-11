@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Additional terms (GPL-3.0 section 7, author attribution): see NOTICE.md.
 // Unit tests for the widget-free logic in src/core: panels, FileManager1 grouping, history, paths, edges, shortcut
-// labels, status text, sidebar rules and drives.
+// labels, status text, sidebar rules, drives and the command palette's ranking.
 
 #include "core/edges.h"
 #include "core/format.h"
@@ -13,6 +13,7 @@
 #include "core/drives.h"
 #include "core/reveal.h"
 #include "core/motion.h"
+#include "core/palette.h"
 
 #include <algorithm>
 
@@ -918,6 +919,45 @@ private Q_SLOTS:
         QCOMPARE(fe::filterMatchText(1), QStringLiteral("1 match"));
         QCOMPARE(fe::filterMatchText(1204), QStringLiteral("1204 matches"));
     }
+
+    void a_palette_query_finds_letters_in_order_without_case()
+    {
+        QVERIFY(fe::fuzzyScore(u"nf", u"New Folder").has_value());
+        QVERIFY(fe::fuzzyScore(u"NEWF", u"New Folder").has_value());
+        QVERIFY(!fe::fuzzyScore(u"fn", u"New Folder").has_value());
+        QVERIFY(!fe::fuzzyScore(u"x", u"New Folder").has_value());
+        QCOMPARE(fe::fuzzyScore(u"", u"New Folder"), std::optional<int>(0));
+    }
+
+    void a_palette_prefers_word_starts_and_runs_of_letters()
+    {
+        // Word starts beat letters inside words; the start of the text beats both; a run beats scattered letters.
+        QVERIFY(*fe::fuzzyScore(u"nf", u"New Folder") > *fe::fuzzyScore(u"nf", u"Unfold"));
+        QVERIFY(*fe::fuzzyScore(u"re", u"Reload") > *fe::fuzzyScore(u"re", u"Show Previous Tab"));
+        QVERIFY(*fe::fuzzyScore(u"split", u"Split View") > *fe::fuzzyScore(u"split", u"xsxpxlxixt"));
+        // A capital inside a word starts a word too.
+        QVERIFY(*fe::fuzzyScore(u"ql", u"QuickLook") > *fe::fuzzyScore(u"ql", u"Quell"));
+    }
+
+    void the_palette_ranks_best_first_and_keeps_ties_in_order()
+    {
+        const QList<fe::PaletteEntry> entries{
+            {QStringLiteral("New Tab"), QStringLiteral("File")},
+            {QStringLiteral("New Folder"), QStringLiteral("File")},
+            {QStringLiteral("as List"), QStringLiteral("View")},
+            {QStringLiteral("Show Hidden Files"), QStringLiteral("View")},
+            {QStringLiteral("Close Window"), QStringLiteral("File")},
+        };
+        // "Show Hidden Files" holds n and f too, inside words, so it comes after.
+        QCOMPARE(fe::rankPalette(QStringLiteral("nf"), entries), QList<qsizetype>({1, 3}));
+        QCOMPARE(fe::rankPalette(QStringLiteral("new"), entries), QList<qsizetype>({0, 1}));
+        // The place helps find a command whose text alone does not hold the letters.
+        QCOMPARE(fe::rankPalette(QStringLiteral("view list"), entries).value(0), 2);
+        QCOMPARE(fe::rankPalette(QStringLiteral("hidden"), entries), QList<qsizetype>({3}));
+        QCOMPARE(fe::rankPalette(QString(), entries).size(), entries.size());
+        QVERIFY(fe::rankPalette(QStringLiteral("zzz"), entries).isEmpty());
+    }
+
 };
 
 QTEST_GUILESS_MAIN(CoreTest)

@@ -9,6 +9,7 @@
 #include "batchrenamesheet.h"
 #include "bottombar.h"
 #include "browsertab.h"
+#include "commandpalette.h"
 #include "filterbar.h"
 #include "tabpage.h"
 #include "crumbaccessible.h"
@@ -363,6 +364,46 @@ private Q_SLOTS:
         QVERIFY(sheet);
         QCOMPARE(sheet->windowTitle(), QStringLiteral("Rename 2 Items"));
         sheet->close();
+    }
+
+    void theCommandPaletteFindsAndRunsACommand()
+    {
+        QWidget window;
+        window.resize(900, 600);
+        QAction newFolder(QStringLiteral("New Folder"));
+        QAction newTab(QStringLiteral("New Tab"));
+        QAction hidden(QStringLiteral("Show Hidden Files"));
+        QAction off(QStringLiteral("Paste"));
+        off.setEnabled(false);
+        QSignalSpy made(&newFolder, &QAction::triggered);
+        QSignalSpy pasted(&off, &QAction::triggered);
+        auto *palette = new fe::CommandPalette(&window);
+        window.show();
+        const QList<fe::CommandPalette::Command> commands{{&newTab, QStringLiteral("File")}, {&newFolder, QStringLiteral("File")},
+                                                          {&hidden, QStringLiteral("View")}, {&off, QStringLiteral("Edit")}};
+        palette->open(commands);
+        QVERIFY(palette->isVisible());
+        QCOMPARE(palette->shownTexts().size(), 4);
+        auto *field = palette->findChild<QLineEdit *>();
+        QTest::keyClicks(field, QStringLiteral("nf"));
+        QCOMPARE(palette->chosenText(), QStringLiteral("New Folder"));
+        QTest::keyClick(field, Qt::Key_Return);
+        QCOMPARE(made.size(), 1);
+        QVERIFY(palette->isHidden());
+
+        // Down moves the choice; a disabled command does not run; Escape closes without running anything.
+        palette->open(commands);
+        QTest::keyClicks(field, QStringLiteral("new"));
+        QCOMPARE(palette->chosenText(), QStringLiteral("New Tab"));
+        QTest::keyClick(field, Qt::Key_Down);
+        QCOMPARE(palette->chosenText(), QStringLiteral("New Folder"));
+        QTest::keyClick(field, Qt::Key_Escape);
+        QVERIFY(palette->isHidden());
+        QCOMPARE(made.size(), 1);
+        palette->open(commands);
+        QTest::keyClicks(field, QStringLiteral("paste"));
+        QTest::keyClick(field, Qt::Key_Return);
+        QCOMPARE(pasted.size(), 0);
     }
 
     void aFieldInsideATabShowsTheGlassBehindIt()

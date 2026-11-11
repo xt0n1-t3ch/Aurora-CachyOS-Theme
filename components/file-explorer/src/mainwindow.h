@@ -16,12 +16,14 @@
 
 class QAction;
 class QMenu;
+class QMenuBar;
 class QStackedWidget;
 class WindowControls;
 
 namespace fe {
 class ActionBar;
 class BrowserTab;
+class CommandPalette;
 class GlassButton;
 class PathBar;
 class PillTabBar;
@@ -120,6 +122,8 @@ private:
     void showCrumbMenu(const QUrl &url, const QPoint &globalPos);
     /// Whether url is the selected file, which the path bar shows as its last segment.
     [[nodiscard]] bool isSelectedFile(const QUrl &url) const;
+    /// Shows the command palette with every command of the menus, refreshed for the tab on screen.
+    void showCommandPalette();
     /// Opens another window on the home folder.
     void openNewWindow();
     void buildMenuBar();
@@ -146,6 +150,10 @@ private:
     QAction *m_sidebarAction = nullptr;
     QAction *m_addToSidebar = nullptr;
     QAction *m_filterAction = nullptr;
+    QAction *m_paletteAction = nullptr;
+    /// The menu bar, hidden without a global menu; the command palette lists its menus.
+    QMenuBar *m_menuBar = nullptr;
+    fe::CommandPalette *m_palette = nullptr;
     QMenu *m_sortMenu = nullptr;
     QList<PartProxy> m_partProxies;
     bool m_picking = false;

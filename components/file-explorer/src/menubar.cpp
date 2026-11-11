@@ -6,6 +6,7 @@
 #include "mainwindow.h"
 
 #include "browsertab.h"
+#include "commandpalette.h"
 #include "sidebar.h"
 #include "toolbar.h"
 
@@ -73,9 +74,52 @@ void MainWindow::syncPartProxies()
     }
 }
 
+void MainWindow::showCommandPalette()
+{
+    if (!m_palette) {
+        m_palette = new fe::CommandPalette(this);
+        // The keyboard goes back to the view; a command run from the palette runs after this and may take it elsewhere
+        // (Go to Folder puts it in the address field).
+        connect(m_palette, &fe::CommandPalette::closed, this, [this] {
+            if (fe::BrowserTab *tab = currentTab()) {
+                tab->focusView();
+            }
+        });
+    }
+    // The menus' entries follow the tab on screen only when a menu opens; the palette asks for the same refresh.
+    syncPartProxies();
+    syncEditActions();
+    QList<fe::CommandPalette::Command> commands;
+    const std::function<void(const QMenu *, const QString &)> gather = [&](const QMenu *menu, const QString &place) {
+        const auto actions = menu->actions();
+        for (QAction *action : actions) {
+            if (action->isSeparator() || action == m_paletteAction || !action->isVisible()) {
+                continue;
+            }
+            if (action->menu()) {
+                gather(action->menu(), place + QStringLiteral(" > ") + action->text().remove(QLatin1Char('&')));
+                continue;
+            }
+            commands.append({action, place});
+        }
+    };
+    const auto menus = m_menuBar->actions();
+    for (const QAction *menu : menus) {
+        if (menu->menu()) {
+            gather(menu->menu(), menu->text().remove(QLatin1Char('&')));
+        }
+    }
+    // Sort By is filled from the tab's own sort actions as the View menu opens; here they are read directly.
+    if (const QAction *sort = currentTab()->partAction(QStringLiteral("sort")); sort && sort->menu()) {
+        gather(sort->menu(), QStringLiteral("View > Sort By"));
+    }
+    m_palette->open(commands);
+}
+
 void MainWindow::buildMenuBar()
 {
     auto *bar = new QMenuBar(this);
+    m_menuBar = bar;
     // Exported to the global menu bar when Plasma's app menu runs; otherwise kept out of sight,
     // since every action is also a window shortcut.
     if (!bar->isNativeMenuBar()) {
@@ -157,6 +201,11 @@ void MainWindow::buildMenuBar()
                                       [this] { setSidebarVisible(!m_sidebar->isVisible()); });
     addWindowAction(view, QStringLiteral("Reload"), {keys(Qt::Key_F5)}, [this] { currentTab()->reload(); })
         ->setIcon(QIcon::fromTheme(QStringLiteral("view-refresh")));
+    view->addSeparator();
+    // The command palette's key in code editors and browsers' developer tools.
+    m_paletteAction = addWindowAction(view, QStringLiteral("Command Palette…"), {keys(Qt::CTRL | Qt::SHIFT | Qt::Key_P)},
+                                      [this] { showCommandPalette(); });
+    m_paletteAction->setIcon(QIcon::fromTheme(QStringLiteral("search")));
     connect(view, &QMenu::aboutToShow, this, [this] {
         // Sort By lists the current tab's own sort actions, so the checks match its folder.
         m_sortMenu->clear();
