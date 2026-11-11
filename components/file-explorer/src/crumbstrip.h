@@ -56,6 +56,18 @@ public:
     void setArea(const QRectF &area);
     [[nodiscard]] bool isEmpty() const;
 
+    // What assistive technology reads (fe::installCrumbAccessibility): one entry per slot, left to right.
+    /// The number of slots on screen: segments and the ellipsis.
+    [[nodiscard]] qsizetype slotCount() const;
+    /// A slot's name: the segment's label, or "More folders" for the ellipsis.
+    [[nodiscard]] QString slotName(qsizetype slot) const;
+    /// Where a slot is, in the host's coordinates.
+    [[nodiscard]] QRectF slotRect(qsizetype slot) const;
+    /// Opens a slot as a click does: the segment here, or the ellipsis's menu.
+    void activateSlot(qsizetype slot);
+    /// Changes whenever the slots do, so a reader of them knows to read them again.
+    [[nodiscard]] quint64 generation() const;
+
     void paint(QPainter &painter) const;
     /// The tooltip for a point: the whole path of the segment under it, or an empty string away from the segments.
     [[nodiscard]] QString toolTipAt(QPointF pos) const;
@@ -111,6 +123,7 @@ private:
     qsizetype m_dropSlot = -1;
     /// Opens the segment held under a drag, as Finder's spring-loaded folders do.
     QTimer *m_springTimer;
+    quint64 m_generation = 0;
 };
 
 } // namespace fe

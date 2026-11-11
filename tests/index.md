@@ -48,6 +48,8 @@ export QT_QPA_PLATFORM=offscreen q=/usr/lib/qt6/bin/qmltestrunner B=$PWD/build
 | --- | --- | --- |
 | File Explorer core | `build/file-explorer/fe_tests` | 78 pass |
 | File Explorer's Finder features (typed paths and their suggestions and Tab, the path segments' layout, folding, hit test and which drops they take, color tags and their emblems, the tag shelf's names and path, the sidebar's folder tree, Quick Look's kinds and when Space opens it) | `build/file-explorer/fe_finder_tests` | 45 pass |
+| File Explorer's widgets on the offscreen platform: a click, middle click and Ctrl+click on a segment, a click beside them, a slot that replaces the segments still gets its URL, which drops a segment takes (files from elsewhere, not a folder into itself or files into their own folder, not a read-only folder), a drag resting on a segment opens it but not the folder on screen, the address field at rest opens a segment without taking the keyboard, screen readers read each segment as a link they can press | `QT_QPA_PLATFORM=offscreen build/file-explorer/fe_widget_tests` | 11 pass |
+| The same three File Explorer suites under AddressSanitizer and UBSan (configure `build/file-explorer-asan` with `-fsanitize=address,undefined`; `ASAN_OPTIONS=detect_leaks=0:max_free_fill_size=1048576:free_fill_byte=85` makes a read of freed memory crash, so the URL test bites) | `build/file-explorer-asan/fe_tests`, `fe_finder_tests`, `fe_widget_tests` | 78, 45, 11 pass, no findings |
 | Window buttons | `build/window-buttons/decoration_tests` | 11 pass |
 | Energy page | `build/energy-page/test_power` | 10 pass |
 | Glass blur | `(cd components/glass && $q -import $B/glass/qml -input tests/tst_blurbehind.qml)` | 9 pass |
@@ -84,7 +86,7 @@ others capture `tests/sandbox/shots/` to compare by eye.
 | `quick-menu-app-menu.sh` | the app menu: right-click, Pin to Top and the Pinned section, the Menu key (not the field's text menu), Unpin from Dock, an opened app in Suggestions and Remove from Suggestions, no QML warnings (8 PASS); labels found with `tests/helpers/find_text.py` |
 | `readme.sh` | the README's pictures, the notifications popover among them (run with `SANDBOX_SCALE=2`, then `assets/screenshots/make.py`, which also crops Mission Center's two from its own sandbox) |
 | `kali-menu.sh` | the Kali menu with PC labels |
-| `explorer.sh`, `explorer-menus.sh`, `explorer-drives.sh`, `explorer-sidebar-order.sh`, `explorer-crumbs.sh`, `show-in-folder.sh`, `open-save.sh` | File Explorer, its menus (X11 client), its drives, dragging sidebar rows into a new order, the path segments (clicks, menus, drops, a segment opening under a drag; 8 PASS), "Show in folder", Open and Save |
+| `explorer.sh`, `explorer-menus.sh`, `explorer-drives.sh`, `explorer-sidebar-order.sh`, `explorer-crumbs.sh`, `show-in-folder.sh`, `open-save.sh` | File Explorer, its menus (X11 client), its drives, dragging sidebar rows into a new order, the path segments (clicks, menus, drops, a segment opening under a drag, KIO's menu at the pointer, new tabs; 10 PASS), "Show in folder", Open and Save |
 | `notifications.sh` | banners in the bottom-right corner, hover buttons |
 | `tray-click.sh`, `tray-drag.sh`, `tray-show.sh` | tray clicks, drag to reorder and hide, bring back |
 | `control-center.sh`, `control-center-panels.sh`, `control-center-bluetooth.sh`, `control-center-shortcut.sh` | the Control Center, its panels, reopening, its shortcut |

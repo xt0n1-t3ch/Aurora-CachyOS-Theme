@@ -11,6 +11,7 @@
 #include <KIO/DropJob>
 #include <KJobWidgets>
 
+#include <QAccessible>
 #include <QApplication>
 #include <QCollator>
 #include <QContextMenuEvent>
@@ -139,7 +140,53 @@ void CrumbStrip::relayout()
         widths.append(iconWidth + metrics.horizontalAdvance(crumb.label));
     }
     m_layout = layoutCrumbs(widths, m_area.left(), SEPARATOR, metrics.horizontalAdvance(ELLIPSIS), m_area.width());
+    ++m_generation;
+    if (QAccessible::isActive()) {
+        QAccessibleEvent reorder(m_host, QAccessible::ObjectReorder);
+        QAccessible::updateAccessibility(&reorder);
+    }
     m_host->update();
+}
+
+qsizetype CrumbStrip::slotCount() const
+{
+    return m_layout.cells.size();
+}
+
+QString CrumbStrip::slotName(qsizetype slot) const
+{
+    if (slot < 0 || slot >= m_layout.cells.size()) {
+        return {};
+    }
+    const Crumb *crumb = crumbOf(slot);
+    return crumb ? crumb->label : QStringLiteral("More folders");
+}
+
+QRectF CrumbStrip::slotRect(qsizetype slot) const
+{
+    if (slot < 0 || slot >= m_layout.cells.size()) {
+        return {};
+    }
+    const CrumbSlot &cell = m_layout.cells.at(slot);
+    return {cell.x, m_area.top(), cell.width, m_area.height()};
+}
+
+void CrumbStrip::activateSlot(qsizetype slot)
+{
+    if (slot < 0 || slot >= m_layout.cells.size()) {
+        return;
+    }
+    if (const Crumb *crumb = crumbOf(slot)) {
+        const QUrl url = crumb->url;
+        Q_EMIT crumbActivated(url, CrumbOpen::Here);
+    } else {
+        showFoldedMenu(slot);
+    }
+}
+
+quint64 CrumbStrip::generation() const
+{
+    return m_generation;
 }
 
 CrumbHit CrumbStrip::hitAt(QPointF pos) const
@@ -489,7 +536,9 @@ bool CrumbStrip::drop(QDropEvent *event)
         // The sidebar's way, which is Dolphin's (src/views/draganddrophelper.cpp, v26.08.2): KIO asks Move, Copy or
         // Link, and a drop on the Trash moves the files there (KIO src/widgets/dropjob.cpp, v6.31.0, line 554).
         KIO::DropJob *job = KIO::drop(event, destination);
-        KJobWidgets::setWindow(job, m_host->window());
+        // KIO opens its menu at the drop's position mapped from this widget (src/widgets/dropjob.cpp, v6.31.0, line
+        // 671), and the position is the host's own, so the host goes here, not its window.
+        KJobWidgets::setWindow(job, m_host);
         event->acceptProposedAction();
         break;
     }

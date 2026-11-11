@@ -21,6 +21,7 @@ it changes. A change that needs a fresh install, or that an earlier backup canno
 - Files dropped on a segment move, copy or link there (it asks which), or get the tag of a tag's shelf. A drag held on
   a segment opens that folder, so you can go on deeper. Dropping a folder into itself, or files into the folder they
   are already in, is refused. A segment dragged out carries its folder, to the sidebar, a tab or a terminal.
+- Screen readers read File Explorer's path bar as one link per folder, which they can press.
 
 ### Changed
 
@@ -35,6 +36,8 @@ it changes. A change that needs a fresh install, or that an earlier backup canno
 - The menu no longer offers an older Aurora after you updated through pacman or paru. On 1.3.1 it still said
   "Aurora 1.3.0 is available".
 - `aurora update` checks that pacman really installed the new version, and says how to retry when it did not.
+- In File Explorer, the Move, Copy or Link menu of files dropped on the sidebar opens where they were dropped, not off
+  to the side by the sidebar's offset in the window.
 
 ## [1.3.1] - 2026-11-08
 

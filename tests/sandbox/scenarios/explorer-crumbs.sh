@@ -4,8 +4,8 @@
 # Additional terms (GPL-3.0 section 7, author attribution): see NOTICE.md.
 # The path segments of File Explorer's address field and path bar: at rest, hovered, the chevron's folder menu, the
 # ellipsis menu, a file dragged onto a segment (the accent target, the segment opening while the drag rests on it,
-# KIO's Move, Copy or Link menu on the drop), a drop refused on the folder the file is in, Ctrl+L for typing, Ctrl+click
-# for a new tab, and a click on the first segment. Captures shots/crumbs-*.png and writes PASS or FAIL lines to logs/crumbs.txt. The positions are those of
+# KIO's Move, Copy or Link menu at the pointer, on a segment and on the sidebar), a drop refused on the folder the file
+# is in, Ctrl+L for typing, Ctrl+click and a middle click for new tabs, and a click on the first segment. Captures shots/crumbs-*.png and writes PASS or FAIL lines to logs/crumbs.txt. The positions are those of
 # File Explorer's first window at 2560x1440 on ~/Crumbs/Projects/Aurora/docs.
 source "$SBX/prelude.sh"
 FI="$SB/tests/helpers/fakeinput/fakeinput"
@@ -74,12 +74,20 @@ input keydown 1 keyup 1
 wait "$DRAG"
 input wait 600 keydown 56 keydown 105 keyup 105 keyup 56 wait 1200
 
-# A quick drop on Crumbs in the path bar: KIO asks Move, Copy or Link; Esc cancels.
+# A quick drop on Crumbs in the path bar: KIO asks Move, Copy or Link, at the pointer; Esc cancels.
 drag "$MAIN_X" "$MAIN_Y" 927 "$BOTTOM_Y" 250
 wait "$DRAG"
 waitfor 1
 shot crumbs-drop-menu
-check drop-asks-move-copy-or-link crumbs-rest crumbs-drop-menu 700 300 930 430
+check drop-menu-opens-at-the-pointer crumbs-rest crumbs-drop-menu 920 1145 1150 1200
+input keydown 1 keyup 1 wait 600
+
+# The same on the sidebar's Desktop row: the menu opens at the pointer there too.
+drag "$MAIN_X" "$MAIN_Y" 634 400 250
+wait "$DRAG"
+waitfor 1
+shot crumbs-sidebar-drop-menu
+check sidebar-drop-menu-opens-at-the-pointer crumbs-rest crumbs-sidebar-drop-menu 640 405 880 560
 input keydown 1 keyup 1 wait 600
 
 # main.c is in docs already: the segment stays plain and the drag shows it is refused.
@@ -99,6 +107,12 @@ input move 927 "$BOTTOM_Y" wait 200 keydown 29 wait 50 down wait 80 up wait 50 k
 shot crumbs-new-tab
 check ctrl-click-opens-a-new-tab crumbs-refused crumbs-new-tab 830 370 1990 430
 
+# A middle click opens one too: a third tab joins the row.
+input move 1007 "$BOTTOM_Y" wait 200 mdown wait 80 mup wait 1200
+shot crumbs-middle-tab
+# The second tab's label moves left to make room for the third.
+check middle-click-opens-a-new-tab crumbs-new-tab crumbs-middle-tab 1180 388 1260 404
+
 input move 855 "$BOTTOM_Y" wait 200 down wait 80 up wait 1200
 shot crumbs-home
-check first-segment-opens-home crumbs-new-tab crumbs-home 820 400 1400 560
+check first-segment-opens-home crumbs-middle-tab crumbs-home 820 400 1400 560

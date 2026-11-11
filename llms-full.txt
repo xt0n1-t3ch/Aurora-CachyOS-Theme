@@ -659,7 +659,11 @@ through `KIO::drop`, as on the sidebar, so KIO asks Move, Copy or Link; a tag's 
 folder into itself or a folder inside it, files into the folder they are in, Recents, a search, Network, the shelf
 of all tags, a folder that is not writable, and the selected file the path bar can end with. A drag resting 700 ms on
 a segment opens it (Finder's spring-loaded folders), except the folder on screen. A segment dragged out carries its
-URL. The tooltip of a segment is its whole path.
+URL. The tooltip of a segment is its whole path. Screen readers see the path bar as a group of links, one per segment,
+which they can press (`crumbaccessible.cpp`); the address field is a line edit whose text is the whole path. KIO opens
+its Move, Copy or Link menu at the drop's position mapped from the widget given to `KJobWidgets::setWindow`
+(`src/widgets/dropjob.cpp`, v6.31.0, line 671), so a drop names the widget whose coordinates the drop has: the bar,
+or the sidebar's viewport.
 
 Color tags (`tagging.cpp`, rules in `core/tags`) live in the file's `user.xdg.tags` attribute through KFileMetaData, so
 Dolphin and Baloo read them too. Each tag's sidebar row opens its shelf, `~/.local/share/file-explorer/tags/<Tag>`, a
@@ -672,9 +676,10 @@ It also serves `org.freedesktop.FileManager1` (`--service`: "Show in folder" sel
 portal backend (`--portal`: Open and Save panels with a chooser bar; it quits after three idle minutes). Installed as
 `~/.local/bin/file-explorer`; Win+E launches it. Folders without a view of their own show Finder's columns (Name,
 Modified, Size, Type) from `~/.local/share/file-explorer/view_properties/global/.directory`. Tests: `fe_tests` (78),
-`fe_finder_tests` (45), `tests/installer/test_tag_emblems.sh` (5). Sandbox: `explorer.sh`, `explorer-crumbs.sh` (the path
-segments: hover, both menus, a drop in the accent, a segment opening under a drag, KIO's menu, a refused drop, Ctrl+L,
-Ctrl+click), `explorer-finder.sh` (the
+`fe_finder_tests` (45), `fe_widget_tests` (11, offscreen: clicks, drops, a drag resting on a segment, the address
+field at rest, accessibility), `tests/installer/test_tag_emblems.sh` (5). Sandbox: `explorer.sh`, `explorer-crumbs.sh` (the path
+segments: hover, both menus, a drop in the accent, a segment opening under a drag, KIO's menu at the pointer on a
+segment and on the sidebar, a refused drop, Ctrl+L, Ctrl+click and middle click), `explorer-finder.sh` (the
 mockup's scene: tags, the unfolded sidebar, the menu, a typed path, Quick Look, Split View, a tag's shelf, the Group
 menu and the folder grouped by Kind from it, and the window inactive behind another),
 `explorer-menus.sh`, `explorer-drives.sh`, `show-in-folder.sh`, `open-save.sh`.
@@ -1142,6 +1147,8 @@ export QT_QPA_PLATFORM=offscreen q=/usr/lib/qt6/bin/qmltestrunner B=$PWD/build
 | --- | --- | --- |
 | File Explorer core | `build/file-explorer/fe_tests` | 78 pass |
 | File Explorer's Finder features (typed paths and their suggestions and Tab, the path segments' layout, folding, hit test and which drops they take, color tags and their emblems, the tag shelf's names and path, the sidebar's folder tree, Quick Look's kinds and when Space opens it) | `build/file-explorer/fe_finder_tests` | 45 pass |
+| File Explorer's widgets on the offscreen platform: a click, middle click and Ctrl+click on a segment, a click beside them, a slot that replaces the segments still gets its URL, which drops a segment takes (files from elsewhere, not a folder into itself or files into their own folder, not a read-only folder), a drag resting on a segment opens it but not the folder on screen, the address field at rest opens a segment without taking the keyboard, screen readers read each segment as a link they can press | `QT_QPA_PLATFORM=offscreen build/file-explorer/fe_widget_tests` | 11 pass |
+| The same three File Explorer suites under AddressSanitizer and UBSan (configure `build/file-explorer-asan` with `-fsanitize=address,undefined`; `ASAN_OPTIONS=detect_leaks=0:max_free_fill_size=1048576:free_fill_byte=85` makes a read of freed memory crash, so the URL test bites) | `build/file-explorer-asan/fe_tests`, `fe_finder_tests`, `fe_widget_tests` | 78, 45, 11 pass, no findings |
 | Window buttons | `build/window-buttons/decoration_tests` | 11 pass |
 | Energy page | `build/energy-page/test_power` | 10 pass |
 | Glass blur | `(cd components/glass && $q -import $B/glass/qml -input tests/tst_blurbehind.qml)` | 9 pass |
@@ -1178,7 +1185,7 @@ others capture `tests/sandbox/shots/` to compare by eye.
 | `quick-menu-app-menu.sh` | the app menu: right-click, Pin to Top and the Pinned section, the Menu key (not the field's text menu), Unpin from Dock, an opened app in Suggestions and Remove from Suggestions, no QML warnings (8 PASS); labels found with `tests/helpers/find_text.py` |
 | `readme.sh` | the README's pictures, the notifications popover among them (run with `SANDBOX_SCALE=2`, then `assets/screenshots/make.py`, which also crops Mission Center's two from its own sandbox) |
 | `kali-menu.sh` | the Kali menu with PC labels |
-| `explorer.sh`, `explorer-menus.sh`, `explorer-drives.sh`, `explorer-sidebar-order.sh`, `explorer-crumbs.sh`, `show-in-folder.sh`, `open-save.sh` | File Explorer, its menus (X11 client), its drives, dragging sidebar rows into a new order, the path segments (clicks, menus, drops, a segment opening under a drag; 8 PASS), "Show in folder", Open and Save |
+| `explorer.sh`, `explorer-menus.sh`, `explorer-drives.sh`, `explorer-sidebar-order.sh`, `explorer-crumbs.sh`, `show-in-folder.sh`, `open-save.sh` | File Explorer, its menus (X11 client), its drives, dragging sidebar rows into a new order, the path segments (clicks, menus, drops, a segment opening under a drag, KIO's menu at the pointer, new tabs; 10 PASS), "Show in folder", Open and Save |
 | `notifications.sh` | banners in the bottom-right corner, hover buttons |
 | `tray-click.sh`, `tray-drag.sh`, `tray-show.sh` | tray clicks, drag to reorder and hide, bring back |
 | `control-center.sh`, `control-center-panels.sh`, `control-center-bluetooth.sh`, `control-center-shortcut.sh` | the Control Center, its panels, reopening, its shortcut |
@@ -1226,7 +1233,7 @@ theme's current files: `HOME=$PWD/tests/sandbox/home python3 -I installer/instal
 ## Driving it
 
 - `tests/helpers/fakeinput/fakeinput` speaks `org_kde_kwin_fake_input` to the nested KWin only: `move X Y`,
-  `glide X Y STEPS`, `down`, `up`, `keydown CODE`, `keyup CODE` (evdev codes: 125 Win, 28 Return, 1 Esc,
+  `glide X Y STEPS`, `down`, `up` (left button), `rdown`, `rup`, `mdown`, `mup`, `keydown CODE`, `keyup CODE` (evdev codes: 125 Win, 28 Return, 1 Esc,
   103/108/105/106 arrows), `wait MS`.
 - `tests/helpers/region_changed.py BEFORE AFTER X0 Y0 X1 Y1` exits 0 when a region changed (mean difference above 6):
   the usual "did it open" check. Keep the region tight around what appears.
@@ -1460,6 +1467,7 @@ it changes. A change that needs a fresh install, or that an earlier backup canno
 - Files dropped on a segment move, copy or link there (it asks which), or get the tag of a tag's shelf. A drag held on
   a segment opens that folder, so you can go on deeper. Dropping a folder into itself, or files into the folder they
   are already in, is refused. A segment dragged out carries its folder, to the sidebar, a tab or a terminal.
+- Screen readers read File Explorer's path bar as one link per folder, which they can press.
 
 ### Changed
 
@@ -1474,6 +1482,8 @@ it changes. A change that needs a fresh install, or that an earlier backup canno
 - The menu no longer offers an older Aurora after you updated through pacman or paru. On 1.3.1 it still said
   "Aurora 1.3.0 is available".
 - `aurora update` checks that pacman really installed the new version, and says how to retry when it did not.
+- In File Explorer, the Move, Copy or Link menu of files dropped on the sidebar opens where they were dropped, not off
+  to the side by the sidebar's offset in the window.
 
 ## [1.3.1] - 2026-11-08
 

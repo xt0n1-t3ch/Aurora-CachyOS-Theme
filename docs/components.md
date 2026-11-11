@@ -39,7 +39,11 @@ through `KIO::drop`, as on the sidebar, so KIO asks Move, Copy or Link; a tag's 
 folder into itself or a folder inside it, files into the folder they are in, Recents, a search, Network, the shelf
 of all tags, a folder that is not writable, and the selected file the path bar can end with. A drag resting 700 ms on
 a segment opens it (Finder's spring-loaded folders), except the folder on screen. A segment dragged out carries its
-URL. The tooltip of a segment is its whole path.
+URL. The tooltip of a segment is its whole path. Screen readers see the path bar as a group of links, one per segment,
+which they can press (`crumbaccessible.cpp`); the address field is a line edit whose text is the whole path. KIO opens
+its Move, Copy or Link menu at the drop's position mapped from the widget given to `KJobWidgets::setWindow`
+(`src/widgets/dropjob.cpp`, v6.31.0, line 671), so a drop names the widget whose coordinates the drop has: the bar,
+or the sidebar's viewport.
 
 Color tags (`tagging.cpp`, rules in `core/tags`) live in the file's `user.xdg.tags` attribute through KFileMetaData, so
 Dolphin and Baloo read them too. Each tag's sidebar row opens its shelf, `~/.local/share/file-explorer/tags/<Tag>`, a
@@ -52,9 +56,10 @@ It also serves `org.freedesktop.FileManager1` (`--service`: "Show in folder" sel
 portal backend (`--portal`: Open and Save panels with a chooser bar; it quits after three idle minutes). Installed as
 `~/.local/bin/file-explorer`; Win+E launches it. Folders without a view of their own show Finder's columns (Name,
 Modified, Size, Type) from `~/.local/share/file-explorer/view_properties/global/.directory`. Tests: `fe_tests` (78),
-`fe_finder_tests` (45), `tests/installer/test_tag_emblems.sh` (5). Sandbox: `explorer.sh`, `explorer-crumbs.sh` (the path
-segments: hover, both menus, a drop in the accent, a segment opening under a drag, KIO's menu, a refused drop, Ctrl+L,
-Ctrl+click), `explorer-finder.sh` (the
+`fe_finder_tests` (45), `fe_widget_tests` (11, offscreen: clicks, drops, a drag resting on a segment, the address
+field at rest, accessibility), `tests/installer/test_tag_emblems.sh` (5). Sandbox: `explorer.sh`, `explorer-crumbs.sh` (the path
+segments: hover, both menus, a drop in the accent, a segment opening under a drag, KIO's menu at the pointer on a
+segment and on the sidebar, a refused drop, Ctrl+L, Ctrl+click and middle click), `explorer-finder.sh` (the
 mockup's scene: tags, the unfolded sidebar, the menu, a typed path, Quick Look, Split View, a tag's shelf, the Group
 menu and the folder grouped by Kind from it, and the window inactive behind another),
 `explorer-menus.sh`, `explorer-drives.sh`, `show-in-folder.sh`, `open-save.sh`.

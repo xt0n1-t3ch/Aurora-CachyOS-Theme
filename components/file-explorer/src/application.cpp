@@ -6,6 +6,7 @@
 
 #include "application.h"
 
+#include "crumbaccessible.h"
 #include "tagging.h"
 
 #include "finderstyle.h"
@@ -33,6 +34,7 @@ void configureApplication()
     QApplication::setApplicationVersion(QStringLiteral("0.1.0"));
     QApplication::setDesktopFileName(QStringLiteral("file-explorer"));
     QApplication::setWindowIcon(QIcon::fromTheme(QStringLiteral("file-explorer-mac"), QIcon::fromTheme(QStringLiteral("system-file-manager"))));
+    installCrumbAccessibility();
 
     QStyle *base = QStyleFactory::create(QStringLiteral("Breeze"));
     if (!base) {

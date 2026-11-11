@@ -60,6 +60,7 @@ add_library(fe_app OBJECT
     src/tabbar.cpp
     src/browsertab.cpp
     src/crumbstrip.cpp
+    src/crumbaccessible.cpp
     src/bottombar.cpp
     src/contextmenu.cpp
     src/mainwindow.cpp
@@ -112,5 +113,10 @@ add_test(NAME fe_tests COMMAND fe_tests)
 add_executable(fe_finder_tests tests/test_finder.cpp)
 target_link_libraries(fe_finder_tests PRIVATE fe_core Qt6::Test)
 add_test(NAME fe_finder_tests COMMAND fe_finder_tests)
+# The widgets' behavior on the offscreen platform: clicks, drags and what assistive technology reads.
+add_executable(fe_widget_tests tests/test_widgets.cpp)
+target_link_libraries(fe_widget_tests PRIVATE fe_app Qt6::Test)
+add_test(NAME fe_widget_tests COMMAND fe_widget_tests)
+set_tests_properties(fe_widget_tests PROPERTIES ENVIRONMENT QT_QPA_PLATFORM=offscreen)
 
 install(TARGETS file-explorer)

@@ -1301,7 +1301,9 @@ void SidebarView::dropEvent(QDropEvent *event)
         // Dolphin's way (src/views/draganddrophelper.cpp, v26.08.2): KIO asks Move, Copy or Link, and a drop
         // on the Trash moves the files there (src/widgets/dropjob.cpp, v6.31.0, line 554).
         KIO::DropJob *job = KIO::drop(event, destination);
-        KJobWidgets::setWindow(job, window());
+        // KIO opens its menu at the drop's position mapped from this widget (src/widgets/dropjob.cpp, v6.31.0, line
+        // 671); the position is the viewport's own, so the viewport goes here, not the window.
+        KJobWidgets::setWindow(job, viewport());
         event->acceptProposedAction();
         break;
     }
