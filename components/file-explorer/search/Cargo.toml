@@ -12,6 +12,9 @@ publish = false
 
 [dependencies]
 libc = "0.2"
+memchr = "2.8"
+regex = { version = "1.12", default-features = false, features = ["std", "perf", "unicode-case", "unicode-perl"] }
+rustc-hash = "2"
 
 [lints.rust]
 # The kernel interfaces (ioctl, fanotify, statx) are reached through `libc`; each unsafe block says why it is sound.
