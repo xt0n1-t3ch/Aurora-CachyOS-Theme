@@ -76,8 +76,8 @@ first into an ellipsis, outermost first, which lists them, and the folder on scr
 right-click offers Open, Open in New Tab, Open Terminal Here, Copy Path and Get Info. Files dropped on a segment go
 through `KIO::drop`, as on the sidebar, so KIO asks Move, Copy or Link; a tag's shelf tags them instead. Refused: a
 folder into itself or a folder inside it, files into the folder they are in, Recents, a search, Network, the shelf
-of all tags, a folder that is not writable, and the selected file the path bar can end with. A drag resting 700 ms on
-a segment opens it (Finder's spring-loaded folders), except the folder on screen. A segment dragged out carries its
+of all tags, a folder that is not writable, and the selected file the path bar can end with. A drag resting on a
+segment never opens it: the window stays where it is until the files are let go (docs/decisions.md). A segment dragged out carries its
 URL. The tooltip of a segment is its whole path. Screen readers see the path bar as a group of links, one per segment,
 which they can press (`crumbaccessible.cpp`); the address field is a line edit whose text is the whole path. KIO opens
 its Move, Copy or Link menu at the drop's position mapped from the widget given to `KJobWidgets::setWindow`

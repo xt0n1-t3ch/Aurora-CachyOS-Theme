@@ -18,8 +18,8 @@ it changes. A change that needs a fresh install, or that an earlier backup canno
   a segment lists the folders inside it, the ellipsis of a long path lists the folders it hides, a middle click or
   Ctrl+click opens a segment in a new tab, and a right-click offers Open, Open in New Tab, Open Terminal Here, Copy
   Path and Get Info.
-- Files dropped on a segment move, copy or link there (it asks which), or get the tag of a tag's shelf. A drag held on
-  a segment opens that folder, so you can go on deeper. Dropping a folder into itself, or files into the folder they
+- Files dropped on a segment move, copy or link there (it asks which), or get the tag of a tag's shelf. Holding a drag on
+  a segment opens nothing, so the window stays where it is until you let go. Dropping a folder into itself, or files into the folder they
   are already in, is refused. A segment dragged out carries its folder, to the sidebar, a tab or a terminal.
 - Screen readers read File Explorer's path bar as one link per folder, which they can press.
 - File Explorer's Edit menu has Undo (Ctrl+Z) for the last move, copy, rename, new folder or trash, named after it.

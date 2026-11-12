@@ -27,7 +27,6 @@
 #include <QMimeData>
 #include <QMouseEvent>
 #include <QPainter>
-#include <QTimer>
 #include <QWidget>
 
 namespace fe {
@@ -40,9 +39,6 @@ constexpr qreal CRUMB_ICON_GAP = 5.0;
 constexpr qreal SEPARATOR = 16.0;
 /// Grace around a label for the pointer, in pixels.
 constexpr qreal SLOP = 3.0;
-/// How long a drag rests on a segment before it opens: long enough that sweeping across the bar on the way to the files
-/// opens nothing.
-constexpr int SPRING_LOAD_MS = 700;
 /// The most folders a chevron's menu lists; a longer menu ends with an item that opens the folder instead.
 constexpr int FOLDER_MENU_LIMIT = 250;
 constexpr int DRAG_ICON_SIZE = 32;
@@ -96,17 +92,7 @@ CrumbStrip::CrumbStrip(QWidget *host, bool showIcons, std::optional<Qt::CursorSh
     , m_host(host)
     , m_showIcons(showIcons)
     , m_restCursor(restCursor)
-    , m_springTimer(new QTimer(this))
 {
-    m_springTimer->setSingleShot(true);
-    m_springTimer->setInterval(SPRING_LOAD_MS);
-    connect(m_springTimer, &QTimer::timeout, this, [this] {
-        if (const Crumb *crumb = crumbOf(m_dropSlot)) {
-            // A copy: opening the folder replaces the segments, and with them the URL a reference would point into.
-            const QUrl url = crumb->url;
-            Q_EMIT crumbActivated(url, CrumbOpen::Here);
-        }
-    });
 }
 
 void CrumbStrip::setCrumbs(const QList<Crumb> &crumbs, const QString &lastIconName, bool lastIsFolder)
@@ -116,9 +102,8 @@ void CrumbStrip::setCrumbs(const QList<Crumb> &crumbs, const QString &lastIconNa
     m_lastIsFolder = lastIsFolder;
     m_hover = {};
     m_pressSlot = -1;
-    // A drag that opened a segment goes on over the new path; its next move finds its target again.
+    // A path that changes under a drag; the drag's next move finds its target again.
     m_dropSlot = -1;
-    m_springTimer->stop();
     relayout();
 }
 
@@ -328,13 +313,6 @@ void CrumbStrip::setDropSlot(qsizetype slot)
         return;
     }
     m_dropSlot = slot;
-    // The folder on screen is already open; every other folder opens when the drag rests on it.
-    const bool onScreen = slot >= 0 && m_layout.cells.at(slot).crumb == m_crumbs.size() - 1 && m_lastIsFolder;
-    if (slot >= 0 && !onScreen) {
-        m_springTimer->start();
-    } else {
-        m_springTimer->stop();
-    }
     m_host->update();
 }
 

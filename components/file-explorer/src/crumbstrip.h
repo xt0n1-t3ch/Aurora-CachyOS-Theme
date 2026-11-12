@@ -21,7 +21,6 @@ class QDragMoveEvent;
 class QDropEvent;
 class QMouseEvent;
 class QPainter;
-class QTimer;
 class QWidget;
 
 namespace fe {
@@ -119,10 +118,10 @@ private:
     /// The slot a press started on, for a click or a drag out; -1 for none.
     qsizetype m_pressSlot = -1;
     QPointF m_pressPos;
-    /// The slot under a drag that would take the drop, drawn with the accent; -1 for none.
+    /// The slot under a drag that would take the drop, drawn with the accent; -1 for none. A drag resting on it never
+    /// opens it: the files go there when they are let go and the window stays where it is (see docs/decisions.md, Path
+    /// segments under a drag).
     qsizetype m_dropSlot = -1;
-    /// Opens the segment held under a drag, as Finder's spring-loaded folders do.
-    QTimer *m_springTimer;
     quint64 m_generation = 0;
 };
 

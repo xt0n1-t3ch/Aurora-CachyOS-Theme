@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 xt0n1 (https://github.com/xt0n1-t3ch)
 // SPDX-License-Identifier: GPL-3.0-only
 // Additional terms (GPL-3.0 section 7, author attribution): see NOTICE.md.
-// Tests of File Explorer's widgets on Qt's offscreen platform: the path segments' clicks, drops and spring-loading,
+// Tests of File Explorer's widgets on Qt's offscreen platform: the path segments' clicks, drops and held drags,
 // the address field at rest, what assistive technology reads of the path bar, the filter row over Dolphin's view and the
 // Rename sheet.
 
@@ -199,7 +199,7 @@ private Q_SLOTS:
         QFile::setPermissions(locked, QFile::ReadOwner | QFile::WriteOwner | QFile::ExeOwner);
     }
 
-    void aDragRestingOnASegmentOpensIt()
+    void aDragRestingOnASegmentLeavesThePathAsItIs()
     {
         QTemporaryDir root;
         const QString a = root.filePath(QStringLiteral("a"));
@@ -207,13 +207,10 @@ private Q_SLOTS:
         QVERIFY(QDir().mkpath(b));
         const auto bar = pathBar({{QStringLiteral("a"), QUrl::fromLocalFile(a)}, {QStringLiteral("b"), QUrl::fromLocalFile(b)}});
         QSignalSpy opened(bar->crumbs(), &fe::CrumbStrip::crumbActivated);
+        // The segment takes the drop however long the drag rests on it, and opens nothing: the files go into that folder
+        // when they are let go, and the window stays where it is.
         QVERIFY(takesDrag(bar->crumbs(), centerOf(*bar, 0), {QUrl::fromLocalFile(QStringLiteral("/etc/hostname"))}));
-        QVERIFY(opened.wait(2000));
-        QCOMPARE(opened.at(0).at(0).toUrl(), QUrl::fromLocalFile(a));
-        // The folder on screen is open already.
-        QSignalSpy again(bar->crumbs(), &fe::CrumbStrip::crumbActivated);
-        QVERIFY(takesDrag(bar->crumbs(), centerOf(*bar, 1), {QUrl::fromLocalFile(QStringLiteral("/etc/hostname"))}));
-        QVERIFY(!again.wait(1200));
+        QVERIFY(!opened.wait(1500));
     }
 
     void aNarrowToolbarFoldsTheViewButtonsIntoOnePopUp()
