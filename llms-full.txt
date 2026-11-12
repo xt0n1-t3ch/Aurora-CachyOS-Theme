@@ -1280,7 +1280,7 @@ export QT_QPA_PLATFORM=offscreen q=/usr/lib/qt6/bin/qmltestrunner B=$PWD/build
 | Every shell script Aurora owns, and the `restore.sh` that `install.py` writes, has no ShellCheck finding at its strictest level (style), with `.shellcheckrc` | `scripts/lint-shell.sh` | pass (73 scripts) |
 | The package depends on `installer/dependencies.txt` plus what the `aurora` command needs (its update notices too: checkupdates, notify-send, Konsole), builds with `installer/build-dependencies.txt`, its functions leave makepkg's variables alone, and `.SRCINFO` matches the PKGBUILD; with a makepkg.conf that asks for the building PC's processor (`-march=native`, `-C target-cpu=native`), gcc, g++ and rustc report no instruction set newer than the x86-64 baseline for the flags `build()` sets, and `check()` runs the CPU check; `package()`, run on a made-up tree, keeps the search helper's sources and installs its programs but ships no Cargo `target/` | `tests/release/test_pkgbuild.sh` | 14 pass |
 | `scripts/cpu_baseline.py`, on libraries gcc builds in a temporary folder: baseline C and C++ (templates, lambdas) pass; code built for AVX2 fails and names its function; popcnt, crc32 (register and memory forms), shlx, `lock cmpxchg16b` and rdrand fail with their level; a function built for AVX2 on purpose and named for it passes, a name that only holds the letters (submit) does not; a stripped file built for a newer processor fails; a folder is checked file by file, skipping links and files that are not machine code; a program of baseline code marked as needing x86-64-v3 (as CachyOS's glibc marks every program it links) fails and names the mark, one without a higher mark passes; `--relabel` marks baseline code as baseline, the program still runs and passes, a second run changes no byte, a program with newer code keeps its mark and fails, one without a mark is untouched, and a folder is walked | `tests/release/test_cpu_baseline.sh` | 26 pass |
-| `scripts/pacman-repo.sh` builds a signed package and a signed `aurora` database of real files with the key's public half, refuses a key whose secret half is missing, and pacman (under fakeroot, in a throwaway root) installs the package from it and refuses a tampered database; publishing (through a stand-in gh) uploads the package before the database that lists it and removes an older build's files last, and refuses a package name the release already has; a package with machine code is built only through the clean chroot (a stand-in `clean-build.sh` records the call) and signed, one for any architecture is built here; after the upload, a throwaway pacman gets the package from the server, signed, and a server still offering another version fails the publish; `--publish-built` publishes the built folder without building again and refuses an empty one | `tests/release/test_pacman_repo.sh` | 31 pass |
+| `scripts/pacman-repo.sh` builds a signed package and a signed `aurora` database of real files with the key's public half, refuses a key whose secret half is missing, and pacman (under fakeroot, in a throwaway root) installs the package from it and refuses a tampered database; publishing (through a stand-in gh) uploads the package before the database that lists it and removes an older build's files last, and refuses a package name the release already has; a package with machine code is built only through the clean chroot (a stand-in `clean-build.sh` records the call) and signed, one for any architecture is built here; after the upload, a throwaway pacman gets the package from the server, signed, a server still offering another version fails the publish, one that serves the old database for a few seconds is waited for, and the database read before the upload is asked for at an address of its own; `--publish-built` publishes the built folder without building again and refuses an empty one | `tests/release/test_pacman_repo.sh` | 33 pass |
 | `scripts/built_for.py`, on a recorded `.BUILDINFO` (aurora-theme 1.1.1) and recorded `pacman -Si` (CachyOS and Arch, 2026-11-08): the versions every repository has pass and each is listed, a newer Plasma in one repository fails and is named with both versions, KDecoration may differ in its last number but not its minor one, a `.BUILDINFO` without KWin fails, and the packages and rules are read from cli/src/system.rs | `tests/release/test_built_for.sh` | 9 pass |
 | `scripts/old_cpu.py --plan`, on a package installed in a temporary folder: each program runs with its line of the runs table, each library is loaded, object and text files are skipped, the plan names QEMU's Opteron_G1, a program missing from the table fails before anything runs and is named; the repository's table names absolute paths only. The runs themselves happen in `scripts/clean-build.sh` on every release build | `tests/release/test_old_cpu.sh` | 9 pass |
 
@@ -1494,6 +1494,12 @@ before the upload (saved with the server's time, so pacman asks only for a newer
 release), syncs, and must see the new version, verify its signature and download the very file the checks passed.
 A failure there means users would not get the release.
 
+GitHub caches the redirect behind a release download for about two minutes: on 1.3.5 the database uploaded at
+03:37:13 UTC was served from 03:38:53, and until then the address gave the old database while its signature was
+already the new one, which pacman refuses. So the check waits, up to five minutes (`AURORA_VERIFY_WAIT`), until the
+server serves the new database, and the copy of the old one taken before the upload is asked for at an address of its
+own (`aurora.db?before=...`), so it leaves no cached redirect behind for users.
+
 Everything is signed with Aurora's key. Its public half is [packaging/repo/aurora.asc](../packaging/repo/aurora.asc)
 (fingerprint `657D8110799A4E65BE4E1AB4F028284112794CC2`), which users trust with `pacman-key --lsign-key`; its secret
 half lives only in my GnuPG keyring and an offline copy, never in the repository. A new key means every user trusts
@@ -1606,6 +1612,14 @@ the ids and folders the theme writes to your home folder (`org.aurora.*`, `~/.lo
 it changes. A change that needs a fresh install, or that an earlier backup cannot undo, is a major version.
 
 ## [Unreleased]
+
+### Fixed
+
+- Right after a release, pacman could say for about two minutes that the signature of Aurora's repository is invalid.
+  Publishing no longer causes it: GitHub kept serving the old database next to the new signature, and the release's
+  own check now waits for the new one.
+
+## [1.3.5] - 2026-11-11
 
 ### Added
 
@@ -1891,7 +1905,8 @@ question, and removed with one command.
 - After a Plasma, KWin or Qt update, the parts built for the old version step aside on their own until the package
   brings them built for the new one; `aurora rebuild` builds them right away.
 
-[Unreleased]: https://github.com/xt0n1-t3ch/Aurora-CachyOS-Theme/compare/v1.3.1...HEAD
+[Unreleased]: https://github.com/xt0n1-t3ch/Aurora-CachyOS-Theme/compare/v1.3.5...HEAD
+[1.3.5]: https://github.com/xt0n1-t3ch/Aurora-CachyOS-Theme/compare/v1.3.1...v1.3.5
 [1.3.1]: https://github.com/xt0n1-t3ch/Aurora-CachyOS-Theme/compare/v1.3.0...v1.3.1
 [1.3.0]: https://github.com/xt0n1-t3ch/Aurora-CachyOS-Theme/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/xt0n1-t3ch/Aurora-CachyOS-Theme/compare/v1.1.1...v1.2.0

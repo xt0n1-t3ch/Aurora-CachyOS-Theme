@@ -95,9 +95,11 @@ if $publish; then
     say "Publishing the repository"
     cd "$ROOT"
     server=${AURORA_REPO_SERVER:-$(sed -n 's/^REPO=//p' "$ROOT/get.sh")/releases/download/repo}
-    # The database users have now, with the server's time as its file time, for the check after the upload.
+    # The database users have now, with the server's time as its file time, for the check after the upload. It is
+    # asked for at an address of its own: GitHub caches a download's redirect for about two minutes (docs/releasing.md),
+    # and a cached redirect to this database would serve it to users after the upload, against the new signature.
     seed="$build/before.db"
-    curl -fsSL -R -o "$seed" "$server/aurora.db" 2> /dev/null || rm -f "$seed"
+    curl -fsSL -R -o "$seed" "$server/aurora.db?before=$(date +%s)" 2> /dev/null || rm -f "$seed"
     if ! gh release view repo > /dev/null 2>&1; then
         gh release create repo --title "Aurora pacman repository" --prerelease --latest=false \
             --notes "The signed pacman repository of Aurora. README.md, \"Installation\", says how to add it."

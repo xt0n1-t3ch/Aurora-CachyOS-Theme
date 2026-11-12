@@ -11,6 +11,12 @@ it changes. A change that needs a fresh install, or that an earlier backup canno
 
 ## [Unreleased]
 
+### Fixed
+
+- Right after a release, pacman could say for about two minutes that the signature of Aurora's repository is invalid.
+  Publishing no longer causes it: GitHub kept serving the old database next to the new signature, and the release's
+  own check now waits for the new one.
+
 ## [1.3.5] - 2026-11-11
 
 ### Added

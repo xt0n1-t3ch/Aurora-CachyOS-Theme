@@ -8,6 +8,7 @@
 # SERVER, then each package of OUT_DIR must be the version the database offers, download, pass pacman's signature
 # check and be the same file as in OUT_DIR. SEED_DB is a database synced before the upload, with its server time as
 # its file time (curl -R): pacman then asks the server only for a newer one, as on a PC that synced the last release.
+# AURORA_VERIFY_WAIT is how long, in seconds, the server may take to serve OUT_DIR's database (300 by default).
 # Runs pacman under fakeroot; touches nothing of this PC's pacman.
 set -euo pipefail
 # Prints an error to stderr and exits with status 1. Arguments: the message words.
@@ -38,6 +39,16 @@ fakeroot sh -c "pacman-key --gpgdir '$work/keyring' --init && pacman-key --gpgdi
 pm() { fakeroot pacman --config "$work/pacman.conf" --root "$work/root" --dbpath "$work/db" --cachedir "$work/cache" \
     --hookdir "$work/hooks" --gpgdir "$work/keyring" --logfile "$work/pacman.log" --noconfirm "$@"; }
 
+# GitHub caches a release download's redirect for about two minutes (docs/releasing.md), so right after an upload the
+# server can still serve the database from before it, which the new signature does not match. pacman checks what is
+# served once the new database is, or once the wait is over.
+limit=${AURORA_VERIFY_WAIT:-300}
+waited=0
+until curl -fsSL "$server/aurora.db" 2> /dev/null | cmp -s - "$out/aurora.db" || [ "$waited" -ge "$limit" ]; do
+    [ "$waited" -eq 0 ] && echo "waiting for $server to serve the new database"
+    sleep 5
+    waited=$((waited + 5))
+done
 pm -Sy > "$work/sync.log" 2>&1 || fail "pacman could not sync [aurora] from $server: $(tail -2 "$work/sync.log")"
 for package in "$out"/*.pkg.tar.zst; do
     [ -e "$package" ] || fail "$out holds no package"

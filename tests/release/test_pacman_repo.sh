@@ -71,6 +71,13 @@ echo "$*" >> "$GH_LOG"
 exit 0
 EOF
 chmod +x "$work/bin/gh"
+# A stand-in curl that notes each address it is asked for in $work/curl.log, then fetches it.
+cat > "$work/bin/curl" <<EOF
+#!/bin/bash
+printf '%s\n' "\$*" >> "$work/curl.log"
+exec $(command -v curl) "\$@"
+EOF
+chmod +x "$work/bin/curl"
 # publish ASSETS: publishes the test package to a release that holds ASSETS. Sets code to the exit status and calls to
 # the gh calls that change the release.
 # The stand-in gh uploads nothing, so the check after the upload reads the built folder itself as the server, unless
@@ -79,7 +86,7 @@ publish() {
     printf '%s' "$1" > "$work/assets"
     : > "$work/gh.log"
     PATH="$work/bin:$PATH" GH_LOG="$work/gh.log" GH_ASSETS="$work/assets" \
-        AURORA_REPO_SERVER="file://${SERVED:-$work/published}" \
+        AURORA_REPO_SERVER="file://${SERVED:-$work/published}" AURORA_VERIFY_WAIT="${AURORA_VERIFY_WAIT:-0}" \
         "$root/scripts/pacman-repo.sh" "$work/pkg" "$work/published" "${MODE:---publish}" > "$work/publish.log" 2>&1
     code=$?
     calls=$(grep -E '^release (upload|delete-asset)' "$work/gh.log" | sed "s|$work/published/||g")
@@ -108,6 +115,15 @@ if command -v fakeroot > /dev/null; then
     SERVED="$work/stale" publish ""
     check "a server that offers another version fails the publish" "$([ "$code" -ne 0 ] && echo refused)" refused
     check "the failure names the version pacman sees" "$(grep -c 'pacman sees aurora-test 0.9.0-1' "$work/publish.log")" 1
+    # GitHub serves the database from before an upload for a while after it, against the new signature: the check
+    # waits for the new one instead of failing the release.
+    mkdir "$work/lagging" && cp -a "$work/published/." "$work/lagging/" && cp "$work/stale/aurora.db" "$work/lagging/aurora.db"
+    (sleep 3 && cp "$work/published/aurora.db" "$work/lagging/aurora.db") &
+    SERVED="$work/lagging" MODE=--publish-built AURORA_VERIFY_WAIT=30 publish ""
+    wait
+    check "a server that serves the old database for a while is waited for" "$code" 0
+    check "the database read before the upload is asked for at an address of its own" \
+        "$(grep -q 'aurora.db?before=' "$work/curl.log" && echo yes)" yes
 else
     echo "SKIP the check after the upload: fakeroot is not installed"
 fi
