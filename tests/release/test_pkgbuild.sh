@@ -6,7 +6,8 @@
 # installer/dependencies.txt plus what the aurora command needs itself (the two libraries it links, glibc and libgcc,
 # the two programs it downloads with, curl and tar, and what its update notices use: checkupdates from pacman-contrib,
 # notify-send from libnotify and Konsole to run the update in), builds with installer/build-dependencies.txt plus cargo, and .SRCINFO
-# is what makepkg writes for it. Reads the PKGBUILD in a subshell; builds nothing.
+# is what makepkg writes for it, and package() ships no build tree. Reads the PKGBUILD in a subshell and runs package()
+# on a small made-up tree; builds nothing.
 set -u
 here=$(dirname "$(readlink -f "$0")")
 root=$(readlink -f "$here/../..")
@@ -64,6 +65,29 @@ check "build() marks the baseline programs it built as baseline" \
 # shellcheck disable=SC1091
 check "check() refuses machine code that needs more than the baseline" \
     "$(cd "$root/packaging/aur" && bash -c 'source ./PKGBUILD && declare -f check' | grep -c 'scripts/cpu_baseline.py')" "1"
+
+# package() ships the sources `aurora rebuild` reads, never a build tree: Cargo's target/ beside a Cargo.toml holds the
+# objects of this build (the search helper's made File Explorer's folder 192 MB in a first 1.3.5 build, and a file in
+# it stopped scripts/old_cpu.py). Runs package() on a small made-up tree, as makepkg would, in a temporary folder.
+fake=$(mktemp -d)
+trap 'rm -rf "$fake"' EXIT
+src="$fake/src/aurora-0"
+search="$src/components/file-explorer/search"
+mkdir -p "$src/cli/target/release" "$search/src" "$search/target/release" "$search/target/debug/incremental" \
+    "$src/installer/system" "$src/themes" "$src/performance/system" "$src/docs" "$fake/src/prebuilt" "$fake/pkg"
+touch "$src"/{install.sh,uninstall.sh,VERSION,LICENSE,NOTICE.md,README.md,CHANGELOG.md} "$src/cli/target/release/aurora" \
+    "$search/Cargo.toml" "$search/src/main.rs" "$search/target/release/aurora-search" \
+    "$search/target/release/aurora-search-query" "$search/target/debug/incremental/s.lock" \
+    "$src/installer/system/"{aurora-search.socket,aurora-search.service.in,search.conf}
+# shellcheck disable=SC1091,SC2016 # the PKGBUILD is read on purpose; the variables expand in the subshell
+(cd "$root/packaging/aur" && srcdir="$fake/src" pkgdir="$fake/pkg" \
+    bash -c 'source ./PKGBUILD; pkgver=0; cd "$srcdir" && package' > "$fake/package.log" 2>&1)
+share="$fake/pkg/usr/share/aurora"
+check "package() ships no Cargo build tree" "$(find "$fake/pkg" -type d -name target | wc -l)" "0"
+check "package() keeps the search helper's sources" \
+    "$(test -e "$share/components/file-explorer/search/src/main.rs" && test -e "$share/components/file-explorer/search/Cargo.toml" && echo yes)" yes
+check "package() installs the search helper built there" \
+    "$(test -x "$fake/pkg/usr/lib/aurora/aurora-search" && test -x "$fake/pkg/usr/bin/aurora-search-query" && echo yes)" yes
 
 if command -v makepkg > /dev/null; then
     fresh=$(cd "$root/packaging/aur" && makepkg --printsrcinfo 2>/dev/null)

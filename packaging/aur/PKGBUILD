@@ -123,6 +123,12 @@ package() {
     ln -s /usr/lib/aurora/prebuilt "$share/prebuilt"
     cp -a --no-preserve=ownership performance/system "$share/performance/"
     rm -rf "$share"/components/*/upstream
+    # Cargo builds a crate in target/ beside its Cargo.toml: objects of this build, not sources, and the programs built
+    # there are installed above.
+    local manifest
+    while IFS= read -r -d '' manifest; do
+        rm -rf "$(dirname "$manifest")/target"
+    done < <(find "$share/components" -name Cargo.toml -print0)
     install -d "$pkgdir/usr/share/doc/$pkgname"
     cp -a --no-preserve=ownership README.md CHANGELOG.md docs "$pkgdir/usr/share/doc/$pkgname/"
     install -Dm644 LICENSE NOTICE.md -t "$pkgdir/usr/share/licenses/$pkgname/"
