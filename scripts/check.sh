@@ -52,6 +52,7 @@ if [ "${1:-}" != "--no-build" ]; then
 fi
 run "file explorer" "$B/file-explorer/fe_tests"
 run "file explorer finder" "$B/file-explorer/fe_finder_tests"
+QT_QPA_PLATFORM=offscreen run "file explorer widgets" "$B/file-explorer/fe_widget_tests"
 run "window buttons" "$B/window-buttons/decoration_tests"
 run "energy page" "$B/energy-page/test_power"
 run "glass blur" qml components/glass tests/tst_blurbehind.qml "$B/glass/qml"
@@ -89,8 +90,10 @@ run "GitHub metadata" python3 -I scripts/github_meta.py --check
 if command -v shellcheck > /dev/null; then
     run "shell lint" scripts/lint-shell.sh
 fi
-# The aurora command is Rust and optional, so its tests run only where cargo is installed.
+# The aurora command and File Explorer's search helper are Rust and optional, so their tests run only where cargo is
+# installed. The helper's root tests run in a virtual machine (components/file-explorer/search/tests/vm.sh).
 if command -v cargo > /dev/null; then
+    run "search helper" cargo test --quiet --locked --manifest-path components/file-explorer/search/Cargo.toml
     run "aurora command" cargo test --quiet --locked --manifest-path cli/Cargo.toml
 fi
 

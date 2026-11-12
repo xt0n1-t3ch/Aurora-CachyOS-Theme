@@ -11,8 +11,64 @@ it changes. A change that needs a fresh install, or that an earlier backup canno
 
 ## [Unreleased]
 
+### Added
+
+- File Explorer's address field shows the path as segments you can click, as Windows' File Explorer does; a click
+  beside them, Ctrl+L or Alt+D still opens it for typing. In both the address field and the path bar, the arrow after
+  a segment lists the folders inside it, the ellipsis of a long path lists the folders it hides, a middle click or
+  Ctrl+click opens a segment in a new tab, and a right-click offers Open, Open in New Tab, Open Terminal Here, Copy
+  Path and Get Info.
+- Files dropped on a segment move, copy or link there (it asks which), or get the tag of a tag's shelf. A drag held on
+  a segment opens that folder, so you can go on deeper. Dropping a folder into itself, or files into the folder they
+  are already in, is refused. A segment dragged out carries its folder, to the sidebar, a tab or a terminal.
+- Screen readers read File Explorer's path bar as one link per folder, which they can press.
+- File Explorer's Edit menu has Undo (Ctrl+Z) for the last move, copy, rename, new folder or trash, named after it.
+- File Explorer filters the folder on screen as you type (Ctrl+Alt+F, or More > Filter by Name): only the items whose
+  names contain the text stay, with the number of matches beside it. Enter or the Down arrow goes to the first item,
+  Escape shows everything again, and moving to another folder ends the filter.
+- Renaming several items in File Explorer (F2) opens a Rename sheet with Finder's choices: replace a text (or a
+  regular expression), add a text before or after the name, or give them one name with an index, a counter or each
+  item's date, and also a change of case. Every new name shows before anything changes, a name that cannot be taken
+  is marked with the reason, extensions stay, and one Ctrl+Z takes the whole batch back.
+- File Explorer has a command palette (Ctrl+Shift+P, or More > Command Palette): a few letters find any command of
+  its menus, shown with where it lives and its shortcut, and Enter runs it.
+- File Explorer has an Inspector at the right of the files (Ctrl+Alt+I, or View > Show Inspector): a preview, the
+  real size of folders and selections with the space they take on disk, kept current while it is open, where the
+  item is, its dates, owner and permissions, and for a file its SHA-256, SHA-512, SHA-1 or MD5 with a field that
+  says whether a pasted hash matches. Closed, it does nothing.
+- File Explorer opens a zip, tar or 7z archive as a folder on a double click, as Windows' File Explorer does, with
+  the path bar reading through the archive and Up leaving it for its folder. View > Open Archives as Folders turns it
+  off; documents that are zips inside, like OpenDocument files, still open in their applications.
+- In a Git repository, File Explorer and Dolphin show each file's Git status, and File Explorer's context menu has
+  a Git submenu (Log, Add, Commit, Push and more). Aurora now installs `dolphin-plugins` for it and turns its Git
+  plugin on, leaving any other plugin you turned on as it is.
+- Smart folders: Save in File Explorer's search row keeps the search in the sidebar under a name you choose. It
+  opens like a folder and stays current as files come and go; Dolphin lists it too, under Search For.
+- File Explorer has Finder's columns view (the fourth view button, or View > as Columns): a column for each folder
+  from your home folder down to the one you are in, with the files as the last column. A click in a column goes
+  there, and you can drop files on a column's folders.
+- File Explorer has Finder's gallery view (the fifth view button, or View > as Gallery): the selected picture,
+  video or document large, with its name and kind, above a strip of thumbnails.
+- File Explorer shows copies, moves and deletions while they run: a ring and their percent in the row of file
+  actions, and a panel with each one's progress, speed and time left, where you can pause, resume or stop it.
+  Plasma's notifications still show them too.
+- Compare Folders in File Explorer (View > Compare Folders, or Shift+F3) lists what is only in one of the two folders
+  of Split View and what differs, through every subfolder, and copies the items you pick to the other side, which
+  Ctrl+Z can undo. Compare contents checks files byte for byte.
+- File Explorer searches the whole PC as you type: a helper keeps an index of every local disk's names and answers
+  in a few milliseconds (490,544 names: under 3 ms for a word). It runs only while File Explorer is used and leaves
+  a few minutes after, catches up on what changed meanwhile without reading everything again, follows changes live,
+  and shows each user only what that user may open. A scope row picks This PC or the folder; Everything's syntax
+  works (`ext:`, `size:`, `dm:`, wildcards, `regex:`, `|`, `!`). Folders it does not index, like network shares, are
+  searched as before. `aurora-search-query` asks it from a terminal.
+
 ### Changed
 
+- Copy Path in File Explorer (Ctrl+Alt+C) copies the paths of every selected item, one per line, instead of only the
+  first; with nothing selected it copies the folder's path.
+- When File Explorer's window is too narrow for the five view buttons and a readable path, the buttons fold into one
+  pop-up button with the current view's icon, as Finder's view control does. At the default window size a path of
+  four or five folders now reads whole instead of hiding its middle behind the ellipsis.
 - `aurora` looks for a newer Aurora when its menu opens, unless it looked in the last 5 minutes, so a new release
   shows up right away instead of after the next daily check.
 - `aurora update` sets up Aurora's repository by itself when it needs it: when pacman.conf's `[aurora]` section is
@@ -24,6 +80,8 @@ it changes. A change that needs a fresh install, or that an earlier backup canno
 - The menu no longer offers an older Aurora after you updated through pacman or paru. On 1.3.1 it still said
   "Aurora 1.3.0 is available".
 - `aurora update` checks that pacman really installed the new version, and says how to retry when it did not.
+- In File Explorer, the Move, Copy or Link menu of files dropped on the sidebar opens where they were dropped, not off
+  to the side by the sidebar's offset in the window.
 
 ## [1.3.1] - 2026-11-08
 

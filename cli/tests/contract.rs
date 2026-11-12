@@ -137,7 +137,9 @@ fn the_animation_speeds_are_the_ones_the_installer_applies() {
 /// The files after `install -Dm644 ... ` in root-steps.sh's tune step, and the paths its untune step removes.
 fn root_steps_files() -> (Vec<String>, Vec<String>) {
     let script = read("installer/root-steps.sh");
-    let installed = script
+    // Only the tune step: other steps (the search helper's) install files of their own.
+    let tune = script.split("\n        tune)").nth(1).and_then(|step| step.split(";;").next()).expect("a tune step");
+    let installed = tune
         .lines()
         .filter_map(|line| line.trim().strip_prefix("install -Dm644 "))
         .map(|rest| rest.split_whitespace().last().expect("a target").to_string())

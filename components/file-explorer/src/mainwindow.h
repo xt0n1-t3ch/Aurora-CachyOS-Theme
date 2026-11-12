@@ -16,12 +16,15 @@
 
 class QAction;
 class QMenu;
+class QMenuBar;
 class QStackedWidget;
 class WindowControls;
 
 namespace fe {
 class ActionBar;
 class BrowserTab;
+class CommandPalette;
+class InspectorPanel;
 class GlassButton;
 class PathBar;
 class PillTabBar;
@@ -29,6 +32,7 @@ class QuickLook;
 class SidebarPanel;
 class TabPage;
 class Toolbar;
+enum class CrumbOpen;
 enum class FileAction;
 }
 
@@ -89,6 +93,8 @@ private:
     /// Copies the enablement, check state and shortcuts of the current tab's part actions to their menu entries.
     void syncPartProxies();
     void setSidebarVisible(bool visible);
+    /// Opens or closes the Inspector and remembers it for the next window.
+    void setInspectorVisible(bool visible);
     void showInfo();
     /// The folders Add to Sidebar would add now: the selected folders, or the folder on screen.
     [[nodiscard]] QList<QUrl> foldersToAddNow() const;
@@ -102,6 +108,8 @@ private:
     void runAction(fe::FileAction action);
     /// Splits the tab on screen into two panes, or closes the other pane.
     void toggleSplit();
+    /// Compares the two folders of Split View in a Compare Folders sheet; without a split, opens the second pane first.
+    void compareFolders();
     /// Shows the selected item in Quick Look, or closes Quick Look when it shows it already.
     void quickLook();
     [[nodiscard]] QList<QUrl> selectedUrls() const;
@@ -112,6 +120,15 @@ private:
     void showMoreMenu();
     /// Opens url in the current tab and gives the keyboard to its view.
     void openFolderHere(const QUrl &url);
+    /// Opens a path segment of the address field or the path bar: here or in a new tab; the selected file the path bar
+    /// can end with opens like a double click.
+    void openCrumb(const QUrl &url, fe::CrumbOpen how);
+    /// The menu of a path segment at globalPos: open in a new tab, copy the path, a terminal there, Get Info.
+    void showCrumbMenu(const QUrl &url, const QPoint &globalPos);
+    /// Whether url is the selected file, which the path bar shows as its last segment.
+    [[nodiscard]] bool isSelectedFile(const QUrl &url) const;
+    /// Shows the command palette with every command of the menus, refreshed for the tab on screen.
+    void showCommandPalette();
     /// Opens another window on the home folder.
     void openNewWindow();
     void buildMenuBar();
@@ -131,12 +148,22 @@ private:
     fe::PillTabBar *m_tabBar;
     QStackedWidget *m_stack;
     fe::PathBar *m_pathBar;
+    fe::InspectorPanel *m_inspector;
+    QAction *m_inspectorAction = nullptr;
     fe::QuickLook *m_quickLook = nullptr;
     /// Since the last letter typed in a file view, for Space to tell Quick Look from a name being typed.
     QElapsedTimer m_lastTyped;
     fe::WindowActions m_actions{};
     QAction *m_sidebarAction = nullptr;
     QAction *m_addToSidebar = nullptr;
+    QAction *m_filterAction = nullptr;
+    QAction *m_paletteAction = nullptr;
+    QAction *m_columnsAction = nullptr;
+    QAction *m_galleryAction = nullptr;
+    QAction *m_compareAction = nullptr;
+    /// The menu bar, hidden without a global menu; the command palette lists its menus.
+    QMenuBar *m_menuBar = nullptr;
+    fe::CommandPalette *m_palette = nullptr;
     QMenu *m_sortMenu = nullptr;
     QList<PartProxy> m_partProxies;
     bool m_picking = false;

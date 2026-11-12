@@ -33,9 +33,10 @@ struct WindowActions {
 
 /// Shows the Finder-style context menu at globalPos: for the items, or for the folder itself when
 /// Dolphin passes the folder as the only item (a click on the empty background). Does nothing without items.
-/// window is the parent of the menu and of the dialogs it starts.
+/// window is the parent of the menu and of the dialogs it starts. versionControl holds the actions of Dolphin's version
+/// control plugin for the items (Git's Commit, Push, Log, ...), shown in a submenu of their own when there are any.
 void execContextMenu(BrowserTab *tab, const QPoint &globalPos, const KFileItemList &items,
-                     const WindowActions &actions, QWidget *window);
+                     const WindowActions &actions, QWidget *window, const QList<QAction *> &versionControl = {});
 
 /// Opens the system terminal in a local folder.
 void openTerminalAt(const QString &path, QWidget *window);

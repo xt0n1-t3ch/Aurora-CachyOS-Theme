@@ -28,6 +28,8 @@ bash "$root/installer/root-steps.sh" format-disk > /dev/null 2>&1; code=$?
 check "an unknown step is refused" "$code" 2
 bash "$root/installer/root-steps.sh" link "$odd/plugin.so" > /dev/null 2>&1; code=$?
 check "a step missing an argument is refused" "$code" 2
+bash "$root/installer/root-steps.sh" search "$work" > /dev/null 2>&1; code=$?
+check "the search step without its unit files is refused" "$code" 2
 
 check "install.sh hands root no shell text" "$(grep -c 'as_root sh -c\|as_root bash -c' "$root/install.sh")" 0
 exit "$failures"

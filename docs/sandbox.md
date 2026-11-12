@@ -14,8 +14,9 @@ python3 -I assets/screenshots/make.py                                           
 ```
 
 Pass the scenario's full path: KWin looks a bare name up in `PATH`. A scenario sources `prelude.sh` (starts
-kactivitymanagerd and kded6, defines `shot NAME`, a Spectacle capture into `tests/sandbox/shots/NAME.png`, and
-`waitfor SECONDS`), starts plasmashell or the app under test, drives it, captures, and writes PASS or FAIL lines to
+kactivitymanagerd and kded6, puts File Explorer's view mode, Inspector, archives and search settings back to their
+defaults so no scenario inherits them from the one before, defines `shot NAME`, a Spectacle capture into
+`tests/sandbox/shots/NAME.png`, and `waitfor SECONDS`), starts plasmashell or the app under test, drives it, captures, and writes PASS or FAIL lines to
 `tests/sandbox/logs/<name>.txt` where it checks something. The home, captures and logs are not in git.
 
 ## Its home folder
@@ -27,7 +28,7 @@ theme's current files: `HOME=$PWD/tests/sandbox/home python3 -I installer/instal
 ## Driving it
 
 - `tests/helpers/fakeinput/fakeinput` speaks `org_kde_kwin_fake_input` to the nested KWin only: `move X Y`,
-  `glide X Y STEPS`, `down`, `up`, `keydown CODE`, `keyup CODE` (evdev codes: 125 Win, 28 Return, 1 Esc,
+  `glide X Y STEPS`, `down`, `up` (left button), `rdown`, `rup`, `mdown`, `mup`, `keydown CODE`, `keyup CODE` (evdev codes: 125 Win, 28 Return, 1 Esc,
   103/108/105/106 arrows), `wait MS`.
 - `tests/helpers/region_changed.py BEFORE AFTER X0 Y0 X1 Y1` exits 0 when a region changed (mean difference above 6):
   the usual "did it open" check. Keep the region tight around what appears.

@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Additional terms (GPL-3.0 section 7, author attribution): see NOTICE.md.
 // Unit tests for the widget-free logic in src/core: panels, FileManager1 grouping, history, paths, edges, shortcut
-// labels, status text, sidebar rules and drives.
+// labels, status text, sidebar rules, drives, the command palette's ranking and the Inspector's sizes, hashes and
+// permissions.
 
 #include "core/edges.h"
 #include "core/format.h"
@@ -12,7 +13,11 @@
 #include "core/chooser.h"
 #include "core/drives.h"
 #include "core/reveal.h"
+#include "core/compare.h"
+#include "core/inspector.h"
 #include "core/motion.h"
+#include "core/palette.h"
+#include "core/transfers.h"
 
 #include <algorithm>
 
@@ -22,6 +27,13 @@
 #include <QSet>
 #include <QTest>
 #include <QUrlQuery>
+#include <QDir>
+#include <QFile>
+#include <QFileInfo>
+#include <QLocale>
+#include <QTemporaryDir>
+
+#include <unistd.h>
 
 
 namespace {
@@ -304,6 +316,20 @@ private Q_SLOTS:
 
     void theTrashIsOneCrumbNamedTrash()
     {
+        fe::PathContext archives = HOME_CONTEXT;
+        archives.archiveSchemes = {QStringLiteral("zip"), QStringLiteral("tar")};
+        archives.isFile = [](const QString &path) { return path == u"/home/alex/Trips/Holiday.zip"; };
+        const QList<fe::Crumb> inZip = fe::crumbsFor(QUrl(QStringLiteral("zip:/home/alex/Trips/Holiday.zip/Photos")), archives);
+        QCOMPARE(inZip.size(), 4);
+        QCOMPARE(inZip.at(1).url, folder(QStringLiteral("/home/alex/Trips")));
+        QCOMPARE(inZip.at(2).label, QStringLiteral("Holiday.zip"));
+        QCOMPARE(inZip.at(2).url, QUrl(QStringLiteral("zip:/home/alex/Trips/Holiday.zip")));
+        QCOMPARE(inZip.at(3).url, QUrl(QStringLiteral("zip:/home/alex/Trips/Holiday.zip/Photos")));
+        QCOMPARE(fe::folderTitle(QUrl(QStringLiteral("zip:/home/alex/Trips/Holiday.zip")), archives), QStringLiteral("Holiday.zip"));
+        // No archive on the way, or a scheme that is not an archive's: one segment, as before.
+        QCOMPARE(fe::crumbsFor(QUrl(QStringLiteral("zip:/home/alex/Trips")), archives).size(), 1);
+        QCOMPARE(fe::crumbsFor(QUrl(QStringLiteral("smb://nas/share")), archives).size(), 1);
+
         const QList<fe::Crumb> crumbs = fe::crumbsFor(QUrl(QStringLiteral("trash:/")), HOME_CONTEXT);
 
         QCOMPARE(crumbs.size(), 1);
@@ -911,6 +937,274 @@ private Q_SLOTS:
         fade.setHovered(false);
         QVERIFY2(fade.progress() <= reached && fade.progress() > 0.0, "no jump back to fully hovered or to none");
     }
+
+    void the_version_control_submenu_is_named_after_its_tool()
+    {
+        QCOMPARE(fe::versionControlMenuTitle({QStringLiteral("Git &Commit…"), QStringLiteral("Git Push…"), QStringLiteral("Git Log")}),
+                 QStringLiteral("Git"));
+        QCOMPARE(fe::versionControlMenuTitle({QStringLiteral("Git Push…"), QStringLiteral("SVN Update")}), QStringLiteral("Version Control"));
+        QCOMPARE(fe::versionControlMenuTitle({QStringLiteral("Update")}), QStringLiteral("Version Control"));
+        QCOMPARE(fe::versionControlMenuTitle({}), QStringLiteral("Version Control"));
+    }
+
+    void a_filter_counts_its_matches_in_words()
+    {
+        QCOMPARE(fe::filterMatchText(0), QStringLiteral("No matches"));
+        QCOMPARE(fe::filterMatchText(1), QStringLiteral("1 match"));
+        QCOMPARE(fe::filterMatchText(1204), QStringLiteral("1204 matches"));
+    }
+
+// The Inspector's logic (core/inspector).
+
+    void a_tally_counts_like_du_once_per_hard_link_and_without_following_links()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const auto write = [&dir](const QString &name, qsizetype bytes) {
+            QFile file(dir.filePath(name));
+            QVERIFY(file.open(QIODevice::WriteOnly));
+            file.write(QByteArray(bytes, 'x'));
+        };
+        QVERIFY(QDir(dir.path()).mkpath(QStringLiteral("a/b")));
+        write(QStringLiteral("one.bin"), 1000);
+        write(QStringLiteral("a/two.bin"), 3000);
+        write(QStringLiteral("a/b/three.bin"), 5);
+        // A hard link to two.bin and a link to the whole folder: neither adds bytes again.
+        QVERIFY(::link(QFile::encodeName(dir.filePath(QStringLiteral("a/two.bin"))).constData(),
+                       QFile::encodeName(dir.filePath(QStringLiteral("a/b/two-again.bin"))).constData()) == 0);
+        QVERIFY(QFile::link(dir.path(), dir.filePath(QStringLiteral("loop"))));
+        std::atomic_bool cancel = false;
+        fe::Tally tally;
+        QVERIFY(fe::tallyTree({dir.path()}, cancel, tally));
+        QCOMPARE(tally.folders, 2);
+        // one, two, three and the link; two-again is two.
+        QCOMPARE(tally.files, 4);
+        const qint64 linkSize = QFileInfo(dir.filePath(QStringLiteral("loop"))).symLinkTarget().isEmpty() ? 0 : dir.path().toUtf8().size();
+        QCOMPARE(tally.bytes, 1000 + 3000 + 5 + linkSize);
+        QVERIFY(tally.onDisk >= 0);
+        QCOMPARE(tally.unreadable, 0);
+
+        // Several items at once: a file among them counts as a file.
+        fe::Tally two;
+        QVERIFY(fe::tallyTree({dir.filePath(QStringLiteral("one.bin")), dir.filePath(QStringLiteral("a/b"))}, cancel, two));
+        QCOMPARE(two.files, 3);
+        QCOMPARE(two.folders, 0);
+        QCOMPARE(two.bytes, 1000 + 5 + 3000);
+    }
+
+    void a_tally_names_unreadable_folders_and_stops_when_cancelled()
+    {
+        QTemporaryDir dir;
+        QVERIFY(QDir(dir.path()).mkpath(QStringLiteral("locked/inside")));
+        QFile::setPermissions(dir.filePath(QStringLiteral("locked")), QFileDevice::Permissions());
+        std::atomic_bool cancel = false;
+        fe::Tally tally;
+        QVERIFY(fe::tallyTree({dir.path()}, cancel, tally));
+        if (::geteuid() != 0) {
+            QCOMPARE(tally.unreadable, 1);
+        }
+        QFile::setPermissions(dir.filePath(QStringLiteral("locked")), QFileDevice::ReadOwner | QFileDevice::WriteOwner | QFileDevice::ExeOwner);
+        cancel = true;
+        fe::Tally stopped;
+        QVERIFY(!fe::tallyTree({dir.path()}, cancel, stopped));
+        QCOMPARE(stopped, fe::Tally());
+    }
+
+    void the_size_line_reads_the_tally()
+    {
+        fe::Tally tally{1203, 1, 4096, 8192, 0};
+        QCOMPARE(fe::tallyText(tally, true, bytes), QStringLiteral("[4096 B] ([8192 B] on disk), %1 items").arg(QLocale().toString(1204)));
+        tally = {1, 0, 10, 4096, 2};
+        QCOMPARE(fe::tallyText(tally, false, bytes),
+                 QStringLiteral("Counting: [10 B] ([4096 B] on disk), 1 item; 2 folders could not be read"));
+        tally = {2, 1, 30, -1, 0};
+        QCOMPARE(fe::tallyText(tally, true, bytes), QStringLiteral("[30 B], 3 items"));
+    }
+
+    void a_file_hash_matches_the_known_digest_and_stops_when_cancelled()
+    {
+        QTemporaryDir dir;
+        QFile file(dir.filePath(QStringLiteral("abc.txt")));
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        file.write("abc");
+        file.close();
+        std::atomic_bool cancel = false;
+        // FIPS 180-2's example digests of "abc".
+        QCOMPARE(fe::hashFile(file.fileName(), QCryptographicHash::Sha256, cancel),
+                 std::optional<QString>(QStringLiteral("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad")));
+        QCOMPARE(fe::hashFile(file.fileName(), QCryptographicHash::Md5, cancel),
+                 std::optional<QString>(QStringLiteral("900150983cd24fb0d6963f7d28e17f72")));
+        QVERIFY(!fe::hashFile(dir.filePath(QStringLiteral("missing")), QCryptographicHash::Sha256, cancel));
+        cancel = true;
+        QVERIFY(!fe::hashFile(file.fileName(), QCryptographicHash::Sha256, cancel));
+        QCOMPARE(fe::hashKinds().constFirst().name, QStringLiteral("SHA-256"));
+    }
+
+    void a_pasted_hash_is_compared_without_case_spaces_or_its_file_name()
+    {
+        const QString md5 = QStringLiteral("900150983cd24fb0d6963f7d28e17f72");
+        QCOMPARE(fe::checkHash(md5, QString()), fe::HashCheck::Empty);
+        QCOMPARE(fe::checkHash(md5, QStringLiteral("  900150983CD24FB0D6963F7D28E17F72 ")), fe::HashCheck::Match);
+        QCOMPARE(fe::checkHash(md5, QStringLiteral("900150983cd24fb0d6963f7d28e17f72  abc.txt")), fe::HashCheck::Match);
+        QCOMPARE(fe::checkHash(md5, QStringLiteral("900150983cd24fb0d6963f7d28e17f72 *abc.txt")), fe::HashCheck::Match);
+        QCOMPARE(fe::checkHash(md5, QStringLiteral("900150983cd24fb0d6963f7d28e17f73")), fe::HashCheck::Mismatch);
+        QCOMPARE(fe::checkHash(md5, QStringLiteral("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad")), fe::HashCheck::NotThisKind);
+        QCOMPARE(fe::checkHash(md5, QStringLiteral("not a hash")), fe::HashCheck::NotThisKind);
+    }
+
+    void permissions_read_as_ls_writes_them()
+    {
+        QCOMPARE(fe::permissionsText(0755), QStringLiteral("rwxr-xr-x (755)"));
+        QCOMPARE(fe::permissionsText(0640), QStringLiteral("rw-r----- (640)"));
+        QCOMPARE(fe::permissionsText(01777), QStringLiteral("rwxrwxrwt (1777)"));
+        QCOMPARE(fe::permissionsText(04644), QStringLiteral("rwSr--r-- (4644)"));
+        QCOMPARE(fe::permissionsText(02755 | 0040000), QStringLiteral("rwxr-sr-x (2755)"));
+    }
+
+    // The transfer center's texts (core/transfers).
+
+    void transfers_combine_by_bytes_or_by_kio_s_percents()
+    {
+        fe::TransferState a;
+        a.processedBytes = 50;
+        a.totalBytes = 100;
+        fe::TransferState b;
+        b.processedBytes = 0;
+        b.totalBytes = 300;
+        QCOMPARE(fe::combinedPercent({a, b}), 12);
+        // A transfer without byte totals: the percents KIO reports, averaged.
+        fe::TransferState c;
+        c.percent = 80;
+        QCOMPARE(fe::combinedPercent({a, c}), (0 + 80) / 2);
+        QCOMPARE(fe::combinedPercent({}), 0);
+    }
+
+    void the_time_left_reads_in_plain_words()
+    {
+        QCOMPARE(fe::timeLeftText(5, 1), QStringLiteral("A few seconds left"));
+        QCOMPARE(fe::timeLeftText(42, 1), QStringLiteral("About 40 seconds left"));
+        QCOMPARE(fe::timeLeftText(70, 1), QStringLiteral("About a minute left"));
+        QCOMPARE(fe::timeLeftText(150, 1), QStringLiteral("About 3 minutes left"));
+        QCOMPARE(fe::timeLeftText(2 * 3600, 1), QStringLiteral("About 2 hours left"));
+        QCOMPARE(fe::timeLeftText(100, 0), QString());
+        QCOMPARE(fe::timeLeftText(0, 10), QString());
+    }
+
+    void a_transfer_says_how_far_it_is()
+    {
+        fe::TransferState copy{QStringLiteral("Copying"), {}, {}, 450, 1000, 0, 0, 5, 0, false};
+        QCOMPARE(fe::transferProgressText(copy, bytes), QStringLiteral("[450 B] of [1000 B], [5 B]/s, About 2 minutes left"));
+        fe::TransferState removal{QStringLiteral("Deleting"), {}, {}, 0, 0, 3, 10, 0, 0, false};
+        QCOMPARE(fe::transferProgressText(removal, bytes), QStringLiteral("3 of 10 files"));
+        copy.suspended = true;
+        QCOMPARE(fe::transferProgressText(copy, bytes), QStringLiteral("Paused"));
+        QCOMPARE(fe::transferProgressText(fe::TransferState(), bytes), QStringLiteral("Starting"));
+        copy.suspended = false;
+        QCOMPARE(fe::transfersLabel({copy}), QStringLiteral("Copying, 45%"));
+        QCOMPARE(fe::transfersLabel({copy, removal}), QStringLiteral("2 transfers, 0%"));
+        QCOMPARE(fe::transfersLabel({}), QString());
+    }
+
+    // Comparing folders (core/compare).
+
+    void a_comparison_finds_what_is_only_on_one_side_and_what_differs()
+    {
+        const QHash<QString, fe::ItemFacts> left{
+            {QStringLiteral("docs"), {true, 0, 0}},
+            {QStringLiteral("docs/a.txt"), {false, 10, 1000}},
+            {QStringLiteral("docs/b.txt"), {false, 10, 1000}},
+            {QStringLiteral("only-left.txt"), {false, 1, 1}},
+            {QStringLiteral("kind"), {true, 0, 0}},
+            {QStringLiteral("fat.txt"), {false, 5, 2001}},
+        };
+        const QHash<QString, fe::ItemFacts> right{
+            {QStringLiteral("docs"), {true, 0, 0}},
+            {QStringLiteral("docs/a.txt"), {false, 10, 1000}},
+            {QStringLiteral("docs/b.txt"), {false, 12, 5000}},
+            {QStringLiteral("only-right.txt"), {false, 1, 1}},
+            {QStringLiteral("kind"), {false, 0, 0}},
+            {QStringLiteral("fat.txt"), {false, 5, 2000}},
+        };
+        const QList<fe::CompareRow> rows = fe::compareFolders(left, right);
+        QStringList shown;
+        for (const fe::CompareRow &row : rows) {
+            shown.append(QStringLiteral("%1 %2 %3").arg(row.path).arg(int(row.status)).arg(row.newer));
+        }
+        QCOMPARE(shown, QStringList({QStringLiteral("docs 3 0"), QStringLiteral("docs/a.txt 3 0"), QStringLiteral("docs/b.txt 2 -1"),
+                                     QStringLiteral("fat.txt 3 0"), QStringLiteral("kind 2 0"), QStringLiteral("only-left.txt 0 0"),
+                                     QStringLiteral("only-right.txt 1 0")}));
+        QCOMPARE(fe::compareSummary(rows), QStringLiteral("1 only left, 1 only right, 2 different, 3 the same"));
+    }
+
+    void contents_decide_when_asked_and_the_walk_reads_a_real_tree()
+    {
+        const QHash<QString, fe::ItemFacts> left{{QStringLiteral("x"), {false, 4, 100}}};
+        const QHash<QString, fe::ItemFacts> right{{QStringLiteral("x"), {false, 4, 900}}};
+        QCOMPARE(fe::compareFolders(left, right).constFirst().status, fe::CompareStatus::Different);
+        QCOMPARE(fe::compareFolders(left, right, [](const QString &) { return true; }).constFirst().status, fe::CompareStatus::Same);
+
+        QTemporaryDir dir;
+        QVERIFY(QDir(dir.path()).mkpath(QStringLiteral("sub/deeper")));
+        QFile file(dir.filePath(QStringLiteral("sub/deeper/f.bin")));
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        file.write("12345");
+        file.close();
+        std::atomic_bool cancel = false;
+        const QHash<QString, fe::ItemFacts> walked = fe::walkFolder(dir.path(), cancel);
+        QCOMPARE(walked.size(), 3);
+        QVERIFY(walked.value(QStringLiteral("sub")).folder);
+        QCOMPARE(walked.value(QStringLiteral("sub/deeper/f.bin")).size, 5);
+        cancel = true;
+        QVERIFY(fe::walkFolder(dir.path(), cancel).isEmpty());
+    }
+
+    void copy_path_writes_every_item_one_per_line()
+    {
+        QCOMPARE(fe::copiedPaths({folder(QStringLiteral("/home/alex/a b.txt"))}), QStringLiteral("/home/alex/a b.txt"));
+        QCOMPARE(fe::copiedPaths({folder(QStringLiteral("/home/alex/Ñandú")), folder(QStringLiteral("/home/alex/Games")),
+                                  QUrl(QStringLiteral("smb://nas/share/doc%20one.pdf"))}),
+                 QStringLiteral("/home/alex/Ñandú\n/home/alex/Games\nsmb://nas/share/doc one.pdf"));
+        QCOMPARE(fe::copiedPaths({}), QString());
+    }
+
+    void a_palette_query_finds_letters_in_order_without_case()
+    {
+        QVERIFY(fe::fuzzyScore(u"nf", u"New Folder").has_value());
+        QVERIFY(fe::fuzzyScore(u"NEWF", u"New Folder").has_value());
+        QVERIFY(!fe::fuzzyScore(u"fn", u"New Folder").has_value());
+        QVERIFY(!fe::fuzzyScore(u"x", u"New Folder").has_value());
+        QCOMPARE(fe::fuzzyScore(u"", u"New Folder"), std::optional<int>(0));
+    }
+
+    void a_palette_prefers_word_starts_and_runs_of_letters()
+    {
+        // Word starts beat letters inside words; the start of the text beats both; a run beats scattered letters.
+        QVERIFY(*fe::fuzzyScore(u"nf", u"New Folder") > *fe::fuzzyScore(u"nf", u"Unfold"));
+        QVERIFY(*fe::fuzzyScore(u"re", u"Reload") > *fe::fuzzyScore(u"re", u"Show Previous Tab"));
+        QVERIFY(*fe::fuzzyScore(u"split", u"Split View") > *fe::fuzzyScore(u"split", u"xsxpxlxixt"));
+        // A capital inside a word starts a word too.
+        QVERIFY(*fe::fuzzyScore(u"ql", u"QuickLook") > *fe::fuzzyScore(u"ql", u"Quell"));
+    }
+
+    void the_palette_ranks_best_first_and_keeps_ties_in_order()
+    {
+        const QList<fe::PaletteEntry> entries{
+            {QStringLiteral("New Tab"), QStringLiteral("File")},
+            {QStringLiteral("New Folder"), QStringLiteral("File")},
+            {QStringLiteral("as List"), QStringLiteral("View")},
+            {QStringLiteral("Show Hidden Files"), QStringLiteral("View")},
+            {QStringLiteral("Close Window"), QStringLiteral("File")},
+        };
+        // "Show Hidden Files" holds n and f too, inside words, so it comes after.
+        QCOMPARE(fe::rankPalette(QStringLiteral("nf"), entries), QList<qsizetype>({1, 3}));
+        QCOMPARE(fe::rankPalette(QStringLiteral("new"), entries), QList<qsizetype>({0, 1}));
+        // The place helps find a command whose text alone does not hold the letters.
+        QCOMPARE(fe::rankPalette(QStringLiteral("view list"), entries).value(0), 2);
+        QCOMPARE(fe::rankPalette(QStringLiteral("hidden"), entries), QList<qsizetype>({3}));
+        QCOMPARE(fe::rankPalette(QString(), entries).size(), entries.size());
+        QVERIFY(fe::rankPalette(QStringLiteral("zzz"), entries).isEmpty());
+    }
+
 };
 
 QTEST_GUILESS_MAIN(CoreTest)

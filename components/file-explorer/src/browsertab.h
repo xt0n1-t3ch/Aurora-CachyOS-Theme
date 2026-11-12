@@ -13,11 +13,20 @@
 #include <KParts/NavigationExtension>
 
 #include <QHash>
+
+#include <optional>
 #include <QPointer>
 #include <QWidget>
 
 class KNewFileMenu;
 class QTimer;
+
+namespace fe {
+class ColumnsStrip;
+class GalleryStage;
+class FilterBar;
+class SearchScopeBar;
+}
 
 namespace KParts {
 class OpenUrlArguments;
@@ -62,7 +71,8 @@ public:
     [[nodiscard]] bool canGoForward() const;
     [[nodiscard]] bool canGoUp() const;
 
-    /// Searches file names below the folder after a short pause in typing; an empty term ends the search.
+    /// Searches file names: the whole PC or the folder, from aurora-search's index as each key is typed, or, without
+    /// the index, below the folder after a short pause in typing. An empty term ends the search.
     void search(const QString &term);
 
     void setViewMode(ViewMode mode);
@@ -71,6 +81,10 @@ public:
     [[nodiscard]] QAction *partAction(const QString &name) const;
     /// Triggers the part's action of this name when it exists and is enabled.
     void triggerPartAction(const QString &name) const;
+    /// The actions of Dolphin's version control plugin among a context menu's action groups: DolphinPart puts them in
+    /// "editactions" with its own Move to Trash, Delete and Rename (DolphinPart::slotOpenContextMenu, dolphinpart.cpp,
+    /// v26.08.3, line 386), which the menu already offers and are left out here.
+    [[nodiscard]] QList<QAction *> versionControlActions(const KParts::NavigationExtension::ActionGroupMap &groups) const;
     /// The part's New menu, or null without a part.
     [[nodiscard]] KNewFileMenu *newFileMenu() const;
     [[nodiscard]] KFileItemList selectedItems() const;
@@ -89,6 +103,28 @@ public:
     void paste();
     void focusView();
 
+    /// Whether a double-clicked archive (zip, tar, 7z) opens as a folder here, as in Windows' File Explorer, instead of
+    /// in its application; kept in file-explorerrc, on by default.
+    [[nodiscard]] static bool opensArchivesAsFolders();
+    static void setOpensArchivesAsFolders(bool asFolders);
+    /// The folder view of the archive at url (`tar:/path/a.tar.gz`), or an empty URL when url is not an archive the
+    /// archive worker opens or archives open in their application. mimeType may be empty; it is then read.
+    [[nodiscard]] static QUrl archiveFolderUrl(const QUrl &url, const QString &mimeType);
+    /// Puts the paths of every selected item on the clipboard, one per line; with nothing selected, the folder's path.
+    /// Dolphin's Copy Location action (Ctrl+Alt+C) comes here.
+    void copyPaths();
+    /// Renames the selection: one item in place, as Dolphin does; several in the Rename sheet (BatchRenameSheet), whose
+    /// one job Undo takes back whole. Dolphin's Rename action (F2) comes here.
+    void renameSelection();
+    /// Opens the filter row: the view keeps only the items whose names contain what is typed in it. The filter
+    /// belongs to the listing on screen and ends when the tab shows another folder or search.
+    void openFilter();
+    /// The filter's text; empty when no filter is on.
+    [[nodiscard]] QString filterText() const;
+    [[nodiscard]] FilterBar *filterBar() const;
+    [[nodiscard]] ColumnsStrip *columnsStrip() const;
+    [[nodiscard]] GalleryStage *galleryStage() const;
+
 Q_SIGNALS:
     /// The location on screen changed.
     void locationChanged();
@@ -100,6 +136,10 @@ Q_SIGNALS:
     void viewModeChanged();
     /// A folder should open in a new tab.
     void newTabRequested(const QUrl &url);
+    /// Save was pressed on a search of the index: the window asks for a name and puts the search in the sidebar as a
+    /// smart folder. term is what was typed, query what the index is asked (with hidden: when hidden files show),
+    /// scope the folder searched or an empty URL for the whole PC.
+    void saveSearchRequested(const QString &term, const QString &query, const QUrl &scope);
     /// A file was double-clicked while picking.
     void filePicked(const QUrl &url);
     /// Dolphin asks for a context menu at globalPos.
@@ -111,6 +151,11 @@ private:
     /// Shows url in the part without touching the history.
     void showUrl(const QUrl &url);
     void endSearch();
+    /// Shows the columns that lead to the folder on screen, or none outside the columns view or while searching; shows
+    /// the gallery's stage in the gallery view, with the selected item on it.
+    void syncOwnView();
+    /// Whether the listing on screen comes from aurora-search's index, which announces its changes.
+    [[nodiscard]] bool listsFromIndex() const;
     void runSearch();
     /// Opens a folder in this tab, reports a file as picked, or starts the file in its application.
     void handleOpenRequest(const QUrl &url, const KParts::OpenUrlArguments &arguments);
@@ -128,6 +173,18 @@ private:
     bool m_picking = false;
     QString m_searchTerm;
     QTimer *m_searchTimer;
+    SearchScopeBar *m_scopeBar;
+    FilterBar *m_filterBar;
+    ColumnsStrip *m_columns;
+    GalleryStage *m_gallery;
+    /// The columns or gallery view, which the window draws around Dolphin's view; nothing for Dolphin's own modes.
+    std::optional<ViewMode> m_ownView;
+    /// The scope chosen in the scope row: the whole PC, or the folder the search started in.
+    bool m_everywhere = true;
+    /// Whether the search on screen lists from the index, which announces its changes.
+    bool m_indexed = false;
+    /// Gathers the index's change notices into one listing again.
+    QTimer *m_relistTimer;
     QHash<QByteArray, bool> m_enabledActions;
     FolderCounts m_counts;
     QString m_message;

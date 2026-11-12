@@ -27,6 +27,7 @@ linux-cachyos 7.3.1, an NVIDIA RTX 4070 Ti SUPER and a Ryzen 7 5800X.
 | --- | --- |
 | [architecture.md](architecture.md) | How each part hooks into Plasma, KWin, systemd and D-Bus; every file the install adds, inside and outside the home folder |
 | [components.md](components.md) | Each part: what it does, its source, how it is built, tested, installed and kept working across updates |
+| [search.md](search.md) | File Explorer's whole-disk search: the helper, how it stays current without running at rest, who sees what |
 | [build.md](build.md) | What `installer/build.sh` builds and how, and how to build one part by hand |
 
 ## Maintain it

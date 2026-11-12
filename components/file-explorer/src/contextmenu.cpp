@@ -6,6 +6,8 @@
 
 #include "contextmenu.h"
 
+#include "core/format.h"
+
 #include "browsertab.h"
 #include "core/places.h"
 #include "tagging.h"
@@ -121,9 +123,11 @@ void fillItemMenu(QMenu &menu, BrowserTab *tab, const KFileItemList &items, KFil
 
     menu.addAction(actions.cut);
     menu.addAction(actions.copy);
-    // Dolphin's Copy Location under the name the menu bar and Finder use.
+    // Dolphin's Copy Location under the name the menu bar and Finder use; it copies every selected path
+    // (BrowserTab::copyPaths).
     if (QAction *copyPath = tab->partAction(QStringLiteral("copy_location"))) {
-        QAction *entry = menu.addAction(copyPath->icon(), QStringLiteral("Copy Path"), copyPath, &QAction::trigger);
+        const QString text = single ? QStringLiteral("Copy Path") : QStringLiteral("Copy %1 Paths").arg(items.size());
+        QAction *entry = menu.addAction(copyPath->icon(), text, copyPath, &QAction::trigger);
         entry->setShortcuts(copyPath->shortcuts());
         entry->setShortcutContext(Qt::WidgetShortcut);
     }
@@ -206,7 +210,7 @@ void fillBackgroundMenu(QMenu &menu, BrowserTab *tab, KFileItemActions &fileActi
 } // namespace
 
 void execContextMenu(BrowserTab *tab, const QPoint &globalPos, const KFileItemList &items,
-                     const WindowActions &actions, QWidget *window)
+                     const WindowActions &actions, QWidget *window, const QList<QAction *> &versionControl)
 {
     if (items.isEmpty()) {
         return;
@@ -221,6 +225,15 @@ void execContextMenu(BrowserTab *tab, const QPoint &globalPos, const KFileItemLi
         fillBackgroundMenu(menu, tab, fileActions, actions, window);
     } else {
         fillItemMenu(menu, tab, items, fileActions, actions, window);
+    }
+    if (!versionControl.isEmpty()) {
+        QStringList texts;
+        for (const QAction *action : versionControl) {
+            texts.append(action->text());
+        }
+        menu.addSeparator();
+        QMenu *submenu = menu.addMenu(icon("vcs-normal"), versionControlMenuTitle(texts));
+        submenu->addActions(versionControl);
     }
     menu.exec(globalPos);
 }

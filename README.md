@@ -40,7 +40,7 @@ Nothing in KWin is patched and no file that belongs to a package is edited. Some
 
 | Part | What it does | Source |
 | --- | --- | --- |
-| File Explorer | A Finder-style file manager built on Dolphin. Type a path in the toolbar (Ctrl+L) with suggestions and Tab, press Space for Quick Look, F3 for Split View, and tag files with Finder's colors. The sidebar lists your drives with their free space, unfolds your folders and lists each tag's files. Win+E opens it, every app's Open and Save dialogs use it, and "Show in folder" opens it. | [`components/file-explorer`](components/file-explorer) |
+| File Explorer | A Finder-style file manager built on Dolphin. Click any folder of the path, drop files on it or drag it out; type a path (Ctrl+L) with suggestions and Tab; search the whole PC as you type from an index that runs only while File Explorer is used; press Space for Quick Look, F3 for Split View, and tag files with Finder's colors. The sidebar lists your drives with their free space, unfolds your folders and lists each tag's files. Win+E opens it, every app's Open and Save dialogs use it, and "Show in folder" opens it. | [`components/file-explorer`](components/file-explorer) |
 | Window buttons | A glass capsule with minimize, maximize and close, in that order. Qt, GTK and libadwaita apps all get the same buttons at the same size. | [`components/window-buttons`](components/window-buttons) |
 | Menu bar | The system menu under CachyOS's logo (or Arch Linux's, Apple's or Kali Linux's), the name of the active app, the tray, Quick Menu, Control Center and the clock, spaced the way macOS spaces them. There is no global menu. | [`components/kali-menu`](components/kali-menu), [`components/clock`](components/clock), [`themes/panels`](themes/panels) |
 | System tray | Plasma's tray, with drag and drop like Windows 11: drag an icon to move it, or drop it on the arrow to hide it. | [`components/system-tray`](components/system-tray) |
@@ -203,7 +203,7 @@ Four system settings, each measured on a Ryzen 7 5800X with 32 GB of RAM before 
 | Build tools | `base-devel` `git` `cmake` `ninja` `extra-cmake-modules` `vulkan-headers` |
 | Qt 6 | `qt6-base` `qt6-declarative` `qt6-shadertools` `qt6-svg` `qt6-tools` `qt6-5compat` |
 | KDE Frameworks 6 | `kconfig` `kcoreaddons` `kcrash` `kdbusaddons` `kglobalaccel` `ki18n` `kiconthemes` `kio` `kitemmodels` `kjobwidgets` `knotifications` `kparts` `kpackage` `krunner` `kservice` `kstatusnotifieritem` `kwindowsystem` `kxmlgui` `kcmutils` `solid` `kirigami` `kirigami-addons` `kdeclarative` `ksvg` `kquickcharts` |
-| Plasma 6 | `plasma-workspace` `plasma-activities` `libplasma` `kwin` `kdecoration` `layer-shell-qt` `wayland` `dolphin` `kinfocenter` `xdg-desktop-portal` `xdg-desktop-portal-kde` `plasma5support` `milou` `plasma-nm` `plasma-pa` `bluez-qt` `powerdevil` |
+| Plasma 6 | `plasma-workspace` `plasma-activities` `libplasma` `kwin` `kdecoration` `layer-shell-qt` `wayland` `dolphin` `dolphin-plugins` `kinfocenter` `xdg-desktop-portal` `xdg-desktop-portal-kde` `plasma5support` `milou` `plasma-nm` `plasma-pa` `bluez-qt` `powerdevil` |
 | Look and session | `kvantum` `dconf` `xsettingsd` `fontconfig` `inter-font` `ttf-jetbrains-mono-nerd` `systemd` `dbus` `python` `python-pillow` |
 | Performance tuning | `scx-scheds` `scx-tools`, only with `--performance` |
 

@@ -32,6 +32,7 @@ add_compile_options(-Wall -Wextra -Wpedantic -Wshadow -Werror)
 add_library(fe_core STATIC
     src/core/history.cpp
     src/core/paths.cpp
+    src/core/crumbs.cpp
     src/core/edges.cpp
     src/core/format.cpp
     src/core/places.cpp
@@ -42,7 +43,12 @@ add_library(fe_core STATIC
     src/core/address.cpp
     src/core/tags.cpp
     src/core/tree.cpp
-    src/core/quicklook.cpp)
+    src/core/quicklook.cpp
+    src/core/batchrename.cpp
+    src/core/palette.cpp
+    src/core/inspector.cpp
+    src/core/transfers.cpp
+    src/core/compare.cpp)
 target_include_directories(fe_core PUBLIC src)
 target_link_libraries(fe_core PUBLIC Qt6::Core Qt6::Gui)
 
@@ -58,6 +64,19 @@ add_library(fe_app OBJECT
     src/toolbar.cpp
     src/tabbar.cpp
     src/browsertab.cpp
+    src/crumbstrip.cpp
+    src/crumbaccessible.cpp
+    src/searchservice.cpp
+    src/searchscopebar.cpp
+    src/filterbar.cpp
+    src/batchrenamesheet.cpp
+    src/commandpalette.cpp
+    src/glassfield.cpp
+    src/inspectorpanel.cpp
+    src/columnsstrip.cpp
+    src/gallerystage.cpp
+    src/transfers.cpp
+    src/comparesheet.cpp
     src/bottombar.cpp
     src/contextmenu.cpp
     src/mainwindow.cpp
@@ -96,6 +115,11 @@ set_target_properties(aurora-tags PROPERTIES PREFIX "" LIBRARY_OUTPUT_DIRECTORY 
 # A module links fe_core's code into a shared object.
 set_target_properties(fe_core PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
+# The KIO worker of aurora-search: URLs, which lists the search helper's matches into Dolphin's view.
+add_library(aurora-search-worker MODULE src/plugins/searchworker.cpp)
+target_link_libraries(aurora-search-worker PRIVATE KF6::KIOCore)
+set_target_properties(aurora-search-worker PROPERTIES PREFIX "" OUTPUT_NAME "aurora-search" LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/kf6/kio")
+
 add_executable(file-explorer src/main.cpp)
 target_link_libraries(file-explorer PRIVATE fe_app)
 
@@ -110,5 +134,10 @@ add_test(NAME fe_tests COMMAND fe_tests)
 add_executable(fe_finder_tests tests/test_finder.cpp)
 target_link_libraries(fe_finder_tests PRIVATE fe_core Qt6::Test)
 add_test(NAME fe_finder_tests COMMAND fe_finder_tests)
+# The widgets' behavior on the offscreen platform: clicks, drags and what assistive technology reads.
+add_executable(fe_widget_tests tests/test_widgets.cpp)
+target_link_libraries(fe_widget_tests PRIVATE fe_app Qt6::Test)
+add_test(NAME fe_widget_tests COMMAND fe_widget_tests)
+set_tests_properties(fe_widget_tests PROPERTIES ENVIRONMENT QT_QPA_PLATFORM=offscreen)
 
 install(TARGETS file-explorer)

@@ -1,0 +1,32 @@
+# SPDX-FileCopyrightText: 2026 xt0n1 (https://github.com/xt0n1-t3ch)
+# SPDX-License-Identifier: GPL-3.0-only
+# Additional terms (GPL-3.0 section 7, author attribution): see NOTICE.md.
+[package]
+name = "aurora-search"
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.90"
+description = "File Explorer's whole-disk name search: an index kept by the kernel's change records, started only when asked"
+license = "GPL-3.0-or-later"
+publish = false
+
+[dependencies]
+crc32fast = "1.5"
+libc = "0.2"
+memchr = "2.8"
+regex = { version = "1.12", default-features = false, features = ["std", "perf", "unicode-case", "unicode-perl"] }
+rustc-hash = "2"
+
+[lints.rust]
+# The kernel interfaces (ioctl, fanotify, statx) are reached through `libc`; each unsafe block says why it is sound.
+unsafe_code = "deny"
+unsafe_op_in_unsafe_fn = "deny"
+
+[lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+module_name_repetitions = "allow"
+
+[profile.release]
+lto = "thin"
+codegen-units = 4
+strip = true

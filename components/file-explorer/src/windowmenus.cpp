@@ -146,6 +146,8 @@ void MainWindow::showMoreMenu()
     addPart("show_hidden_files");
     addPart("show_preview");
     addPart("sort");
+    menu.addAction(m_filterAction);
+    menu.addAction(m_paletteAction);
     menu.addSeparator();
     menu.addAction(QIcon::fromTheme(QStringLiteral("document-properties")), QStringLiteral("Get Info\tCtrl+I"), this, &MainWindow::showInfo);
     menu.addAction(m_addToSidebar);
@@ -155,6 +157,7 @@ void MainWindow::showMoreMenu()
     menu.addAction(QIcon::fromTheme(QStringLiteral("tab-new")), QStringLiteral("New Tab\tCtrl+T"), this,
                    [this] { openTab(QUrl::fromLocalFile(QDir::homePath())); });
     menu.addAction(m_sidebarAction);
+    menu.addAction(m_inspectorAction);
     syncEditActions();
     execBelow(menu, m_toolbar->moreButton());
 }

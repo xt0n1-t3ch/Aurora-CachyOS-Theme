@@ -6,9 +6,17 @@
 
 #include "browsertab.h"
 
+#include "batchrenamesheet.h"
+#include "columnsstrip.h"
+#include "gallerystage.h"
 #include "core/paths.h"
+#include "filterbar.h"
+#include "searchscopebar.h"
+#include "searchservice.h"
 
 #include <KActionCollection>
+#include <KConfigGroup>
+#include <KSharedConfig>
 #include <KFileItemListProperties>
 #include <KFormat>
 #include <KIO/FileSystemFreeSpaceJob>
@@ -18,13 +26,21 @@
 #include <KIO/StatJob>
 #include <KNewFileMenu>
 #include <KParts/FileInfoExtension>
+#include <KParts/ListingFilterExtension>
 #include <KParts/ListingNotificationExtension>
 #include <KParts/OpenUrlArguments>
 #include <KParts/PartLoader>
 #include <KParts/ReadOnlyPart>
 #include <KPluginMetaData>
+#include <KProtocolInfo>
+#include <KProtocolManager>
 
+#include <QApplication>
+#include <QClipboard>
+#include <QDir>
+#include <QHBoxLayout>
 #include <QFileInfo>
+#include <QMimeDatabase>
 #include <QLabel>
 #include <QTimer>
 #include <QVBoxLayout>
@@ -33,7 +49,11 @@ namespace fe {
 
 namespace {
 
+/// The pause after typing before a search below the folder starts: that search reads the disk, so it waits for a
+/// word. A search of the index answers within a frame and starts on every key.
 constexpr int SEARCH_DELAY_MS = 300;
+/// How long change notices of the index gather before a search on screen lists again, in milliseconds.
+constexpr int RELIST_MS = 250;
 
 // The name of the part's action that selects a view mode.
 QString viewModeAction(ViewMode mode)
@@ -43,6 +63,12 @@ QString viewModeAction(ViewMode mode)
         return QStringLiteral("details");
     case ViewMode::Compact:
         return QStringLiteral("compact");
+    case ViewMode::Columns:
+        // The last column is Dolphin's list.
+        return QStringLiteral("details");
+    case ViewMode::Gallery:
+        // Under the stage, Dolphin's icons are the strip of thumbnails.
+        return QStringLiteral("icons");
     case ViewMode::Icons:
         break;
     }
@@ -54,10 +80,53 @@ QString viewModeAction(ViewMode mode)
 BrowserTab::BrowserTab(const QUrl &url, QWidget *parent)
     : QWidget(parent)
     , m_searchTimer(new QTimer(this))
+    , m_scopeBar(new SearchScopeBar(this))
+    , m_filterBar(new FilterBar(this))
+    , m_columns(new ColumnsStrip(QDir::homePath(), this))
+    , m_gallery(new GalleryStage(this))
+    , m_relistTimer(new QTimer(this))
 {
     auto *layout = new QVBoxLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(0);
+    layout->addWidget(m_scopeBar);
+    m_scopeBar->hide();
+    layout->addWidget(m_filterBar);
+    // Dolphin's part filters by a case-insensitive part of the name (DolphinPartListingFilterExtension::setFilter and
+    // KFileItemModelFilter::matchesPattern, dolphin v26.08.3), the same rule as Dolphin's own filter bar.
+    connect(m_filterBar, &FilterBar::filterChanged, this, [this](const QString &text) {
+        if (auto *filter = m_part ? KParts::ListingFilterExtension::childObject(m_part) : nullptr) {
+            filter->setFilter(KParts::ListingFilterExtension::SubString, text);
+        }
+        refreshCounts();
+    });
+    connect(m_filterBar, &FilterBar::focusViewRequested, this, &BrowserTab::focusView);
+    m_everywhere = KSharedConfig::openConfig(QStringLiteral("file-explorerrc"))->group(QStringLiteral("Search")).readEntry("Everywhere", true);
+    connect(m_scopeBar, &SearchScopeBar::scopeChosen, this, [this](bool everywhere) {
+        m_everywhere = everywhere;
+        KConfigGroup group = KSharedConfig::openConfig(QStringLiteral("file-explorerrc"))->group(QStringLiteral("Search"));
+        group.writeEntry("Everywhere", everywhere);
+        group.sync();
+        runSearch();
+    });
+    m_relistTimer->setSingleShot(true);
+    m_relistTimer->setInterval(RELIST_MS);
+    connect(m_relistTimer, &QTimer::timeout, this, [this] {
+        if (listsFromIndex()) {
+            reload();
+        }
+    });
+    connect(&SearchService::instance(), &SearchService::indexChanged, this, [this] {
+        if (listsFromIndex()) {
+            m_relistTimer->start();
+        }
+    });
+    connect(m_scopeBar, &SearchScopeBar::saveRequested, this, [this] {
+        // The search as typed, with the scope chosen; the name is asked by the window.
+        const QAction *hidden = partAction(QStringLiteral("show_hidden_files"));
+        const QString text = hidden && hidden->isChecked() ? m_searchTerm + QStringLiteral(" hidden:") : m_searchTerm;
+        Q_EMIT saveSearchRequested(m_searchTerm, text, m_everywhere ? QUrl() : m_searchOrigin);
+    });
 
     m_searchTimer->setSingleShot(true);
     m_searchTimer->setInterval(SEARCH_DELAY_MS);
@@ -73,8 +142,35 @@ BrowserTab::BrowserTab(const QUrl &url, QWidget *parent)
     }
     m_part = result.plugin;
     m_extension = KParts::NavigationExtension::childObject(m_part);
-    layout->addWidget(m_part->widget());
+    // The columns view's columns, left of Dolphin's view, which is their last column.
+    auto *row = new QHBoxLayout;
+    row->setContentsMargins(0, 0, 0, 0);
+    row->setSpacing(0);
+    row->addWidget(m_columns);
+    // The gallery's stage over Dolphin's view, which keeps a quarter of the height as the strip of thumbnails.
+    auto *stack = new QVBoxLayout;
+    stack->setContentsMargins(0, 0, 0, 0);
+    stack->setSpacing(0);
+    stack->addWidget(m_gallery, 3);
+    stack->addWidget(m_part->widget(), 1);
+    row->addLayout(stack, 1);
+    layout->addLayout(row, 1);
+    connect(m_columns, &ColumnsStrip::folderChosen, this, &BrowserTab::openFolder);
+    connect(m_columns, &ColumnsStrip::fileChosen, this, [this](const QUrl &file) {
+        openFolder(file.adjusted(QUrl::RemoveFilename | QUrl::StripTrailingSlash));
+        selectItems({file});
+    });
     connectPart();
+    if (QAction *hidden = partAction(QStringLiteral("show_hidden_files"))) {
+        m_columns->setShowHiddenFiles(hidden->isChecked());
+        connect(hidden, &QAction::toggled, m_columns, &ColumnsStrip::setShowHiddenFiles);
+    }
+    const QString own = KSharedConfig::openConfig(QStringLiteral("file-explorerrc"))->group(QStringLiteral("View")).readEntry("Mode", QString());
+    if (own == u"columns") {
+        m_ownView = ViewMode::Columns;
+    } else if (own == u"gallery") {
+        m_ownView = ViewMode::Gallery;
+    }
     makeViewTransparent();
     openFolder(url);
 }
@@ -92,6 +188,18 @@ void BrowserTab::connectPart()
     // The toolbar search field owns Ctrl+F; Dolphin's "Find File…" would start KFind instead.
     if (QAction *find = actions->action(QStringLiteral("edit_find"))) {
         find->setShortcuts({});
+    }
+    // Several items get the Rename sheet with Finder's rules; Dolphin's own dialog for them only numbers them
+    // (DolphinView::renameSelectedItems, dolphinview.cpp, v26.08.3, line 878). One item is still renamed in place.
+    if (QAction *rename = actions->action(QStringLiteral("renamefile"))) {
+        disconnect(rename, &QAction::triggered, nullptr, nullptr);
+        connect(rename, &QAction::triggered, this, &BrowserTab::renameSelection);
+    }
+    // Dolphin's Copy Location (Ctrl+Alt+C) copies the first selected item only (DolphinView::copyPathToClipboard,
+    // dolphinview.cpp, v26.08.3, line 2763); here it copies them all, and the folder when nothing is selected.
+    if (QAction *copyPath = actions->action(QStringLiteral("copy_location"))) {
+        disconnect(copyPath, &QAction::triggered, nullptr, nullptr);
+        connect(copyPath, &QAction::triggered, this, &BrowserTab::copyPaths);
     }
     // Finder's name for it; the part says "Duplicate Here".
     if (QAction *duplicate = actions->action(QStringLiteral("duplicate"))) {
@@ -127,10 +235,21 @@ void BrowserTab::connectPart()
     // Dolphin remembers a view mode per folder, so the mode can change on every navigation.
     for (const ViewMode mode : {ViewMode::Icons, ViewMode::List, ViewMode::Compact}) {
         if (QAction *action = partAction(viewModeAction(mode))) {
-            connect(action, &QAction::toggled, this, [this](bool checked) {
-                if (checked) {
-                    Q_EMIT viewModeChanged();
+            connect(action, &QAction::toggled, this, [this, mode](bool checked) {
+                if (!checked) {
+                    return;
                 }
+                // Dolphin remembers a mode per folder; under the columns or the gallery its view keeps the mode they
+                // need (a list, or icons).
+                if (m_ownView && viewModeAction(*m_ownView) != viewModeAction(mode)) {
+                    QTimer::singleShot(0, this, [this] {
+                        if (m_ownView) {
+                            triggerPartAction(viewModeAction(*m_ownView));
+                        }
+                    });
+                    return;
+                }
+                Q_EMIT viewModeChanged();
             });
         }
     }
@@ -181,9 +300,17 @@ void BrowserTab::showUrl(const QUrl &url)
     }
     m_message.clear();
     m_counts = {};
+    // The view keeps its name filter across folders (DolphinView::setNameFilter); a filter typed for one listing would
+    // hide items of the next, so it ends here.
+    m_filterBar->dismiss();
+    if (url.scheme() == u"aurora-search") {
+        // A smart folder: the helper's change notices keep it current, as they keep a search current.
+        SearchService::instance().warm();
+    }
     m_part->openUrl(url);
     refreshFreeSpace();
     refreshCounts();
+    syncOwnView();
     Q_EMIT locationChanged();
 }
 
@@ -194,9 +321,18 @@ void BrowserTab::openFolder(const QUrl &url)
     showUrl(url);
 }
 
+bool BrowserTab::listsFromIndex() const
+{
+    // A search typed here, or a smart folder opened from the sidebar, which is a search of the index too.
+    return (isSearching() && m_indexed) || url().scheme() == u"aurora-search";
+}
+
 void BrowserTab::endSearch()
 {
     m_searchTimer->stop();
+    m_relistTimer->stop();
+    m_indexed = false;
+    m_scopeBar->hide();
     m_searchOrigin.clear();
     m_searchTerm.clear();
 }
@@ -222,8 +358,19 @@ void BrowserTab::goForward()
 
 void BrowserTab::goUp()
 {
+    // Up from the top of an archive opens the folder it is in, with the archive selected.
+    const QUrl folder = folderUrl();
+    if (!folder.isLocalFile() && !KProtocolInfo::archiveMimetypes(folder.scheme()).isEmpty()) {
+        const QString path = folder.adjusted(QUrl::StripTrailingSlash).path();
+        if (QFileInfo(path).isFile()) {
+            const QUrl archive = QUrl::fromLocalFile(path);
+            openFolder(archive.adjusted(QUrl::RemoveFilename));
+            selectItems({archive});
+            return;
+        }
+    }
     if (canGoUp()) {
-        openFolder(KIO::upUrl(folderUrl()));
+        openFolder(KIO::upUrl(folder));
     }
 }
 
@@ -263,7 +410,8 @@ void BrowserTab::search(const QString &term)
 {
     m_searchTerm = term.trimmed();
     if (!m_searchTerm.isEmpty()) {
-        m_searchTimer->start();
+        SearchService::instance().warm();
+        m_searchTimer->start(m_indexed ? 0 : SEARCH_DELAY_MS);
         return;
     }
     if (isSearching()) {
@@ -284,16 +432,60 @@ void BrowserTab::runSearch()
         m_searchOrigin = url();
     }
     const QString title = QStringLiteral("Searching “%1”").arg(m_searchTerm);
-    showUrl(filenameSearchUrl(m_searchTerm, m_searchOrigin, title));
+    // The index answers for the whole PC or for a folder it holds; anywhere else (a network share, a phone) the
+    // folder is searched in place, as before the index existed.
+    SearchService &service = SearchService::instance();
+    const bool indexAnswers = service.covers(QUrl());
+    const bool folderIndexed = indexAnswers && service.covers(m_searchOrigin);
+    m_indexed = indexAnswers && (m_everywhere || folderIndexed);
+    if (m_indexed) {
+        const QString folderName = m_searchOrigin.isLocalFile() ? QFileInfo(m_searchOrigin.toLocalFile()).fileName() : m_searchOrigin.fileName();
+        m_scopeBar->setScope(folderName.isEmpty() ? QStringLiteral("/") : folderName, m_everywhere);
+        m_scopeBar->setFolderShown(folderIndexed);
+        m_scopeBar->show();
+        // Hidden names are matched only while the view shows hidden files, as in the folder itself.
+        const QAction *hidden = partAction(QStringLiteral("show_hidden_files"));
+        const QString text = hidden && hidden->isChecked() ? m_searchTerm + QStringLiteral(" hidden:") : m_searchTerm;
+        showUrl(indexedSearchUrl(text, m_everywhere ? QUrl() : m_searchOrigin, title));
+    } else {
+        m_scopeBar->hide();
+        showUrl(filenameSearchUrl(m_searchTerm, m_searchOrigin, title));
+    }
 }
 
 void BrowserTab::setViewMode(ViewMode mode)
 {
+    const bool own = mode == ViewMode::Columns || mode == ViewMode::Gallery;
+    const std::optional<ViewMode> wanted = own ? std::optional(mode) : std::nullopt;
+    if (wanted != m_ownView) {
+        m_ownView = wanted;
+        // The next tab and window open the way this one was left.
+        KConfigGroup group = KSharedConfig::openConfig(QStringLiteral("file-explorerrc"))->group(QStringLiteral("View"));
+        group.writeEntry("Mode", mode == ViewMode::Columns ? QStringLiteral("columns") : mode == ViewMode::Gallery ? QStringLiteral("gallery") : QString());
+        group.sync();
+        syncOwnView();
+    }
     triggerPartAction(viewModeAction(mode));
+    if (own) {
+        Q_EMIT viewModeChanged();
+    }
+}
+
+void BrowserTab::syncOwnView()
+{
+    m_columns->setFolder(m_ownView == ViewMode::Columns && !isSearching() ? url() : QUrl());
+    const bool gallery = m_ownView == ViewMode::Gallery;
+    if (gallery) {
+        m_gallery->setItem(selectedItems().value(0));
+    }
+    m_gallery->setVisible(gallery);
 }
 
 ViewMode BrowserTab::viewMode() const
 {
+    if (m_ownView) {
+        return *m_ownView;
+    }
     for (const ViewMode mode : {ViewMode::List, ViewMode::Compact}) {
         if (const QAction *action = partAction(viewModeAction(mode)); action && action->isChecked()) {
             return mode;
@@ -312,6 +504,23 @@ void BrowserTab::triggerPartAction(const QString &name) const
     if (QAction *action = partAction(name); action && action->isEnabled()) {
         action->trigger();
     }
+}
+
+QList<QAction *> BrowserTab::versionControlActions(const KParts::NavigationExtension::ActionGroupMap &groups) const
+{
+    QList<QAction *> found;
+    if (!m_part) {
+        return found;
+    }
+    const QList<QAction *> own = m_part->actionCollection()->actions();
+    const auto edit = groups.value(QStringLiteral("editactions"));
+    for (QAction *action : edit) {
+        // DolphinRemoveAction is the part's Trash-or-Delete action, made outside its action collection.
+        if (action && !own.contains(action) && !action->inherits("DolphinRemoveAction")) {
+            found.append(action);
+        }
+    }
+    return found;
 }
 
 KNewFileMenu *BrowserTab::newFileMenu() const
@@ -376,6 +585,99 @@ void BrowserTab::focusView()
     }
 }
 
+bool BrowserTab::opensArchivesAsFolders()
+{
+    return KSharedConfig::openConfig(QStringLiteral("file-explorerrc"))->group(QStringLiteral("General")).readEntry("ArchivesAsFolders", true);
+}
+
+void BrowserTab::setOpensArchivesAsFolders(bool asFolders)
+{
+    KConfigGroup group = KSharedConfig::openConfig(QStringLiteral("file-explorerrc"))->group(QStringLiteral("General"));
+    group.writeEntry("ArchivesAsFolders", asFolders);
+    group.sync();
+}
+
+QUrl BrowserTab::archiveFolderUrl(const QUrl &url, const QString &mimeType)
+{
+    if (!url.isLocalFile() || !opensArchivesAsFolders() || !QFileInfo(url.toLocalFile()).isFile()) {
+        return {};
+    }
+    const QString type = mimeType.isEmpty() ? QMimeDatabase().mimeTypeForFile(url.toLocalFile()).name() : mimeType;
+    // The archive worker names the kinds it opens (kio-extras' archive worker: tar, zip, 7z, ar); only exact types
+    // count, so an OpenDocument file, which is a zip inside, still opens in its application (the same rule as
+    // DolphinView::openItemAsFolderUrl, dolphinview.cpp, v26.08.3, line 1849).
+    const QString protocol = KProtocolManager::protocolForArchiveMimetype(type);
+    if (protocol.isEmpty()) {
+        return {};
+    }
+    QUrl inside = url;
+    inside.setScheme(protocol);
+    return inside;
+}
+
+void BrowserTab::copyPaths()
+{
+    QList<QUrl> urls;
+    const KFileItemList items = selectedItems();
+    for (const KFileItem &item : items) {
+        // An item of a search or of the desktop can have a local file behind another URL; the file's path is copied.
+        const QString local = item.localPath();
+        urls.append(local.isEmpty() ? item.url() : QUrl::fromLocalFile(local));
+    }
+    if (urls.isEmpty()) {
+        urls.append(folderUrl());
+    }
+    if (QClipboard *clipboard = QApplication::clipboard()) {
+        clipboard->setText(copiedPaths(urls));
+    }
+}
+
+void BrowserTab::renameSelection()
+{
+    const KFileItemList items = selectedItems();
+    if (items.isEmpty()) {
+        return;
+    }
+    // DolphinPart's widget is its DolphinView, whose renameSelectedItems is a public slot.
+    if (items.size() == 1 && QMetaObject::invokeMethod(m_part->widget(), "renameSelectedItems")) {
+        return;
+    }
+    auto *sheet = new BatchRenameSheet(items, window());
+    connect(sheet, &BatchRenameSheet::renamed, this, [this](const QList<QUrl> &urls) {
+        if (!urls.isEmpty()) {
+            selectInPlace(urls);
+        }
+    });
+    sheet->open();
+}
+
+void BrowserTab::openFilter()
+{
+    if (m_part) {
+        m_filterBar->open();
+    }
+}
+
+QString BrowserTab::filterText() const
+{
+    return m_filterBar->text();
+}
+
+FilterBar *BrowserTab::filterBar() const
+{
+    return m_filterBar;
+}
+
+ColumnsStrip *BrowserTab::columnsStrip() const
+{
+    return m_columns;
+}
+
+GalleryStage *BrowserTab::galleryStage() const
+{
+    return m_gallery;
+}
+
 void BrowserTab::activateItems(const KFileItemList &items)
 {
     bool openedFolderHere = false;
@@ -403,6 +705,10 @@ void BrowserTab::handleOpenRequest(const QUrl &url, const KParts::OpenUrlArgumen
     }
     if (m_picking && !(url.isLocalFile() && QFileInfo(url.toLocalFile()).isDir())) {
         Q_EMIT filePicked(url);
+        return;
+    }
+    if (const QUrl inside = archiveFolderUrl(url, mimeType); !inside.isEmpty()) {
+        openFolder(inside);
         return;
     }
     if (!mimeType.isEmpty()) {
@@ -444,7 +750,12 @@ void BrowserTab::refreshCounts()
     }
     const KFileItemList selected = info->queryFor(KParts::FileInfoExtension::SelectedItems);
     m_counts.items = info->queryFor(KParts::FileInfoExtension::AllItems).size();
+    // AllItems holds only what the filter lets through (DolphinPartFileInfoExtension::queryFor, dolphin v26.08.3).
+    m_filterBar->setMatchCount(m_counts.items);
     m_counts.selected = selected.size();
+    if (m_ownView == ViewMode::Gallery) {
+        m_gallery->setItem(selected.value(0));
+    }
     m_counts.selectedFileBytes = 0;
     for (const KFileItem &item : selected) {
         if (!item.isDir()) {

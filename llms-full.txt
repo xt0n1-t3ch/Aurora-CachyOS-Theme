@@ -46,7 +46,7 @@ Apps and processes as in the Windows 11 Task Manager, with busy values tinted wa
 
 | Part | What it does | Source |
 | --- | --- | --- |
-| File Explorer | A Finder-style file manager built on Dolphin. Type a path in the toolbar (Ctrl+L) with suggestions and Tab, press Space for Quick Look, F3 for Split View, and tag files with Finder's colors. The sidebar lists your drives with their free space, unfolds your folders and lists each tag's files. Win+E opens it, every app's Open and Save dialogs use it, and "Show in folder" opens it. | [`components/file-explorer`](components/file-explorer) |
+| File Explorer | A Finder-style file manager built on Dolphin. Click any folder of the path, drop files on it or drag it out; type a path (Ctrl+L) with suggestions and Tab; search the whole PC as you type from an index that runs only while File Explorer is used; press Space for Quick Look, F3 for Split View, and tag files with Finder's colors. The sidebar lists your drives with their free space, unfolds your folders and lists each tag's files. Win+E opens it, every app's Open and Save dialogs use it, and "Show in folder" opens it. | [`components/file-explorer`](components/file-explorer) |
 | Window buttons | A glass capsule with minimize, maximize and close, in that order. Qt, GTK and libadwaita apps all get the same buttons at the same size. | [`components/window-buttons`](components/window-buttons) |
 | Menu bar | The system menu under CachyOS's logo (or Arch Linux's, Apple's or Kali Linux's), the name of the active app, the tray, Quick Menu, Control Center and the clock, spaced the way macOS spaces them. There is no global menu. | [`components/kali-menu`](components/kali-menu), [`components/clock`](components/clock), [`themes/panels`](themes/panels) |
 | System tray | Plasma's tray, with drag and drop like Windows 11: drag an icon to move it, or drop it on the arrow to hide it. | [`components/system-tray`](components/system-tray) |
@@ -209,7 +209,7 @@ Four system settings, each measured on a Ryzen 7 5800X with 32 GB of RAM before 
 | Build tools | `base-devel` `git` `cmake` `ninja` `extra-cmake-modules` `vulkan-headers` |
 | Qt 6 | `qt6-base` `qt6-declarative` `qt6-shadertools` `qt6-svg` `qt6-tools` `qt6-5compat` |
 | KDE Frameworks 6 | `kconfig` `kcoreaddons` `kcrash` `kdbusaddons` `kglobalaccel` `ki18n` `kiconthemes` `kio` `kitemmodels` `kjobwidgets` `knotifications` `kparts` `kpackage` `krunner` `kservice` `kstatusnotifieritem` `kwindowsystem` `kxmlgui` `kcmutils` `solid` `kirigami` `kirigami-addons` `kdeclarative` `ksvg` `kquickcharts` |
-| Plasma 6 | `plasma-workspace` `plasma-activities` `libplasma` `kwin` `kdecoration` `layer-shell-qt` `wayland` `dolphin` `kinfocenter` `xdg-desktop-portal` `xdg-desktop-portal-kde` `plasma5support` `milou` `plasma-nm` `plasma-pa` `bluez-qt` `powerdevil` |
+| Plasma 6 | `plasma-workspace` `plasma-activities` `libplasma` `kwin` `kdecoration` `layer-shell-qt` `wayland` `dolphin` `dolphin-plugins` `kinfocenter` `xdg-desktop-portal` `xdg-desktop-portal-kde` `plasma5support` `milou` `plasma-nm` `plasma-pa` `bluez-qt` `powerdevil` |
 | Look and session | `kvantum` `dconf` `xsettingsd` `fontconfig` `inter-font` `ttf-jetbrains-mono-nerd` `systemd` `dbus` `python` `python-pillow` |
 | Performance tuning | `scx-scheds` `scx-tools`, only with `--performance` |
 
@@ -631,11 +631,51 @@ source is, what is installed and how it is tested. Build commands are in [build.
 A Finder-style file manager in C++ and Qt Widgets on top of Dolphin's KParts view. A sidebar with Favorites, drives
 and color Tags (drives can be renamed inline, kept in `file-explorerrc [Drive Names]`; SF-style symbols; a capacity bar
 with a tooltip, amber above 90 % and red above 95 %; a folder the user added unfolds into its subfolders and each
-section folds away, kept in `file-explorerrc [Sidebar Tree]`), tabs, a toolbar with a typed address field
-(`fe::AddressField`, rules in `core/address`: `~`, relative paths, suggestions, shell Tab) and the Group, Share
+section folds away, kept in `file-explorerrc [Sidebar Tree]`), tabs, a toolbar with an address field
+(`fe::AddressField`) that shows the path as clickable segments and takes a typed path on a click beside them, Ctrl+L or
+Alt+D (rules in `core/address`: `~`, relative paths, suggestions, shell Tab), the view buttons (they fold into one
+pop-up button before the address field gets under 300 px, as Finder's view control does) and the Group, Share
 (Purpose), Edit Tags and More menus, a row of file actions (`fe::ActionBar`), Quick Look (`fe::QuickLook`, Space;
 rules in `core/quicklook`), Split View (`fe::TabPage`, F3), a path bar that names the selected file and shows the item
-count, Finder menus with shortcuts written the Windows way (`fe::shortcutLabel`: "Ctrl+Alt+C", "Alt+Enter", "Win+E"),
+count, Undo (Ctrl+Z) from KIO's undo history, which Dolphin's view records its operations in, a filter row
+(`fe::FilterBar`, Ctrl+Alt+F or More > Filter by Name) that keeps the items whose names contain what is typed, case
+ignored, with the count of matches, and ends when the tab shows another folder or search, a Rename sheet for several
+items (`fe::BatchRenameSheet`, F2 with more than one item selected; rules in `core/batchrename`: replace text or a
+regular expression, add text, a name with an index, a counter or each item's date, a change of case; extensions kept
+the way KIO keeps them) that shows every new name, marks the ones that cannot be taken and why, plans again against
+the folders when Rename is pressed, and runs one KIO batch job that one Undo takes back, a command palette (`fe::CommandPalette`, Ctrl+Shift+P or
+More > Command Palette; ranking in `core/palette`: letters in order, word starts and runs count more) that lists every
+command of the menus, refreshed for the tab on screen, with its menu and its shortcut, Copy Path (Ctrl+Alt+C, `fe::BrowserTab::copyPaths`, rules in `core/paths`) that
+copies every selected item's path, one per line, or the folder's path when nothing is selected (Dolphin copies the
+first item only), the Inspector (`fe::InspectorPanel`, Ctrl+Alt+I or View > Show Inspector, remembered in
+`file-explorerrc [Inspector]`; rules in `core/inspector`) at the right of the files: a preview, the kind, the real
+size of folders and selections (counted like `du` on a thread at idle CPU and I/O priority: one filesystem, links not
+followed, hard links once, on-disk size beside it, unreadable folders named) counted again when the folder's own
+listing changes, where it is, its dates, owner and permissions, and for a file its SHA-256, SHA-512, SHA-1 or MD5 on
+request with a field that compares a pasted hash or `sha256sum` line; hidden, it watches and runs nothing (a folder in an archive or on another machine is read and counted through KIO),
+archives as folders (`fe::BrowserTab::archiveFolderUrl`, View > Open Archives as Folders, on by default in
+`file-explorerrc [General] ArchivesAsFolders`: a double click opens a zip, tar or 7z through kio-extras' archive worker,
+as Windows' File Explorer opens a zip; OpenDocument and other zip-based documents still open in their applications;
+the path reads as the archive's own path, then the folders in it, and Up from its top opens its folder with the
+archive selected), Git (Dolphin's Git plugin from `dolphin-plugins`, which the installer turns on in `dolphinrc
+[VersionControl] enabledPlugins` without turning off the user's others: each file in a repository shows its status,
+and the context menu has a Git submenu with Log, Add, Commit, Push and the rest, taken from the part's action groups
+by `fe::BrowserTab::versionControlActions`), smart folders (Save at the right of the search row names the search
+and puts it in Favorites as a KDE place, so Dolphin lists it under Search For; it opens like a folder, its icon a
+magnifier, and the index's change notices keep it current), a columns view (`fe::ColumnsStrip`, the fourth view button, View > as
+Columns, remembered with the gallery in `file-explorerrc [View] Mode`; which folders in `core/paths` `columnFolders`: a column per
+folder from home, or from the disk's root, to the folder on screen, each a KIO listing kept current, with Dolphin's list
+as the last column, so every file action stays Dolphin's; a click on a folder opens it, on a file opens its folder
+with it selected, and files dropped on a column's folder go into it), a gallery view (`fe::GalleryStage`, the fifth
+view button, View > as Gallery: the selected item as large as the window allows, its preview from KIO's thumbnailers
+or its icon, with its name and kind, above Dolphin's icons as the strip; previews are asked for only while it shows
+and once per pause in the selection), a transfer center (`fe::TransferTracker`, set in front of KIO's job tracker so
+Plasma's notifications still get every job; texts in `core/transfers`): while copies, moves or deletions run, the action
+row shows a ring and "Copying, 45%", and a click opens a panel with each job's route, bar, size, speed and time left
+and buttons to pause, resume or stop it), Compare Folders (`fe::CompareSheet`, View > Compare Folders or Shift+F3,
+with the two folders of Split View; rules in `core/compare`: every subfolder walked on a thread at idle priority, files
+the same when size and time match within two seconds, or by SHA-256 with Compare contents; the selected rows copy to
+the other side with KIO, recorded for Undo, and the list is compared again), path segments in both bars (`fe::CrumbStrip`, rules in `core/crumbs`; below), Finder menus with shortcuts written the Windows way (`fe::shortcutLabel`: "Ctrl+Alt+C", "Alt+Enter", "Win+E"),
 and the pointing hand on every clickable widget.
 
 Group offers the Finder's choices (None, Name, Kind, Date Modified, Date Created, Size, Tags) through Dolphin's own
@@ -645,6 +685,32 @@ focus ring (`style::paintFocusRing`); `FinderStyle` drops the `QFocusFrame` Bree
 or a shortcut. The window is glass with KWin's blur while it is active and opaque while it is not, as macOS materials
 are when their window is not key, so nothing behind shows through it whether KWin blurs or not; selections turn gray
 with it.
+
+The address field and the path bar show the path as segments (`fe::CrumbStrip`, which each bar feeds its events;
+the layout, the hit test and the drop rules are pure functions in `core/crumbs`, tested). The address field shows them
+at rest without icons, as Windows' address bar does, and opens for typing on a click beside them, Ctrl+L or Alt+D (its
+focus policy is Tab, so a click on a segment opens the folder instead of the field). A click opens a segment and a
+middle click or Ctrl+click opens it in a background tab; the chevron after a segment lists its visible folders (250 at
+most, the next one of the path in bold, then Show All); a path too long for its bar folds the segments after the
+first into an ellipsis, outermost first, which lists them, and the folder on screen keeps the rest of the room; a
+right-click offers Open, Open in New Tab, Open Terminal Here, Copy Path and Get Info. Files dropped on a segment go
+through `KIO::drop`, as on the sidebar, so KIO asks Move, Copy or Link; a tag's shelf tags them instead. Refused: a
+folder into itself or a folder inside it, files into the folder they are in, Recents, a search, Network, the shelf
+of all tags, a folder that is not writable, and the selected file the path bar can end with. A drag resting 700 ms on
+a segment opens it (Finder's spring-loaded folders), except the folder on screen. A segment dragged out carries its
+URL. The tooltip of a segment is its whole path. Screen readers see the path bar as a group of links, one per segment,
+which they can press (`crumbaccessible.cpp`); the address field is a line edit whose text is the whole path. KIO opens
+its Move, Copy or Link menu at the drop's position mapped from the widget given to `KJobWidgets::setWindow`
+(`src/widgets/dropjob.cpp`, v6.31.0, line 671), so a drop names the widget whose coordinates the drop has: the bar,
+or the sidebar's viewport.
+
+Search answers from aurora-search's index of every local disk when it runs ([search.md](search.md)): a KIO worker
+(`src/plugins/searchworker.cpp`, `aurora-search:` URLs) lists the helper's matches into Dolphin's view, so they have
+icons, columns, drag and drop and menus; `fe::SearchService` keeps one connection while a window is in use, which
+keeps the helper and its live updates running, and lets go after three idle minutes; a scope row under the toolbar
+(`fe::SearchScopeBar`) chooses This PC or the folder, kept in `file-explorerrc [Search] Everywhere`; hidden names are
+matched only while the view shows hidden files. A folder the index does not hold (a network share, a phone) is
+searched in place with Dolphin's filenamesearch, as before.
 
 Color tags (`tagging.cpp`, rules in `core/tags`) live in the file's `user.xdg.tags` attribute through KFileMetaData, so
 Dolphin and Baloo read them too. Each tag's sidebar row opens its shelf, `~/.local/share/file-explorer/tags/<Tag>`, a
@@ -656,11 +722,34 @@ Dolphin, with the 63 emblems `themes/icons/tag_emblems.py` adds to the icon them
 It also serves `org.freedesktop.FileManager1` (`--service`: "Show in folder" selects the file) and the FileChooser
 portal backend (`--portal`: Open and Save panels with a chooser bar; it quits after three idle minutes). Installed as
 `~/.local/bin/file-explorer`; Win+E launches it. Folders without a view of their own show Finder's columns (Name,
-Modified, Size, Type) from `~/.local/share/file-explorer/view_properties/global/.directory`. Tests: `fe_tests` (78),
-`fe_finder_tests` (33), `tests/installer/test_tag_emblems.sh` (5). Sandbox: `explorer.sh`, `explorer-finder.sh` (the
+Modified, Size, Type) from `~/.local/share/file-explorer/view_properties/global/.directory`. Tests: `fe_tests` (95),
+`fe_finder_tests` (55), `fe_widget_tests` (28, offscreen: clicks, drops, a drag resting on a segment, the address
+field at rest, accessibility, the filter row over a real Dolphin view, the glass behind a field inside a tab, the
+Rename sheet renaming a real folder and one Undo taking it back, F2 on two items opening it, the command palette
+finding, running and closing, Copy Path with three items and with none, the Inspector counting a
+folder and again after a change, hashing a file and comparing a pasted hash, a tar.gz opened as a
+folder, Up out of it, the Inspector counting inside it, the search row's Save and its folder capsule hidden when the index
+does not hold the folder, the columns leading to a folder and opening
+what is clicked, the gallery showing the selected picture, the transfer center
+following a job until it ends, Compare Folders listing differences and copying a folder across), `tests/installer/test_tag_emblems.sh` (5). Sandbox: `explorer.sh`, `explorer-crumbs.sh` (the path
+segments: hover, both menus, a drop in the accent, a segment opening under a drag, KIO's menu at the pointer on a
+segment and on the sidebar, a refused drop, Ctrl+L, Ctrl+click and middle click), `explorer-finder.sh` (the
 mockup's scene: tags, the unfolded sidebar, the menu, a typed path, Quick Look, Split View, a tag's shelf, the Group
 menu and the folder grouped by Kind from it, and the window inactive behind another),
-`explorer-menus.sh`, `explorer-drives.sh`, `show-in-folder.sh`, `open-save.sh`.
+`explorer-menus.sh`, `explorer-drives.sh`, `explorer-search.sh` (search from the index: whole home, scope row, hidden
+names, Save to a smart folder in Favorites and opening it), `explorer-undo.sh` (Delete, then Ctrl+Z brings the file back; FAIL on the code before Undo), `explorer-filter.sh`
+(Ctrl+Alt+F, a word hides the rest, no match empties the view, Escape brings everything back), `explorer-rename.sh`
+(Ctrl+A, F2, find and replace, Enter, then Ctrl+Z; 3 PASS), `explorer-palette.sh` (Ctrl+Shift+P, "show hidden",
+Enter; 3 PASS), `explorer-copypaths.sh` (Ctrl+A, Ctrl+Alt+C, the three paths read
+from Klipper and pasted into KWrite), `explorer-inspector.sh` (Ctrl+Alt+I on a
+folder, a picture, Compute and a typed SHA-256 that matches; 3 PASS), `explorer-archive.sh` (a double click on a
+zip, then Alt+Up; 2 PASS), `explorer-git.sh` (a repository's
+status emblems, the context menu and its Git submenu; needs `dolphin-plugins` or `AURORA_DOLPHIN_PLUGINS` naming its
+unpacked package; 2 PASS), `explorer-columns.sh` (the
+columns view from the palette, a click in a column; 2 PASS), `explorer-gallery.sh` (the gallery from the palette,
+the first picture large, Right to the next; 2 PASS), `explorer-transfers.sh` (a copy of 30,000 small files: the
+ring in the action row, the panel, the button gone at the end, every file there; 4 PASS), `explorer-compare.sh` (Split
+View, Shift+F3, a folder copied to the right and the list compared again; 3 PASS), `show-in-folder.sh`, `open-save.sh`.
 
 ## Mission Center (`components/mission-center`)
 
@@ -1035,6 +1124,42 @@ alternating 15 s windows. Flat out there was no clean winner; at a realistic loa
 - The Kingston stalls reads for tens of ms, and once for 1.1 s, even at 150 MB/s of writes and even with the disk
   quiet (p99.9 23 ms). The ADATA never went past 51 ms. Heavy writes belong on the ADATA (`/`, `/home`).
 
+## File Explorer's search
+
+Measured 2026-11-11 on this PC (Ryzen 7 5800X, NVMe btrfs), the helper run as the user with `root = /usr`, 490,544
+names, 4 reading threads at idle priority:
+
+| What | Measured |
+| --- | --- |
+| First index of /usr | 1,125 ms; 3.96 s of CPU over the reading threads |
+| Memory | 77.6 MB after the first index; 48.8 MB after a start from the stored index |
+| Index file | 21.9 MB |
+| Start from the stored index, catch up by folder times | 142 ms |
+| A query, a new `aurora-search-query` process each time included (best of 5) | `libQt6Core` 1.9 ms, `python3` 1.9 ms, `kio` 2.6 ms, `.so` 4.6 ms, `ext:h` 11.5 ms, `regex:^lib.*\.so\.6$` 15.5 ms |
+| Wakeups in 3 s with a client connected and nothing to do | 0 |
+
+A word is found with one SIMD pass over every name; `ext:`, `regex:` and wildcards test every name, so they grow
+with the index (about 5 ms per 100,000 names here). With no client and no work the helper leaves; at rest nothing
+runs. The root-only parts (fanotify, the btrfs catch-up) are timed in the virtual machine test: the catch-up after a
+restart answered in under 3 s there, the bound the test sets (`tests/vm_server.rs`).
+
+On a data disk, measured 2026-11-11 the same way with `root = /mnt/D` (btrfs, 4,580,100 names, 383,946 folders; one
+name in five changes when folded), warm cache, before and after the memory and threading pass:
+
+| What | Before | After |
+| --- | --- | --- |
+| First index | 1,956 ms | 1,748 ms |
+| Memory after the first index | 545.5 MB | 431.2 MB |
+| Start from the stored index (225 MB file) | 1,438 ms, peak 681.9 MB | 1,645 ms, peak 384.5 MB |
+| `report` (a word), best of 5, process start included | 10.5 ms | 6.2 ms |
+| `ext:pdf` | 93.3 ms | 26.1 ms |
+| `regex:^img_[0-9]+\.jpg$` | 124.9 ms | 41.9 ms |
+
+The pass keeps a name as written only when folding changes it, hands freed heap back after a scan (`malloc_trim`),
+streams the stored index to and from disk instead of holding a copy of it, and searches in up to 8 threads, one per
+16 MiB of folded names (6 here). One thread reads about 12 MiB of folded names per millisecond (the word query alone,
+without the 2 ms of process start), so below 32 MiB one thread answers alone.
+
 ## Mission Center's glass
 
 Measured in Mission Center's sandbox (`components/mission-center/tools/sandbox`, a nested KWin at 60 Hz, 2026-11-07):
@@ -1092,7 +1217,7 @@ export QT_QPA_PLATFORM=offscreen q=/usr/lib/qt6/bin/qmltestrunner B=$PWD/build
 
 | What it proves | Command | Result |
 | --- | --- | --- |
-| The install keeps a menu bar that is already there, and the script that puts one up has the home folder and the gaps filled in (an @ in a comment or an address is the script's own text; a placeholder left or a renderer that prints nothing stops the install); its backup lists every file it adds (install, then delete `created.txt`, gives back the same home); a second backup keeps the first; it installs the `aurora` command and offers Aurora's wallpaper; it copies no font, uses Inter and JetBrains Mono unless SF Pro or SF Mono is installed, and the repository carries no Apple font; an install from before the Quick Menu's name moves its files, its saved order and the menu bar button over; old menu bar widgets give their place to Aurora's own; the package's prebuilt parts export without object files; installed from the package, an older `aurora` in `~/.local/bin` goes so the package's runs; the update notices' timer runs the installed aurora daily, catches up after the PC was off, is enabled once, and the backup lists it; a running Plasma stops before old widgets get Aurora's ids (it would write the old ones back) and nothing to move leaves it alone; animations are smooth (1) unless aurora.conf chooses fast or instant, and only its [look] group counts; every loaded KWin effect reloads so the new speed reaches the running desktop; Aurora Motion is installed and turned on while KWin's Scale, Squash and Magic Lamp step aside | `python3 -I tests/installer/test_install.py` | 36 pass |
+| The install keeps a menu bar that is already there, and the script that puts one up has the home folder and the gaps filled in (an @ in a comment or an address is the script's own text; a placeholder left or a renderer that prints nothing stops the install); its backup lists every file it adds (install, then delete `created.txt`, gives back the same home); a second backup keeps the first; it installs the `aurora` command and offers Aurora's wallpaper; it copies no font, uses Inter and JetBrains Mono unless SF Pro or SF Mono is installed, and the repository carries no Apple font; an install from before the Quick Menu's name moves its files, its saved order and the menu bar button over; old menu bar widgets give their place to Aurora's own; the package's prebuilt parts export without object files; installed from the package, an older `aurora` in `~/.local/bin` goes so the package's runs; the update notices' timer runs the installed aurora daily, catches up after the PC was off, is enabled once, and the backup lists it; a running Plasma stops before old widgets get Aurora's ids (it would write the old ones back) and nothing to move leaves it alone; animations are smooth (1) unless aurora.conf chooses fast or instant, and only its [look] group counts; every loaded KWin effect reloads so the new speed reaches the running desktop; Aurora Motion is installed and turned on while KWin's Scale, Squash and Magic Lamp step aside; Dolphin's Git plugin is turned on once, beside the version control plugins the user turned on | `python3 -I tests/installer/test_install.py` | 38 pass |
 | GTK apps get Plasma's cursor; the GTK 4 sheet leaves table headings to their app (no list padding on a column view's headings); the window button glyphs sit half a pixel off the icon's middle, so GTK's whole-pixel icon puts each stroke on one row of pixels, as File Explorer and the decoration draw them | `python3 -I tests/installer/test_gtk_theme.py` | 3 pass |
 | `install.sh --help` and `--version`, refuses unknown options, `--check` writes nothing and names the build folder (the user's cache for a read-only copy, as the aurora-theme package's); `uninstall.sh` without an install fails clearly | `tests/installer/test_cli.sh` | 12 pass |
 | `get.sh`, README.md's one command: checks the downloaded key's fingerprint before pacman trusts it, adds `[aurora]` to pacman.conf once, upgrades with `pacman -Syu --needed aurora-theme`, then opens the package's `aurora install` (`/usr/bin`, ahead of an older copy on PATH); a second run only upgrades and opens it; another key changes nothing; README.md's command, `curl -fsSL .../get.sh | bash`, runs in fish, zsh and bash, which find only the stand-in sudo (a real one failing would count toward pam_faillock's lockout); Aurora's wordmark comes first, the password is asked once before anything changes, and aurora does not draw the wordmark again; it names the system (Wayland, Plasma 6.8.2), numbers the four steps with a tick and a time each, ends with the installed version, refuses Plasma 5 before any sudo, uses no middle dots, and points a `[aurora]` section with another address back at Aurora's | `tests/installer/test_get.sh` | 38 pass |
@@ -1123,8 +1248,12 @@ export QT_QPA_PLATFORM=offscreen q=/usr/lib/qt6/bin/qmltestrunner B=$PWD/build
 
 | Part | Command | Result |
 | --- | --- | --- |
-| File Explorer core | `build/file-explorer/fe_tests` | 78 pass |
-| File Explorer's Finder features (typed paths and their suggestions and Tab, color tags and their emblems, the tag shelf's names and path, the sidebar's folder tree, Quick Look's kinds and when Space opens it) | `build/file-explorer/fe_finder_tests` | 33 pass |
+| File Explorer core | `build/file-explorer/fe_tests` | 95 pass |
+| File Explorer's Finder features (typed paths and their suggestions and Tab, the path segments' layout, folding, hit test and which drops they take, color tags and their emblems, the tag shelf's names and path, the sidebar's folder tree, Quick Look's kinds and when Space opens it, batch rename's rules: replace without case or with a regular expression, add, index, counter, a date per item numbered within a day, case, extensions kept as KIO keeps them, and every reason a name cannot be taken) | `build/file-explorer/fe_finder_tests` | 55 pass |
+| File Explorer's widgets on the offscreen platform: a click, middle click and Ctrl+click on a segment, a click beside them, a slot that replaces the segments still gets its URL, which drops a segment takes (files from elsewhere, not a folder into itself or files into their own folder, not a read-only folder), a drag resting on a segment opens it but not the folder on screen, the address field at rest opens a segment without taking the keyboard, screen readers read each segment as a link they can press, the filter row sends each key and closes on Escape, a filter over a real Dolphin view hides what does not match and ends with the folder, a field inside a tab shows the glass behind it (no style sheet above it), the Rename sheet renames a real folder and one Undo takes the batch back, waits while a name is taken and plans again on Rename, and F2 on two selected items opens it, the command palette finds a command by a few letters, runs it with Enter, moves with Down and runs nothing disabled or on Escape, Copy Path (Ctrl+Alt+C) copies every selected item, or the folder with nothing selected, the Inspector counts nothing while hidden, counts a folder and counts again when it changes, hashes a file and compares a pasted hash, a tar.gz opens as a folder (an OpenDocument file does not), Up leaves it for its folder and the Inspector counts inside it through KIO, the search row's Save sends its request and a folder the index does not hold has no capsule to press, the columns view leads to the folder, marks it, and opens a clicked file's folder with the file selected, the gallery shows the selected picture with its own preview and leaves with another mode, the transfer center shows a job's label until the job ends, Compare Folders lists what differs and copies a selected folder across with what is in it, a narrow toolbar folds the five view buttons into one pop-up whose menu chooses a mode, and a wide one shows them again with that mode checked | `QT_QPA_PLATFORM=offscreen build/file-explorer/fe_widget_tests` | 28 pass |
+| The same three File Explorer suites under AddressSanitizer and UBSan (configure `build/file-explorer-asan` with `-fsanitize=address,undefined`; `ASAN_OPTIONS=detect_leaks=0:max_free_fill_size=1048576:free_fill_byte=85` makes a read of freed memory crash, so the URL test bites) | `build/file-explorer-asan/fe_tests`, `fe_finder_tests`, `fe_widget_tests` | 95, 55, 28 pass, no findings |
+| aurora-search, File Explorer's search helper: the index against random histories of a model disk (300 seeds), the query syntax and ranking, hidden names, scan, store (damaged files refused), the catch-up by folder times, mountinfo, fanotify's event layout, the config, the ioctl numbers checked against `linux/btrfs.h` | `cargo test --manifest-path components/file-explorer/search/Cargo.toml` | 25 pass |
+| The helper as root on a real btrfs, in a virtme-ng machine on this PC's kernel (no sudo): the changed folders come from transaction ids after a commit; it indexes, follows a create, a move and a delete live, hides a 0700 folder's names and their count from nobody, scopes, leaves when idle and catches up after a restart | `components/file-explorer/search/tests/vm.sh` | 3 pass |
 | Window buttons | `build/window-buttons/decoration_tests` | 11 pass |
 | Energy page | `build/energy-page/test_power` | 10 pass |
 | Glass blur | `(cd components/glass && $q -import $B/glass/qml -input tests/tst_blurbehind.qml)` | 9 pass |
@@ -1161,7 +1290,7 @@ others capture `tests/sandbox/shots/` to compare by eye.
 | `quick-menu-app-menu.sh` | the app menu: right-click, Pin to Top and the Pinned section, the Menu key (not the field's text menu), Unpin from Dock, an opened app in Suggestions and Remove from Suggestions, no QML warnings (8 PASS); labels found with `tests/helpers/find_text.py` |
 | `readme.sh` | the README's pictures, the notifications popover among them (run with `SANDBOX_SCALE=2`, then `assets/screenshots/make.py`, which also crops Mission Center's two from its own sandbox) |
 | `kali-menu.sh` | the Kali menu with PC labels |
-| `explorer.sh`, `explorer-menus.sh`, `explorer-drives.sh`, `explorer-sidebar-order.sh`, `show-in-folder.sh`, `open-save.sh` | File Explorer, its menus (X11 client), its drives, dragging sidebar rows into a new order, "Show in folder", Open and Save |
+| `explorer.sh`, `explorer-menus.sh`, `explorer-drives.sh`, `explorer-sidebar-order.sh`, `explorer-crumbs.sh`, `explorer-search.sh`, `explorer-undo.sh`, `explorer-filter.sh`, `explorer-rename.sh`, `explorer-palette.sh`, `explorer-copypaths.sh`, `explorer-inspector.sh`, `explorer-archive.sh`, `explorer-git.sh`, `explorer-columns.sh`, `explorer-gallery.sh`, `explorer-transfers.sh`, `explorer-compare.sh`, `show-in-folder.sh`, `open-save.sh` | File Explorer, its menus (X11 client), its drives, dragging sidebar rows into a new order (2 PASS: the saved order and the sidebar after a restart), the path segments (clicks, menus, drops, a segment opening under a drag, KIO's menu at the pointer, new tabs; 10 PASS), search from the index (the helper runs as the user on the sandbox's home; 5 PASS with Save to a smart folder and opening it, and the times in logs/search.txt), Undo after Delete (2 PASS), the filter row (3 PASS), the Rename sheet and its Undo (3 PASS), the command palette (3 PASS), Copy Path with several items (1 PASS), the Inspector (3 PASS), archives as folders (2 PASS), Git's status and menu (2 PASS), the columns view (2 PASS), the gallery view (2 PASS), the transfer center (4 PASS), Compare Folders (3 PASS), "Show in folder", Open and Save |
 | `notifications.sh` | banners in the bottom-right corner, hover buttons |
 | `tray-click.sh`, `tray-drag.sh`, `tray-show.sh` | tray clicks, drag to reorder and hide, bring back |
 | `control-center.sh`, `control-center-panels.sh`, `control-center-bluetooth.sh`, `control-center-shortcut.sh` | the Control Center, its panels, reopening, its shortcut |
@@ -1196,8 +1325,9 @@ python3 -I assets/screenshots/make.py                                           
 ```
 
 Pass the scenario's full path: KWin looks a bare name up in `PATH`. A scenario sources `prelude.sh` (starts
-kactivitymanagerd and kded6, defines `shot NAME`, a Spectacle capture into `tests/sandbox/shots/NAME.png`, and
-`waitfor SECONDS`), starts plasmashell or the app under test, drives it, captures, and writes PASS or FAIL lines to
+kactivitymanagerd and kded6, puts File Explorer's view mode, Inspector, archives and search settings back to their
+defaults so no scenario inherits them from the one before, defines `shot NAME`, a Spectacle capture into
+`tests/sandbox/shots/NAME.png`, and `waitfor SECONDS`), starts plasmashell or the app under test, drives it, captures, and writes PASS or FAIL lines to
 `tests/sandbox/logs/<name>.txt` where it checks something. The home, captures and logs are not in git.
 
 ## Its home folder
@@ -1209,7 +1339,7 @@ theme's current files: `HOME=$PWD/tests/sandbox/home python3 -I installer/instal
 ## Driving it
 
 - `tests/helpers/fakeinput/fakeinput` speaks `org_kde_kwin_fake_input` to the nested KWin only: `move X Y`,
-  `glide X Y STEPS`, `down`, `up`, `keydown CODE`, `keyup CODE` (evdev codes: 125 Win, 28 Return, 1 Esc,
+  `glide X Y STEPS`, `down`, `up` (left button), `rdown`, `rup`, `mdown`, `mup`, `keydown CODE`, `keyup CODE` (evdev codes: 125 Win, 28 Return, 1 Esc,
   103/108/105/106 arrows), `wait MS`.
 - `tests/helpers/region_changed.py BEFORE AFTER X0 Y0 X1 Y1` exits 0 when a region changed (mean difference above 6):
   the usual "did it open" check. Keep the region tight around what appears.
@@ -1433,8 +1563,64 @@ it changes. A change that needs a fresh install, or that an earlier backup canno
 
 ## [Unreleased]
 
+### Added
+
+- File Explorer's address field shows the path as segments you can click, as Windows' File Explorer does; a click
+  beside them, Ctrl+L or Alt+D still opens it for typing. In both the address field and the path bar, the arrow after
+  a segment lists the folders inside it, the ellipsis of a long path lists the folders it hides, a middle click or
+  Ctrl+click opens a segment in a new tab, and a right-click offers Open, Open in New Tab, Open Terminal Here, Copy
+  Path and Get Info.
+- Files dropped on a segment move, copy or link there (it asks which), or get the tag of a tag's shelf. A drag held on
+  a segment opens that folder, so you can go on deeper. Dropping a folder into itself, or files into the folder they
+  are already in, is refused. A segment dragged out carries its folder, to the sidebar, a tab or a terminal.
+- Screen readers read File Explorer's path bar as one link per folder, which they can press.
+- File Explorer's Edit menu has Undo (Ctrl+Z) for the last move, copy, rename, new folder or trash, named after it.
+- File Explorer filters the folder on screen as you type (Ctrl+Alt+F, or More > Filter by Name): only the items whose
+  names contain the text stay, with the number of matches beside it. Enter or the Down arrow goes to the first item,
+  Escape shows everything again, and moving to another folder ends the filter.
+- Renaming several items in File Explorer (F2) opens a Rename sheet with Finder's choices: replace a text (or a
+  regular expression), add a text before or after the name, or give them one name with an index, a counter or each
+  item's date, and also a change of case. Every new name shows before anything changes, a name that cannot be taken
+  is marked with the reason, extensions stay, and one Ctrl+Z takes the whole batch back.
+- File Explorer has a command palette (Ctrl+Shift+P, or More > Command Palette): a few letters find any command of
+  its menus, shown with where it lives and its shortcut, and Enter runs it.
+- File Explorer has an Inspector at the right of the files (Ctrl+Alt+I, or View > Show Inspector): a preview, the
+  real size of folders and selections with the space they take on disk, kept current while it is open, where the
+  item is, its dates, owner and permissions, and for a file its SHA-256, SHA-512, SHA-1 or MD5 with a field that
+  says whether a pasted hash matches. Closed, it does nothing.
+- File Explorer opens a zip, tar or 7z archive as a folder on a double click, as Windows' File Explorer does, with
+  the path bar reading through the archive and Up leaving it for its folder. View > Open Archives as Folders turns it
+  off; documents that are zips inside, like OpenDocument files, still open in their applications.
+- In a Git repository, File Explorer and Dolphin show each file's Git status, and File Explorer's context menu has
+  a Git submenu (Log, Add, Commit, Push and more). Aurora now installs `dolphin-plugins` for it and turns its Git
+  plugin on, leaving any other plugin you turned on as it is.
+- Smart folders: Save in File Explorer's search row keeps the search in the sidebar under a name you choose. It
+  opens like a folder and stays current as files come and go; Dolphin lists it too, under Search For.
+- File Explorer has Finder's columns view (the fourth view button, or View > as Columns): a column for each folder
+  from your home folder down to the one you are in, with the files as the last column. A click in a column goes
+  there, and you can drop files on a column's folders.
+- File Explorer has Finder's gallery view (the fifth view button, or View > as Gallery): the selected picture,
+  video or document large, with its name and kind, above a strip of thumbnails.
+- File Explorer shows copies, moves and deletions while they run: a ring and their percent in the row of file
+  actions, and a panel with each one's progress, speed and time left, where you can pause, resume or stop it.
+  Plasma's notifications still show them too.
+- Compare Folders in File Explorer (View > Compare Folders, or Shift+F3) lists what is only in one of the two folders
+  of Split View and what differs, through every subfolder, and copies the items you pick to the other side, which
+  Ctrl+Z can undo. Compare contents checks files byte for byte.
+- File Explorer searches the whole PC as you type: a helper keeps an index of every local disk's names and answers
+  in a few milliseconds (490,544 names: under 3 ms for a word). It runs only while File Explorer is used and leaves
+  a few minutes after, catches up on what changed meanwhile without reading everything again, follows changes live,
+  and shows each user only what that user may open. A scope row picks This PC or the folder; Everything's syntax
+  works (`ext:`, `size:`, `dm:`, wildcards, `regex:`, `|`, `!`). Folders it does not index, like network shares, are
+  searched as before. `aurora-search-query` asks it from a terminal.
+
 ### Changed
 
+- Copy Path in File Explorer (Ctrl+Alt+C) copies the paths of every selected item, one per line, instead of only the
+  first; with nothing selected it copies the folder's path.
+- When File Explorer's window is too narrow for the five view buttons and a readable path, the buttons fold into one
+  pop-up button with the current view's icon, as Finder's view control does. At the default window size a path of
+  four or five folders now reads whole instead of hiding its middle behind the ellipsis.
 - `aurora` looks for a newer Aurora when its menu opens, unless it looked in the last 5 minutes, so a new release
   shows up right away instead of after the next daily check.
 - `aurora update` sets up Aurora's repository by itself when it needs it: when pacman.conf's `[aurora]` section is
@@ -1446,6 +1632,8 @@ it changes. A change that needs a fresh install, or that an earlier backup canno
 - The menu no longer offers an older Aurora after you updated through pacman or paru. On 1.3.1 it still said
   "Aurora 1.3.0 is available".
 - `aurora update` checks that pacman really installed the new version, and says how to retry when it did not.
+- In File Explorer, the Move, Copy or Link menu of files dropped on the sidebar opens where they were dropped, not off
+  to the side by the sidebar's offset in the window.
 
 ## [1.3.1] - 2026-11-08
 
@@ -1697,6 +1885,17 @@ The rules I set while building Aurora, and why. They decide every design questio
 - The pointing hand on everything clickable; the black minimalist macOS cursor elsewhere, GTK apps included.
 - The clock follows the region's 12- or 24-hour format.
 - The README's pictures show Orion first under Developer Tools and in the Dock.
+
+## File Explorer's search index
+
+- 2026-11-11, Tony: search must be instant, never stale, and cost nothing while it is not used, even with a File
+  Explorer window open all day. Neither a resident indexer (Everything's way, always running) nor an index built
+  when the window opens (a full read of the disks every time) meets that. The helper starts on demand from its
+  socket, catches up from btrfs transaction ids or folder times instead of reading everything, follows changes with
+  fanotify only while File Explorer is in use, and leaves when idle ([search.md](search.md)).
+- The index lives in the helper's memory while it runs, not in a mapped file: entries link to each other and change
+  in place, which a read-only mapping cannot hold, and the memory goes back when the helper leaves.
+- `plocate`'s nightly `updatedb` stays: other programs use `locate`, and turning it off is the user's choice.
 
 ## Fonts
 

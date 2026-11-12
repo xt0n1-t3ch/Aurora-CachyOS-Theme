@@ -1,0 +1,16 @@
+# SPDX-FileCopyrightText: 2026 xt0n1 (https://github.com/xt0n1-t3ch)
+# SPDX-License-Identifier: GPL-3.0-only
+# Additional terms (GPL-3.0 section 7, author attribution): see NOTICE.md.
+# File Explorer's whole-disk search: systemd holds this socket and starts aurora-search on the first connection,
+# so nothing runs until File Explorer is used (docs/search.md).
+[Unit]
+Description=File Explorer's whole-disk search (Aurora)
+
+[Socket]
+ListenSequentialPacket=/run/aurora/search.sock
+# Every user may ask; the helper shows each one only what that user may reach.
+SocketMode=0666
+DirectoryMode=0755
+
+[Install]
+WantedBy=sockets.target

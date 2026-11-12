@@ -4,6 +4,7 @@
 //   glide X Y STEPS   move to X,Y in STEPS steps of one frame each, as a hand would
 //   down | up         press or release the left button
 //   rdown | rup       press or release the right button
+//   mdown | mup       press or release the middle button
 //   keydown CODE | keyup CODE   press or release an evdev key (125 is the left Windows key, 18 is E)
 //   wait MS           pause for MS milliseconds
 // The Wayland bindings come from fake-input.xml, generated with wayland-scanner. Build line: docs/build.md.
@@ -94,6 +95,10 @@ int main(int argc, char **argv)
             org_kde_kwin_fake_input_button(fake, BTN_RIGHT, 1);
         } else if (strcmp(argv[i], "rup") == 0) {
             org_kde_kwin_fake_input_button(fake, BTN_RIGHT, 0);
+        } else if (strcmp(argv[i], "mdown") == 0) {
+            org_kde_kwin_fake_input_button(fake, BTN_MIDDLE, 1);
+        } else if (strcmp(argv[i], "mup") == 0) {
+            org_kde_kwin_fake_input_button(fake, BTN_MIDDLE, 0);
         } else if (strcmp(argv[i], "keydown") == 0 && i + 1 < argc) {
             org_kde_kwin_fake_input_keyboard_key(fake, (uint32_t)atoi(argv[++i]), 1);
         } else if (strcmp(argv[i], "keyup") == 0 && i + 1 < argc) {

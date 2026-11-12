@@ -1,0 +1,5 @@
+# SPDX-FileCopyrightText: 2026 xt0n1 (https://github.com/xt0n1-t3ch)
+# SPDX-License-Identifier: GPL-3.0-only
+# Additional terms (GPL-3.0 section 7, author attribution): see NOTICE.md.
+# Product names in doc comments read as names, not as code.
+doc-valid-idents = ["CachyOS", "KWin", "KDE", "FAT", "exFAT", ".."]

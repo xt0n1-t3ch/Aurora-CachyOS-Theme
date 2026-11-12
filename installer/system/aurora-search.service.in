@@ -1,0 +1,29 @@
+# SPDX-FileCopyrightText: 2026 xt0n1 (https://github.com/xt0n1-t3ch)
+# SPDX-License-Identifier: GPL-3.0-only
+# Additional terms (GPL-3.0 section 7, author attribution): see NOTICE.md.
+# aurora-search, started by aurora-search.socket; it leaves by itself after a few idle minutes. @HELPER@ is where
+# the helper is installed (the package: /usr/lib/aurora, a checkout: /usr/local/lib/aurora).
+[Unit]
+Description=File Explorer's whole-disk search (Aurora)
+Requires=aurora-search.socket
+
+[Service]
+Type=simple
+ExecStart=@HELPER@
+StateDirectory=aurora/search
+# Root for fanotify on whole filesystems and btrfs's tree search (CAP_SYS_ADMIN), reading every folder and opening
+# handles (CAP_DAC_READ_SEARCH), and checking each match as its asker (CAP_SETUID, CAP_SETGID); nothing else.
+CapabilityBoundingSet=CAP_SYS_ADMIN CAP_DAC_READ_SEARCH CAP_SETUID CAP_SETGID
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=yes
+PrivateNetwork=yes
+RestrictAddressFamilies=AF_UNIX
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+RestrictRealtime=yes
+SystemCallArchitectures=native

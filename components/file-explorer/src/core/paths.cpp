@@ -22,7 +22,7 @@ QString remoteTitle(const QUrl &url)
     if (scheme == u"recentlyused") {
         return QStringLiteral("Recents");
     }
-    if (scheme == u"filenamesearch" || scheme == u"baloosearch") {
+    if (scheme == u"filenamesearch" || scheme == u"baloosearch" || scheme == u"aurora-search") {
         const QString title = QUrlQuery(url).queryItemValue(QStringLiteral("title"), QUrl::FullyDecoded);
         return title.isEmpty() ? QStringLiteral("Search") : title;
     }
@@ -40,6 +40,24 @@ QString remoteTitle(const QUrl &url)
 QList<Crumb> crumbsFor(const QUrl &url, const PathContext &context)
 {
     if (!url.isLocalFile()) {
+        if (context.archiveSchemes.contains(url.scheme()) && url.host().isEmpty() && context.isFile) {
+            // The archive's own path, then the folders inside it: from the archive on, the segments stay in the
+            // archive's scheme; before it, they are the local folders around it.
+            QList<Crumb> crumbs = crumbsFor(QUrl::fromLocalFile(url.path()), context);
+            bool inside = false;
+            for (Crumb &crumb : crumbs) {
+                const QString path = crumb.url.toLocalFile();
+                inside = inside || context.isFile(path);
+                if (inside) {
+                    crumb.url = QUrl();
+                    crumb.url.setScheme(url.scheme());
+                    crumb.url.setPath(path);
+                }
+            }
+            if (inside) {
+                return crumbs;
+            }
+        }
         return {{remoteTitle(url), url}};
     }
 
@@ -83,6 +101,54 @@ QList<Crumb> crumbsFor(const QUrl &url, const PathContext &context)
 QString folderTitle(const QUrl &url, const PathContext &context)
 {
     return crumbsFor(url, context).constLast().label;
+}
+
+QUrl indexedSearchUrl(const QString &term, const QUrl &scope, const QString &title)
+{
+    // Encoded as filenameSearchUrl encodes, so a term with & or = survives.
+    QUrlQuery query;
+    query.addQueryItem(QStringLiteral("q"), QString::fromLatin1(QUrl::toPercentEncoding(term)));
+    if (scope.isLocalFile()) {
+        query.addQueryItem(QStringLiteral("scope"), QString::fromLatin1(QUrl::toPercentEncoding(scope.toLocalFile())));
+    }
+    query.addQueryItem(QStringLiteral("title"), QString::fromLatin1(QUrl::toPercentEncoding(title)));
+    QUrl url;
+    url.setScheme(QStringLiteral("aurora-search"));
+    url.setPath(QStringLiteral("/"));
+    url.setQuery(query);
+    return url;
+}
+
+QList<QUrl> columnFolders(const QUrl &folder, const QString &homePath)
+{
+    if (!folder.isLocalFile()) {
+        return {};
+    }
+    const QString path = QDir::cleanPath(folder.toLocalFile());
+    const QString home = QDir::cleanPath(homePath);
+    const bool inHome = path.startsWith(home + u'/');
+    QString base = inHome ? home : QStringLiteral("/");
+    if (path == base || path == home) {
+        return {};
+    }
+    QList<QUrl> columns{QUrl::fromLocalFile(base)};
+    const QStringList parts = path.mid(inHome ? home.size() : 0).split(u'/', Qt::SkipEmptyParts);
+    // Every part but the last: the folder itself is not a column but the view beside them.
+    for (qsizetype i = 0; i + 1 < parts.size(); ++i) {
+        base = base == u"/" ? base + parts.at(i) : base + u'/' + parts.at(i);
+        columns.append(QUrl::fromLocalFile(base));
+    }
+    return columns;
+}
+
+QString copiedPaths(const QList<QUrl> &items)
+{
+    QStringList lines;
+    lines.reserve(items.size());
+    for (const QUrl &item : items) {
+        lines.append(item.isLocalFile() ? item.toLocalFile() : item.toDisplayString(QUrl::PreferLocalFile));
+    }
+    return lines.join(QLatin1Char('\n'));
 }
 
 QUrl filenameSearchUrl(const QString &term, const QUrl &folder, const QString &title)

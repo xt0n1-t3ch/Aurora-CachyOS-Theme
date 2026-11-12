@@ -23,6 +23,10 @@ enum class ViewMode {
     Icons,
     List,
     Compact,
+    /// Finder's columns: a column per folder on the way, Dolphin's list as the last.
+    Columns,
+    /// Finder's gallery: the selected item large, Dolphin's icons under it.
+    Gallery,
 };
 
 /// An icon button of the macOS 27 toolbar. Alone it is a round glass button; inside a Capsule it
@@ -132,9 +136,12 @@ protected:
     void resizeEvent(QResizeEvent *event) override;
 
 private:
-    /// Makes everything fit the toolbar's width, giving up space in Finder's order: the search field
-    /// narrows first, then the least used buttons fold away, and the address field goes last.
+    /// Makes everything fit the toolbar's width, giving up space in Finder's order: the view buttons fold into one
+    /// pop-up button while the address field is under a comfortable width, then the search field narrows, then the
+    /// least used buttons fold away, and the address field goes last.
     void fitToWidth();
+    /// Opens the folded view buttons' menu under the pop-up button.
+    void showViewPicker();
 
     QHBoxLayout *m_leading;
     QHBoxLayout *m_trailing;
@@ -143,6 +150,9 @@ private:
     GlassButton *m_up;
     AddressField *m_address;
     QButtonGroup *m_viewModes;
+    /// The five view buttons, and the one pop-up button they fold into when the toolbar is narrow.
+    Capsule *m_views;
+    GlassButton *m_viewPicker;
     GlassButton *m_group;
     GlassButton *m_share;
     GlassButton *m_tags;

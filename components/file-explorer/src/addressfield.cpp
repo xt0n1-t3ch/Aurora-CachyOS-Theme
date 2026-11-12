@@ -6,16 +6,20 @@
 #include "addressfield.h"
 
 #include "core/address.h"
+#include "crumbstrip.h"
 #include "style.h"
 
 #include <QAbstractItemView>
 #include <QCompleter>
 #include <QDir>
+#include <QHelpEvent>
 #include <QKeyEvent>
+#include <QMimeData>
 #include <QPainter>
 #include <QPainterPath>
 #include <QStandardItemModel>
 #include <QTimer>
+#include <QToolTip>
 
 namespace fe {
 
@@ -43,8 +47,12 @@ AddressField::AddressField(QString homePath, QWidget *parent)
     , m_suggestions(new QStandardItemModel(this))
     , m_completer(new QCompleter(m_suggestions, this))
     , m_errorTimer(new QTimer(this))
+    , m_crumbs(new CrumbStrip(this, false, Qt::IBeamCursor))
 {
     setFrame(false);
+    // A click on a segment opens it, so only a click beside the segments takes the keyboard (mousePressEvent).
+    setFocusPolicy(Qt::TabFocus);
+    setMouseTracking(true);
     setFont(style::uiFont(13));
     setFixedHeight(style::CAPSULE_HEIGHT);
     setTextMargins(ICON_LEFT + ICON_SIZE + 6, 0, 12, 0);
@@ -84,6 +92,21 @@ void AddressField::setLocation(const QUrl &url)
     if (!hasFocus()) {
         showLocation();
     }
+}
+
+void AddressField::setCrumbs(const QList<Crumb> &crumbs)
+{
+    m_crumbs->setCrumbs(crumbs);
+}
+
+CrumbStrip *AddressField::crumbs() const
+{
+    return m_crumbs;
+}
+
+void AddressField::placeCrumbs()
+{
+    m_crumbs->setArea(QRectF(rect().adjusted(textMargins().left(), 0, -textMargins().right(), 0)));
 }
 
 void AddressField::showLocation()
@@ -140,6 +163,13 @@ void AddressField::refreshSuggestions()
 
 bool AddressField::event(QEvent *event)
 {
+    if (event->type() == QEvent::ToolTip && !hasFocus()) {
+        const auto *help = static_cast<QHelpEvent *>(event);
+        if (const QString tip = m_crumbs->toolTipAt(help->pos()); !tip.isEmpty()) {
+            QToolTip::showText(help->globalPos(), tip, this);
+            return true;
+        }
+    }
     // Tab completes instead of moving the focus on.
     if (event->type() == QEvent::KeyPress) {
         const auto *key = static_cast<QKeyEvent *>(event);
@@ -169,6 +199,8 @@ void AddressField::keyPressEvent(QKeyEvent *event)
 void AddressField::focusInEvent(QFocusEvent *event)
 {
     QLineEdit::focusInEvent(event);
+    // Typing: no segment is under the pointer any more, and the cursor is the text cursor.
+    m_crumbs->leave();
     // A click selects the whole path, ready to be typed over, as Explorer's and Finder's fields do.
     QTimer::singleShot(0, this, &QLineEdit::selectAll);
     update();
@@ -199,6 +231,10 @@ void AddressField::paintEvent(QPaintEvent *event)
         const QPixmap icon = style::tintedIcon(QStringLiteral(":/icons/actions/folder.svg"), ICON_SIZE,
                                                hasFocus() ? style::ACCENT : style::TEXT_SECONDARY, devicePixelRatioF());
         painter.drawPixmap(QPointF(ICON_LEFT, (height() - ICON_SIZE) / 2.0), icon);
+        if (!hasFocus() && !m_crumbs->isEmpty()) {
+            m_crumbs->paint(painter);
+            return;
+        }
         if (!hasFocus()) {
             // At rest a long path keeps its end, where the folder on screen is, and loses its start to an ellipsis.
             const QRect textRect = rect().adjusted(textMargins().left(), 0, -textMargins().right(), 0);
@@ -209,6 +245,101 @@ void AddressField::paintEvent(QPaintEvent *event)
         }
     }
     QLineEdit::paintEvent(event);
+}
+
+void AddressField::resizeEvent(QResizeEvent *event)
+{
+    QLineEdit::resizeEvent(event);
+    placeCrumbs();
+}
+
+void AddressField::mousePressEvent(QMouseEvent *event)
+{
+    if (!hasFocus()) {
+        if (m_crumbs->mousePress(event)) {
+            return;
+        }
+        // Beside the segments a left click opens the field for typing; other buttons do nothing, so a middle click
+        // cannot paste the primary selection into a field that is not being edited.
+        if (event->button() != Qt::LeftButton) {
+            event->accept();
+            return;
+        }
+        setFocus(Qt::MouseFocusReason);
+    }
+    QLineEdit::mousePressEvent(event);
+}
+
+void AddressField::mouseMoveEvent(QMouseEvent *event)
+{
+    if (!hasFocus() && m_crumbs->mouseMove(event)) {
+        return;
+    }
+    QLineEdit::mouseMoveEvent(event);
+}
+
+void AddressField::mouseReleaseEvent(QMouseEvent *event)
+{
+    if (!hasFocus() && m_crumbs->mouseRelease(event)) {
+        return;
+    }
+    QLineEdit::mouseReleaseEvent(event);
+}
+
+void AddressField::leaveEvent(QEvent *event)
+{
+    if (!hasFocus()) {
+        m_crumbs->leave();
+    }
+    QLineEdit::leaveEvent(event);
+}
+
+void AddressField::contextMenuEvent(QContextMenuEvent *event)
+{
+    if (!hasFocus() && m_crumbs->contextMenu(event)) {
+        return;
+    }
+    QLineEdit::contextMenuEvent(event);
+}
+
+void AddressField::dragEnterEvent(QDragEnterEvent *event)
+{
+    if (!hasFocus()) {
+        // At rest only files dropped on a segment count; text is typed, not dropped, into a field at rest.
+        if (!m_crumbs->dragEnter(event)) {
+            event->ignore();
+        }
+        return;
+    }
+    QLineEdit::dragEnterEvent(event);
+}
+
+void AddressField::dragMoveEvent(QDragMoveEvent *event)
+{
+    if (!hasFocus()) {
+        if (!m_crumbs->dragMove(event)) {
+            event->ignore();
+        }
+        return;
+    }
+    QLineEdit::dragMoveEvent(event);
+}
+
+void AddressField::dragLeaveEvent(QDragLeaveEvent *event)
+{
+    m_crumbs->dragLeave();
+    QLineEdit::dragLeaveEvent(event);
+}
+
+void AddressField::dropEvent(QDropEvent *event)
+{
+    if (!hasFocus()) {
+        if (!m_crumbs->drop(event)) {
+            event->ignore();
+        }
+        return;
+    }
+    QLineEdit::dropEvent(event);
 }
 
 } // namespace fe

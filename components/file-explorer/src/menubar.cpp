@@ -6,8 +6,14 @@
 #include "mainwindow.h"
 
 #include "browsertab.h"
+#include "commandpalette.h"
+#include "comparesheet.h"
+#include "tabpage.h"
+#include "inspectorpanel.h"
 #include "sidebar.h"
 #include "toolbar.h"
+
+#include <KIO/FileUndoManager>
 
 #include <QAction>
 #include <QDir>
@@ -62,18 +68,90 @@ QAction *MainWindow::addPartProxy(QMenu *menu, const QString &text, const QStrin
 void MainWindow::syncPartProxies()
 {
     const fe::BrowserTab *tab = currentTab();
+    const bool columns = tab && tab->viewMode() == fe::ViewMode::Columns;
+    const bool gallery = tab && tab->viewMode() == fe::ViewMode::Gallery;
     for (const PartProxy &proxy : std::as_const(m_partProxies)) {
         const QAction *part = tab ? tab->partAction(proxy.partActionName) : nullptr;
         proxy.action->setEnabled(part && part->isEnabled());
         proxy.action->setCheckable(part && part->isCheckable());
-        proxy.action->setChecked(part && part->isCheckable() && part->isChecked());
+        // Under the columns or the gallery the part shows a list or icons, but the menu's choice is the window's view.
+        const bool underOwnView = (columns || gallery) && (proxy.partActionName == u"details" || proxy.partActionName == u"icons");
+        proxy.action->setChecked(part && part->isCheckable() && part->isChecked() && !underOwnView);
         proxy.action->setShortcuts(part ? part->shortcuts() : QList<QKeySequence>());
     }
+    if (m_columnsAction) {
+        m_columnsAction->setChecked(columns);
+        m_galleryAction->setChecked(gallery);
+    }
+}
+
+void MainWindow::compareFolders()
+{
+    fe::TabPage *page = currentPage();
+    if (!page) {
+        return;
+    }
+    // Two local folders are needed: the two panes of Split View, which opens with a second pane when it is closed.
+    if (!page->isSplit()) {
+        toggleSplit();
+        return;
+    }
+    const QList<fe::BrowserTab *> panes = page->panes();
+    const QUrl left = panes.value(0)->folderUrl();
+    const QUrl right = panes.value(1)->folderUrl();
+    if (!left.isLocalFile() || !right.isLocalFile()) {
+        return;
+    }
+    auto *sheet = new fe::CompareSheet(left, right, this);
+    sheet->show();
+}
+
+void MainWindow::showCommandPalette()
+{
+    if (!m_palette) {
+        m_palette = new fe::CommandPalette(this);
+        // The keyboard goes back to the view; a command run from the palette runs after this and may take it elsewhere
+        // (Go to Folder puts it in the address field).
+        connect(m_palette, &fe::CommandPalette::closed, this, [this] {
+            if (fe::BrowserTab *tab = currentTab()) {
+                tab->focusView();
+            }
+        });
+    }
+    // The menus' entries follow the tab on screen only when a menu opens; the palette asks for the same refresh.
+    syncPartProxies();
+    syncEditActions();
+    QList<fe::CommandPalette::Command> commands;
+    const std::function<void(const QMenu *, const QString &)> gather = [&](const QMenu *menu, const QString &place) {
+        const auto actions = menu->actions();
+        for (QAction *action : actions) {
+            if (action->isSeparator() || action == m_paletteAction || !action->isVisible()) {
+                continue;
+            }
+            if (action->menu()) {
+                gather(action->menu(), place + QStringLiteral(" > ") + action->text().remove(QLatin1Char('&')));
+                continue;
+            }
+            commands.append({action, place});
+        }
+    };
+    const auto menus = m_menuBar->actions();
+    for (const QAction *menu : menus) {
+        if (menu->menu()) {
+            gather(menu->menu(), menu->text().remove(QLatin1Char('&')));
+        }
+    }
+    // Sort By is filled from the tab's own sort actions as the View menu opens; here they are read directly.
+    if (const QAction *sort = currentTab()->partAction(QStringLiteral("sort")); sort && sort->menu()) {
+        gather(sort->menu(), QStringLiteral("View > Sort By"));
+    }
+    m_palette->open(commands);
 }
 
 void MainWindow::buildMenuBar()
 {
     auto *bar = new QMenuBar(this);
+    m_menuBar = bar;
     // Exported to the global menu bar when Plasma's app menu runs; otherwise kept out of sight,
     // since every action is also a window shortcut.
     if (!bar->isNativeMenuBar()) {
@@ -110,6 +188,18 @@ void MainWindow::buildMenuBar()
     addWindowAction(file, QStringLiteral("Close Window"), {keys(Qt::CTRL | Qt::SHIFT | Qt::Key_W)}, [this] { close(); });
 
     QMenu *edit = bar->addMenu(QStringLiteral("Edit"));
+    // Undo of the last file operation (a move, copy, rename, new folder or trash), from KIO's undo history, which
+    // Dolphin's view records its operations in; the text names the operation, as KIO words it.
+    KIO::FileUndoManager *undoHistory = KIO::FileUndoManager::self();
+    QAction *undo = addWindowAction(edit, QStringLiteral("Undo"), QKeySequence::keyBindings(QKeySequence::Undo), [this, undoHistory] {
+        undoHistory->uiInterface()->setParentWidget(this);
+        undoHistory->undo();
+    });
+    undo->setIcon(QIcon::fromTheme(QStringLiteral("edit-undo")));
+    undo->setEnabled(undoHistory->isUndoAvailable());
+    connect(undoHistory, &KIO::FileUndoManager::undoAvailable, undo, &QAction::setEnabled);
+    connect(undoHistory, &KIO::FileUndoManager::undoTextChanged, undo, &QAction::setText);
+    edit->addSeparator();
     m_actions.cut = addWindowAction(edit, QStringLiteral("Cut"), QKeySequence::keyBindings(QKeySequence::Cut), [this] { currentTab()->cut(); });
     m_actions.copy = addWindowAction(edit, QStringLiteral("Copy"), QKeySequence::keyBindings(QKeySequence::Copy), [this] { currentTab()->copy(); });
     m_actions.paste = addWindowAction(edit, QStringLiteral("Paste"), QKeySequence::keyBindings(QKeySequence::Paste), [this] { currentTab()->paste(); });
@@ -123,22 +213,52 @@ void MainWindow::buildMenuBar()
         m_toolbar->searchField()->setFocus();
         m_toolbar->searchField()->selectAll();
     })->setIcon(QIcon::fromTheme(QStringLiteral("edit-find")));
+    // Dolphin's Ctrl+I is Get Info here (Finder's key) and Ctrl+Shift+F is Recents, so the filter takes Ctrl+Alt+F.
+    m_filterAction = addWindowAction(edit, QStringLiteral("Filter by Name"), {keys(Qt::CTRL | Qt::ALT | Qt::Key_F)},
+                                     [this] { currentTab()->openFilter(); });
+    m_filterAction->setIcon(QIcon::fromTheme(QStringLiteral("view-filter")));
 
     QMenu *view = bar->addMenu(QStringLiteral("View"));
     addPartProxy(view, QStringLiteral("as Icons"), QStringLiteral("icons"));
     addPartProxy(view, QStringLiteral("as List"), QStringLiteral("details"));
     addPartProxy(view, QStringLiteral("as Compact List"), QStringLiteral("compact"));
+    // The columns view is the window's own; its last column is Dolphin's list.
+    m_columnsAction = addWindowAction(view, QStringLiteral("as Columns"), {}, [this] { currentTab()->setViewMode(fe::ViewMode::Columns); });
+    m_columnsAction->setCheckable(true);
+    m_galleryAction = addWindowAction(view, QStringLiteral("as Gallery"), {}, [this] { currentTab()->setViewMode(fe::ViewMode::Gallery); });
+    m_galleryAction->setCheckable(true);
     view->addSeparator();
     m_sortMenu = view->addMenu(QStringLiteral("Sort By"));
     addPartProxy(view, QStringLiteral("Show Hidden Files"), QStringLiteral("show_hidden_files"));
     addPartProxy(view, QStringLiteral("Show Previews"), QStringLiteral("show_preview"));
+    // Windows' File Explorer opens a zip as a folder; Ark and Open With still open it as a file.
+    QAction *archives = view->addAction(QStringLiteral("Open Archives as Folders"));
+    archives->setCheckable(true);
+    archives->setChecked(fe::BrowserTab::opensArchivesAsFolders());
+    connect(archives, &QAction::toggled, this, [](bool asFolders) { fe::BrowserTab::setOpensArchivesAsFolders(asFolders); });
+    // Another window may have changed it.
+    connect(view, &QMenu::aboutToShow, archives, [archives] { archives->setChecked(fe::BrowserTab::opensArchivesAsFolders()); });
     view->addSeparator();
     // Dolphin's key for its split view.
     addWindowAction(view, QStringLiteral("Split View"), {keys(Qt::Key_F3)}, [this] { toggleSplit(); });
+    m_compareAction = addWindowAction(view, QStringLiteral("Compare Folders"), {keys(Qt::SHIFT | Qt::Key_F3)}, [this] { compareFolders(); });
+    m_compareAction->setIcon(QIcon::fromTheme(QStringLiteral("kompare")));
+    // Finder's key for its Inspector is Option-Command-I.
+    m_inspectorAction = addWindowAction(view, QStringLiteral("Show Inspector"), {keys(Qt::CTRL | Qt::ALT | Qt::Key_I)},
+                                        [this] { setInspectorVisible(m_inspector->isHidden()); });
+    m_inspectorAction->setCheckable(true);
+    // isHidden, not isVisible: the window is not shown yet while its menus are built.
+    m_inspectorAction->setChecked(!m_inspector->isHidden());
+    m_inspectorAction->setIcon(QIcon::fromTheme(QStringLiteral("dialog-information")));
     m_sidebarAction = addWindowAction(view, QStringLiteral("Hide Sidebar"), {keys(Qt::CTRL | Qt::ALT | Qt::Key_S)},
                                       [this] { setSidebarVisible(!m_sidebar->isVisible()); });
     addWindowAction(view, QStringLiteral("Reload"), {keys(Qt::Key_F5)}, [this] { currentTab()->reload(); })
         ->setIcon(QIcon::fromTheme(QStringLiteral("view-refresh")));
+    view->addSeparator();
+    // The command palette's key in code editors and browsers' developer tools.
+    m_paletteAction = addWindowAction(view, QStringLiteral("Command Palette…"), {keys(Qt::CTRL | Qt::SHIFT | Qt::Key_P)},
+                                      [this] { showCommandPalette(); });
+    m_paletteAction->setIcon(QIcon::fromTheme(QStringLiteral("search")));
     connect(view, &QMenu::aboutToShow, this, [this] {
         // Sort By lists the current tab's own sort actions, so the checks match its folder.
         m_sortMenu->clear();

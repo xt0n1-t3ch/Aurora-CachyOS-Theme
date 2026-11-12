@@ -6,6 +6,7 @@
 
 #include "application.h"
 
+#include "crumbaccessible.h"
 #include "tagging.h"
 
 #include "finderstyle.h"
@@ -16,10 +17,12 @@
 
 #include <KConfigGroup>
 #include <KConfigWatcher>
+#include <KProtocolInfo>
 #include <KSharedConfig>
 
 #include <QApplication>
 #include <QDir>
+#include <QFileInfo>
 #include <QIcon>
 #include <QStyleFactory>
 #include <QSysInfo>
@@ -33,6 +36,7 @@ void configureApplication()
     QApplication::setApplicationVersion(QStringLiteral("0.1.0"));
     QApplication::setDesktopFileName(QStringLiteral("file-explorer"));
     QApplication::setWindowIcon(QIcon::fromTheme(QStringLiteral("file-explorer-mac"), QIcon::fromTheme(QStringLiteral("system-file-manager"))));
+    installCrumbAccessibility();
 
     QStyle *base = QStyleFactory::create(QStringLiteral("Breeze"));
     if (!base) {
@@ -60,7 +64,15 @@ PathContext currentPathContext()
     const QString user = qEnvironmentVariable("USER", QDir::home().dirName());
     const QMap<QString, QString> names = KSharedConfig::openConfig(QStringLiteral("file-explorerrc"))->group(QStringLiteral("Drive Names")).entryMap();
     const Drive system{QStringLiteral("system"), QString(), DriveKind::System};
-    return {QDir::homePath(), user, driveName(system, names, QSysInfo::machineHostName()), tagging::shelfRoot()};
+    QStringList archiveSchemes;
+    const QStringList protocols = KProtocolInfo::protocols();
+    for (const QString &protocol : protocols) {
+        if (!KProtocolInfo::archiveMimetypes(protocol).isEmpty()) {
+            archiveSchemes.append(protocol);
+        }
+    }
+    return {QDir::homePath(), user, driveName(system, names, QSysInfo::machineHostName()), tagging::shelfRoot(), archiveSchemes,
+            [](const QString &path) { return QFileInfo(path).isFile(); }};
 }
 
 } // namespace fe

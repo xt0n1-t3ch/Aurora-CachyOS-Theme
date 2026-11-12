@@ -9,10 +9,15 @@
 #include "addressfield.h"
 #include "bottombar.h"
 #include "browsertab.h"
+#include "contextmenu.h"
+#include "crumbstrip.h"
 #include "core/address.h"
 #include "core/places.h"
 #include "core/quicklook.h"
+#include "inspectorpanel.h"
+#include "transfers.h"
 #include "quicklook.h"
+#include "searchservice.h"
 #include "sidebar.h"
 #include "style.h"
 #include "tabbar.h"
@@ -20,14 +25,18 @@
 #include "toolbar.h"
 #include "windowcontrols.h"
 
+#include <KConfigGroup>
 #include <KNewFileMenu>
+#include <KSharedConfig>
 #include <KPropertiesDialog>
 
 #include <QAction>
 #include <QApplication>
+#include <QClipboard>
 #include <QDir>
 #include <QFileInfo>
 #include <QHBoxLayout>
+#include <QInputDialog>
 #include <QKeyEvent>
 #include <QMenu>
 #include <QMouseEvent>
@@ -60,6 +69,7 @@ MainWindow::MainWindow(const QUrl &url, fe::PathContext context, QWidget *parent
     , m_tabBar(new fe::PillTabBar)
     , m_stack(new QStackedWidget)
     , m_pathBar(new fe::PathBar)
+    , m_inspector(new fe::InspectorPanel)
 {
     resize(DEFAULT_SIZE);
     setMinimumSize(MINIMUM_SIZE);
@@ -82,8 +92,15 @@ MainWindow::MainWindow(const QUrl &url, fe::PathContext context, QWidget *parent
     contentLayout->addSpacing(6);
     contentLayout->addWidget(m_tabBar);
     contentLayout->addSpacing(4);
-    contentLayout->addWidget(m_stack, 1);
+    // The files and, at their right, the Inspector when it is open.
+    auto *middle = new QHBoxLayout;
+    middle->setContentsMargins(0, 0, 0, 0);
+    middle->setSpacing(8);
+    middle->addWidget(m_stack, 1);
+    middle->addWidget(m_inspector);
+    contentLayout->addLayout(middle, 1);
     contentLayout->addWidget(m_pathBar);
+    m_inspector->setVisible(KSharedConfig::openConfig(QStringLiteral("file-explorerrc"))->group(QStringLiteral("Inspector")).readEntry("Visible", false));
 
     auto *body = new QHBoxLayout;
     body->setContentsMargins(fe::style::SIDEBAR_INSET, fe::style::SIDEBAR_INSET, 0, fe::style::SIDEBAR_INSET);
@@ -137,15 +154,11 @@ MainWindow::MainWindow(const QUrl &url, fe::PathContext context, QWidget *parent
     connect(m_sidebar->view(), &fe::SidebarView::newTabRequested, this, [this](const QUrl &place) { openTab(place, false); });
     // A place added or removed changes what Add to Sidebar can add.
     connect(m_sidebar->view()->model(), &QAbstractItemModel::modelReset, this, &MainWindow::syncEditActions);
-    connect(m_pathBar, &fe::PathBar::crumbClicked, this, [this](const QUrl &crumb) {
-        // The last segment can be the selected file: it opens, like a double click.
-        const KFileItemList selected = currentTab()->selectedItems();
-        if (selected.size() == 1 && selected.constFirst().url() == crumb && !selected.constFirst().isDir()) {
-            currentTab()->activateItems(selected);
-        } else {
-            openFolderHere(crumb);
-        }
-    });
+    for (fe::CrumbStrip *crumbs : {m_toolbar->addressField()->crumbs(), m_pathBar->crumbs()}) {
+        crumbs->setTagsPath(m_context.tagsPath);
+        connect(crumbs, &fe::CrumbStrip::crumbActivated, this, &MainWindow::openCrumb);
+        connect(crumbs, &fe::CrumbStrip::crumbMenuRequested, this, &MainWindow::showCrumbMenu);
+    }
     connect(m_tabBar, &fe::PillTabBar::tabClicked, this, &MainWindow::setCurrentTab);
     connect(m_tabBar, &fe::PillTabBar::tabCloseRequested, this, &MainWindow::closeTab);
     connect(m_tabBar, &fe::PillTabBar::newTabClicked, this, [this] { openTab(homeUrl()); });
@@ -157,6 +170,8 @@ MainWindow::MainWindow(const QUrl &url, fe::PathContext context, QWidget *parent
         }
     };
     m_actions.quickLook = [this] { quickLook(); };
+    // The transfer center: KIO's copies, moves and deletions of every window, while they run.
+    m_actionBar->addMiddleWidget(new fe::TransferButton(fe::TransferTracker::install(), m_actionBar));
     buildMenuBar();
     qApp->installEventFilter(this);
     m_lastTyped.invalidate();
@@ -223,9 +238,21 @@ void MainWindow::connectTab(fe::BrowserTab *tab)
         }
     });
     connect(tab, &fe::BrowserTab::newTabRequested, this, [this](const QUrl &target) { openTab(target, false); });
+    connect(tab, &fe::BrowserTab::saveSearchRequested, this, [this](const QString &term, const QString &query, const QUrl &scope) {
+        bool ok = false;
+        const QString name = QInputDialog::getText(this, QStringLiteral("Save Search"), QStringLiteral("Name of the smart folder:"),
+                                                   QLineEdit::Normal, term, &ok)
+                                 .trimmed();
+        if (!ok || name.isEmpty()) {
+            return;
+        }
+        // A smart folder is a place of KDE's like any other, so Dolphin's sidebar shows it too, and the index keeps
+        // what it lists current.
+        m_sidebar->view()->addFolder(fe::indexedSearchUrl(query, scope, name), name);
+    });
     connect(tab, &fe::BrowserTab::contextMenuRequested, this,
-            [this, tab](const QPoint &pos, const KFileItemList &items, const KParts::NavigationExtension::ActionGroupMap &) {
-                fe::execContextMenu(tab, pos, items, m_actions, this);
+            [this, tab](const QPoint &pos, const KFileItemList &items, const KParts::NavigationExtension::ActionGroupMap &groups) {
+                fe::execContextMenu(tab, pos, items, m_actions, this, tab->versionControlActions(groups));
             });
 }
 
@@ -260,7 +287,9 @@ void MainWindow::syncFromTab()
         return;
     }
     setWindowTitle(fe::folderTitle(tab->url(), m_context));
-    m_toolbar->addressField()->setLocation(tab->url());
+    // The folder, also while a search shows: the address names where the search started.
+    m_toolbar->addressField()->setLocation(tab->folderUrl());
+    m_toolbar->addressField()->setCrumbs(fe::crumbsFor(tab->folderUrl(), m_context));
     m_actionBar->setSplit(currentPage()->isSplit());
     m_toolbar->setNavigationState(tab->canGoBack(), tab->canGoForward(), tab->canGoUp());
     m_toolbar->setViewMode(tab->viewMode());
@@ -281,10 +310,28 @@ void MainWindow::syncStatus()
     const KFileItemList selected = tab->selectedItems();
     if (selected.size() == 1 && !tab->isSearching()) {
         crumbs.append({selected.constFirst().text(), selected.constFirst().url()});
-        m_pathBar->setCrumbs(crumbs, selected.constFirst().iconName());
+        m_pathBar->setCrumbs(crumbs, selected.constFirst().iconName(), selected.constFirst().isDir());
     } else {
         m_pathBar->setCrumbs(crumbs);
     }
+    if (m_inspector->isVisible()) {
+        m_inspector->setItems(selected, tab->folderUrl());
+    }
+}
+
+void MainWindow::setInspectorVisible(bool visible)
+{
+    if (visible) {
+        // Filled before it shows, so it opens on the selection and not on what it showed last.
+        if (fe::BrowserTab *tab = currentTab()) {
+            m_inspector->setItems(tab->selectedItems(), tab->folderUrl());
+        }
+    }
+    m_inspector->setVisible(visible);
+    m_inspectorAction->setChecked(visible);
+    KConfigGroup group = KSharedConfig::openConfig(QStringLiteral("file-explorerrc"))->group(QStringLiteral("Inspector"));
+    group.writeEntry("Visible", visible);
+    group.sync();
 }
 
 void MainWindow::syncEditActions()
@@ -502,6 +549,49 @@ void MainWindow::openFolderHere(const QUrl &url)
     tab->focusView();
 }
 
+bool MainWindow::isSelectedFile(const QUrl &url) const
+{
+    const KFileItemList selected = currentTab()->selectedItems();
+    return selected.size() == 1 && !selected.constFirst().isDir() && selected.constFirst().url() == url;
+}
+
+void MainWindow::openCrumb(const QUrl &url, fe::CrumbOpen how)
+{
+    if (isSelectedFile(url)) {
+        currentTab()->activateItems(currentTab()->selectedItems());
+    } else if (how == fe::CrumbOpen::NewTab) {
+        // In the background, as a middle click opens a link in a browser.
+        openTab(url, false);
+    } else {
+        openFolderHere(url);
+    }
+}
+
+void MainWindow::showCrumbMenu(const QUrl &url, const QPoint &globalPos)
+{
+    QMenu menu(this);
+    if (isSelectedFile(url)) {
+        menu.addAction(QIcon::fromTheme(QStringLiteral("document-open")), QStringLiteral("Open"), this,
+                       [this, url] { openCrumb(url, fe::CrumbOpen::Here); });
+    } else {
+        menu.addAction(QIcon::fromTheme(QStringLiteral("document-open-folder")), QStringLiteral("Open"), this,
+                       [this, url] { openFolderHere(url); });
+        menu.addAction(QIcon::fromTheme(QStringLiteral("tab-new")), QStringLiteral("Open in New Tab"), this,
+                       [this, url] { openTab(url, false); });
+        if (url.isLocalFile()) {
+            menu.addAction(QIcon::fromTheme(QStringLiteral("utilities-terminal")), QStringLiteral("Open Terminal Here"), this,
+                           [this, url] { fe::openTerminalAt(url.toLocalFile(), this); });
+        }
+    }
+    menu.addSeparator();
+    menu.addAction(QIcon::fromTheme(QStringLiteral("edit-copy-path")), QStringLiteral("Copy Path"), this, [url] {
+        QGuiApplication::clipboard()->setText(url.toDisplayString(QUrl::PreferLocalFile));
+    });
+    menu.addAction(QIcon::fromTheme(QStringLiteral("document-properties")), QStringLiteral("Get Info"), this,
+                   [this, url] { KPropertiesDialog::showDialog(url, this, false); });
+    menu.exec(globalPos);
+}
+
 void MainWindow::openNewWindow()
 {
     auto *window = new MainWindow(homeUrl(), m_context);
@@ -512,6 +602,11 @@ void MainWindow::openNewWindow()
 void MainWindow::changeEvent(QEvent *event)
 {
     GlassWindow::changeEvent(event);
+    // A window in use keeps the search helper's connection, so a search answers at once and the index follows
+    // changes; a window left alone lets it go (fe::SearchService).
+    if (event->type() == QEvent::ActivationChange && isActiveWindow()) {
+        fe::SearchService::instance().warm();
+    }
     if (event->type() == QEvent::WindowStateChange) {
         m_controls->setMaximized(isMaximized());
     }

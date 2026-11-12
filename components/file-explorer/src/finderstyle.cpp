@@ -392,6 +392,10 @@ void FinderStyle::drawControl(ControlElement element, const QStyleOption *option
         break;
     case CE_MenuEmptyArea:
         return;
+    case CE_Splitter:
+        // The split view's divider: a hairline of the glass rim's white, not Breeze's grip.
+        painter->fillRect(option->rect, style::GLASS_RIM);
+        return;
     case CE_FocusFrame:
         // Breeze 6.8 puts a QFocusFrame around a line edit that Tab or a shortcut focused (Style::event) and draws it
         // here; the toolbar's fields draw their own capsule ring (style::paintFocusRing), so Breeze's rounded

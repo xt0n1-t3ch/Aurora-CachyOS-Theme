@@ -531,8 +531,9 @@ SidebarPlace SidebarModel::placeAt(const QModelIndex &index) const
 
 void SidebarModel::addFolder(const QUrl &url, const QString &title)
 {
-    // The folder's own icon (KIO reads .directory files and knows the XDG folders); the row draws its outline.
-    m_places->addPlace(title, url, KIO::iconNameForUrl(url));
+    // The folder's own icon (KIO reads .directory files and knows the XDG folders); the row draws its outline. A saved
+    // search of the index is a smart folder, with the icon KDE gives saved searches.
+    m_places->addPlace(title, url, url.scheme() == u"aurora-search" ? QStringLiteral("folder-saved-search") : KIO::iconNameForUrl(url));
 }
 
 void SidebarModel::removeFromSidebar(const QModelIndex &index)
@@ -692,6 +693,18 @@ void SidebarModel::rebuild()
             devices.append(row);
             break;
         }
+        case KFilePlacesModel::SearchForType:
+            // KDE files any place whose scheme holds "search" under Search For (kfileplacesitem.cpp, KIO 6.31.0,
+            // line 198); a saved search of the index is a smart folder, which Finder keeps in Favorites. Baloo's
+            // searches stay out, as Dolphin's own sidebar hides them without Baloo.
+            if (url.scheme() == u"aurora-search") {
+                row.addedByUser = true;
+                // Breeze has no symbolic smart folder; the magnifier says what the row is.
+                row.iconName = QIcon::hasThemeIcon(QStringLiteral("folder-saved-search-symbolic")) ? QStringLiteral("folder-saved-search-symbolic")
+                                                                                                 : QStringLiteral("system-search-symbolic");
+                bookmarks.append(row);
+            }
+            break;
         case KFilePlacesModel::RemoteType:
             network = row;
             network.iconName = QStringLiteral(":/icons/places/network.svg");
@@ -1301,7 +1314,9 @@ void SidebarView::dropEvent(QDropEvent *event)
         // Dolphin's way (src/views/draganddrophelper.cpp, v26.08.2): KIO asks Move, Copy or Link, and a drop
         // on the Trash moves the files there (src/widgets/dropjob.cpp, v6.31.0, line 554).
         KIO::DropJob *job = KIO::drop(event, destination);
-        KJobWidgets::setWindow(job, window());
+        // KIO opens its menu at the drop's position mapped from this widget (src/widgets/dropjob.cpp, v6.31.0, line
+        // 671); the position is the viewport's own, so the viewport goes here, not the window.
+        KJobWidgets::setWindow(job, viewport());
         event->acceptProposedAction();
         break;
     }

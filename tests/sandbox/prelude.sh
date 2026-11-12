@@ -9,6 +9,12 @@ dbus-update-activation-environment --all
 # The activity manager and kded are the services a Plasma session brings up before the shell.
 /usr/lib/kactivitymanagerd > "$SBX/logs/kamd.log" 2>&1 &
 kded6 > "$SBX/logs/kded.log" 2>&1 &
+# File Explorer starts every scenario from its defaults: the settings a scenario switches on (a view mode, the
+# Inspector, archives as folders, search everywhere) would otherwise carry over into the next one. A scenario that
+# needs one sets it after sourcing this file.
+for setting in View:Mode Inspector:Visible General:ArchivesAsFolders Search:Everywhere; do
+    kwriteconfig6 --file file-explorerrc --group "${setting%%:*}" --key "${setting#*:}" --delete
+done
 # shot NAME: captures the whole screen to shots/NAME.png with Spectacle; its output goes to logs/spectacle-NAME.log.
 shot() { spectacle -b -n -f -o "$SBX/shots/$1.png" > "$SBX/logs/spectacle-$1.log" 2>&1; }
 # waitfor SECONDS: sleeps one second at a time, SECONDS times; seq drops a fraction, so 1.5 waits 1 s.

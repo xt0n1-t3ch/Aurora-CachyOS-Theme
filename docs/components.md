@@ -11,11 +11,51 @@ source is, what is installed and how it is tested. Build commands are in [build.
 A Finder-style file manager in C++ and Qt Widgets on top of Dolphin's KParts view. A sidebar with Favorites, drives
 and color Tags (drives can be renamed inline, kept in `file-explorerrc [Drive Names]`; SF-style symbols; a capacity bar
 with a tooltip, amber above 90 % and red above 95 %; a folder the user added unfolds into its subfolders and each
-section folds away, kept in `file-explorerrc [Sidebar Tree]`), tabs, a toolbar with a typed address field
-(`fe::AddressField`, rules in `core/address`: `~`, relative paths, suggestions, shell Tab) and the Group, Share
+section folds away, kept in `file-explorerrc [Sidebar Tree]`), tabs, a toolbar with an address field
+(`fe::AddressField`) that shows the path as clickable segments and takes a typed path on a click beside them, Ctrl+L or
+Alt+D (rules in `core/address`: `~`, relative paths, suggestions, shell Tab), the view buttons (they fold into one
+pop-up button before the address field gets under 300 px, as Finder's view control does) and the Group, Share
 (Purpose), Edit Tags and More menus, a row of file actions (`fe::ActionBar`), Quick Look (`fe::QuickLook`, Space;
 rules in `core/quicklook`), Split View (`fe::TabPage`, F3), a path bar that names the selected file and shows the item
-count, Finder menus with shortcuts written the Windows way (`fe::shortcutLabel`: "Ctrl+Alt+C", "Alt+Enter", "Win+E"),
+count, Undo (Ctrl+Z) from KIO's undo history, which Dolphin's view records its operations in, a filter row
+(`fe::FilterBar`, Ctrl+Alt+F or More > Filter by Name) that keeps the items whose names contain what is typed, case
+ignored, with the count of matches, and ends when the tab shows another folder or search, a Rename sheet for several
+items (`fe::BatchRenameSheet`, F2 with more than one item selected; rules in `core/batchrename`: replace text or a
+regular expression, add text, a name with an index, a counter or each item's date, a change of case; extensions kept
+the way KIO keeps them) that shows every new name, marks the ones that cannot be taken and why, plans again against
+the folders when Rename is pressed, and runs one KIO batch job that one Undo takes back, a command palette (`fe::CommandPalette`, Ctrl+Shift+P or
+More > Command Palette; ranking in `core/palette`: letters in order, word starts and runs count more) that lists every
+command of the menus, refreshed for the tab on screen, with its menu and its shortcut, Copy Path (Ctrl+Alt+C, `fe::BrowserTab::copyPaths`, rules in `core/paths`) that
+copies every selected item's path, one per line, or the folder's path when nothing is selected (Dolphin copies the
+first item only), the Inspector (`fe::InspectorPanel`, Ctrl+Alt+I or View > Show Inspector, remembered in
+`file-explorerrc [Inspector]`; rules in `core/inspector`) at the right of the files: a preview, the kind, the real
+size of folders and selections (counted like `du` on a thread at idle CPU and I/O priority: one filesystem, links not
+followed, hard links once, on-disk size beside it, unreadable folders named) counted again when the folder's own
+listing changes, where it is, its dates, owner and permissions, and for a file its SHA-256, SHA-512, SHA-1 or MD5 on
+request with a field that compares a pasted hash or `sha256sum` line; hidden, it watches and runs nothing (a folder in an archive or on another machine is read and counted through KIO),
+archives as folders (`fe::BrowserTab::archiveFolderUrl`, View > Open Archives as Folders, on by default in
+`file-explorerrc [General] ArchivesAsFolders`: a double click opens a zip, tar or 7z through kio-extras' archive worker,
+as Windows' File Explorer opens a zip; OpenDocument and other zip-based documents still open in their applications;
+the path reads as the archive's own path, then the folders in it, and Up from its top opens its folder with the
+archive selected), Git (Dolphin's Git plugin from `dolphin-plugins`, which the installer turns on in `dolphinrc
+[VersionControl] enabledPlugins` without turning off the user's others: each file in a repository shows its status,
+and the context menu has a Git submenu with Log, Add, Commit, Push and the rest, taken from the part's action groups
+by `fe::BrowserTab::versionControlActions`), smart folders (Save at the right of the search row names the search
+and puts it in Favorites as a KDE place, so Dolphin lists it under Search For; it opens like a folder, its icon a
+magnifier, and the index's change notices keep it current), a columns view (`fe::ColumnsStrip`, the fourth view button, View > as
+Columns, remembered with the gallery in `file-explorerrc [View] Mode`; which folders in `core/paths` `columnFolders`: a column per
+folder from home, or from the disk's root, to the folder on screen, each a KIO listing kept current, with Dolphin's list
+as the last column, so every file action stays Dolphin's; a click on a folder opens it, on a file opens its folder
+with it selected, and files dropped on a column's folder go into it), a gallery view (`fe::GalleryStage`, the fifth
+view button, View > as Gallery: the selected item as large as the window allows, its preview from KIO's thumbnailers
+or its icon, with its name and kind, above Dolphin's icons as the strip; previews are asked for only while it shows
+and once per pause in the selection), a transfer center (`fe::TransferTracker`, set in front of KIO's job tracker so
+Plasma's notifications still get every job; texts in `core/transfers`): while copies, moves or deletions run, the action
+row shows a ring and "Copying, 45%", and a click opens a panel with each job's route, bar, size, speed and time left
+and buttons to pause, resume or stop it), Compare Folders (`fe::CompareSheet`, View > Compare Folders or Shift+F3,
+with the two folders of Split View; rules in `core/compare`: every subfolder walked on a thread at idle priority, files
+the same when size and time match within two seconds, or by SHA-256 with Compare contents; the selected rows copy to
+the other side with KIO, recorded for Undo, and the list is compared again), path segments in both bars (`fe::CrumbStrip`, rules in `core/crumbs`; below), Finder menus with shortcuts written the Windows way (`fe::shortcutLabel`: "Ctrl+Alt+C", "Alt+Enter", "Win+E"),
 and the pointing hand on every clickable widget.
 
 Group offers the Finder's choices (None, Name, Kind, Date Modified, Date Created, Size, Tags) through Dolphin's own
@@ -25,6 +65,32 @@ focus ring (`style::paintFocusRing`); `FinderStyle` drops the `QFocusFrame` Bree
 or a shortcut. The window is glass with KWin's blur while it is active and opaque while it is not, as macOS materials
 are when their window is not key, so nothing behind shows through it whether KWin blurs or not; selections turn gray
 with it.
+
+The address field and the path bar show the path as segments (`fe::CrumbStrip`, which each bar feeds its events;
+the layout, the hit test and the drop rules are pure functions in `core/crumbs`, tested). The address field shows them
+at rest without icons, as Windows' address bar does, and opens for typing on a click beside them, Ctrl+L or Alt+D (its
+focus policy is Tab, so a click on a segment opens the folder instead of the field). A click opens a segment and a
+middle click or Ctrl+click opens it in a background tab; the chevron after a segment lists its visible folders (250 at
+most, the next one of the path in bold, then Show All); a path too long for its bar folds the segments after the
+first into an ellipsis, outermost first, which lists them, and the folder on screen keeps the rest of the room; a
+right-click offers Open, Open in New Tab, Open Terminal Here, Copy Path and Get Info. Files dropped on a segment go
+through `KIO::drop`, as on the sidebar, so KIO asks Move, Copy or Link; a tag's shelf tags them instead. Refused: a
+folder into itself or a folder inside it, files into the folder they are in, Recents, a search, Network, the shelf
+of all tags, a folder that is not writable, and the selected file the path bar can end with. A drag resting 700 ms on
+a segment opens it (Finder's spring-loaded folders), except the folder on screen. A segment dragged out carries its
+URL. The tooltip of a segment is its whole path. Screen readers see the path bar as a group of links, one per segment,
+which they can press (`crumbaccessible.cpp`); the address field is a line edit whose text is the whole path. KIO opens
+its Move, Copy or Link menu at the drop's position mapped from the widget given to `KJobWidgets::setWindow`
+(`src/widgets/dropjob.cpp`, v6.31.0, line 671), so a drop names the widget whose coordinates the drop has: the bar,
+or the sidebar's viewport.
+
+Search answers from aurora-search's index of every local disk when it runs ([search.md](search.md)): a KIO worker
+(`src/plugins/searchworker.cpp`, `aurora-search:` URLs) lists the helper's matches into Dolphin's view, so they have
+icons, columns, drag and drop and menus; `fe::SearchService` keeps one connection while a window is in use, which
+keeps the helper and its live updates running, and lets go after three idle minutes; a scope row under the toolbar
+(`fe::SearchScopeBar`) chooses This PC or the folder, kept in `file-explorerrc [Search] Everywhere`; hidden names are
+matched only while the view shows hidden files. A folder the index does not hold (a network share, a phone) is
+searched in place with Dolphin's filenamesearch, as before.
 
 Color tags (`tagging.cpp`, rules in `core/tags`) live in the file's `user.xdg.tags` attribute through KFileMetaData, so
 Dolphin and Baloo read them too. Each tag's sidebar row opens its shelf, `~/.local/share/file-explorer/tags/<Tag>`, a
@@ -36,11 +102,34 @@ Dolphin, with the 63 emblems `themes/icons/tag_emblems.py` adds to the icon them
 It also serves `org.freedesktop.FileManager1` (`--service`: "Show in folder" selects the file) and the FileChooser
 portal backend (`--portal`: Open and Save panels with a chooser bar; it quits after three idle minutes). Installed as
 `~/.local/bin/file-explorer`; Win+E launches it. Folders without a view of their own show Finder's columns (Name,
-Modified, Size, Type) from `~/.local/share/file-explorer/view_properties/global/.directory`. Tests: `fe_tests` (78),
-`fe_finder_tests` (33), `tests/installer/test_tag_emblems.sh` (5). Sandbox: `explorer.sh`, `explorer-finder.sh` (the
+Modified, Size, Type) from `~/.local/share/file-explorer/view_properties/global/.directory`. Tests: `fe_tests` (95),
+`fe_finder_tests` (55), `fe_widget_tests` (28, offscreen: clicks, drops, a drag resting on a segment, the address
+field at rest, accessibility, the filter row over a real Dolphin view, the glass behind a field inside a tab, the
+Rename sheet renaming a real folder and one Undo taking it back, F2 on two items opening it, the command palette
+finding, running and closing, Copy Path with three items and with none, the Inspector counting a
+folder and again after a change, hashing a file and comparing a pasted hash, a tar.gz opened as a
+folder, Up out of it, the Inspector counting inside it, the search row's Save and its folder capsule hidden when the index
+does not hold the folder, the columns leading to a folder and opening
+what is clicked, the gallery showing the selected picture, the transfer center
+following a job until it ends, Compare Folders listing differences and copying a folder across), `tests/installer/test_tag_emblems.sh` (5). Sandbox: `explorer.sh`, `explorer-crumbs.sh` (the path
+segments: hover, both menus, a drop in the accent, a segment opening under a drag, KIO's menu at the pointer on a
+segment and on the sidebar, a refused drop, Ctrl+L, Ctrl+click and middle click), `explorer-finder.sh` (the
 mockup's scene: tags, the unfolded sidebar, the menu, a typed path, Quick Look, Split View, a tag's shelf, the Group
 menu and the folder grouped by Kind from it, and the window inactive behind another),
-`explorer-menus.sh`, `explorer-drives.sh`, `show-in-folder.sh`, `open-save.sh`.
+`explorer-menus.sh`, `explorer-drives.sh`, `explorer-search.sh` (search from the index: whole home, scope row, hidden
+names, Save to a smart folder in Favorites and opening it), `explorer-undo.sh` (Delete, then Ctrl+Z brings the file back; FAIL on the code before Undo), `explorer-filter.sh`
+(Ctrl+Alt+F, a word hides the rest, no match empties the view, Escape brings everything back), `explorer-rename.sh`
+(Ctrl+A, F2, find and replace, Enter, then Ctrl+Z; 3 PASS), `explorer-palette.sh` (Ctrl+Shift+P, "show hidden",
+Enter; 3 PASS), `explorer-copypaths.sh` (Ctrl+A, Ctrl+Alt+C, the three paths read
+from Klipper and pasted into KWrite), `explorer-inspector.sh` (Ctrl+Alt+I on a
+folder, a picture, Compute and a typed SHA-256 that matches; 3 PASS), `explorer-archive.sh` (a double click on a
+zip, then Alt+Up; 2 PASS), `explorer-git.sh` (a repository's
+status emblems, the context menu and its Git submenu; needs `dolphin-plugins` or `AURORA_DOLPHIN_PLUGINS` naming its
+unpacked package; 2 PASS), `explorer-columns.sh` (the
+columns view from the palette, a click in a column; 2 PASS), `explorer-gallery.sh` (the gallery from the palette,
+the first picture large, Right to the next; 2 PASS), `explorer-transfers.sh` (a copy of 30,000 small files: the
+ring in the action row, the panel, the button gone at the end, every file there; 4 PASS), `explorer-compare.sh` (Split
+View, Shift+F3, a folder copied to the right and the list compared again; 3 PASS), `show-in-folder.sh`, `open-save.sh`.
 
 ## Mission Center (`components/mission-center`)
 
