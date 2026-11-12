@@ -26,6 +26,9 @@ The rules I set while building Aurora, and why. They decide every design questio
 - Quick Menu ends in a rail, as Windows 11's Start does: the account's picture and name open Lock, Switch User and Log
   Out; the power button opens Sleep, Hibernate (where the machine can), Restart and Shut Down. Plasma's session
   manager does the work, with its own confirmation.
+- A file dragged onto a segment of File Explorer's path goes into that folder when it is let go; holding it there
+  opens nothing, so the window never moves away in the middle of a drag (2026-11-11, after trying Finder's
+  spring-loaded segments).
 - Power and Battery stays visible in the tray, where the power profile is switched.
 - The pointing hand on everything clickable; the black minimalist macOS cursor elsewhere, GTK apps included.
 - The clock follows the region's 12- or 24-hour format.

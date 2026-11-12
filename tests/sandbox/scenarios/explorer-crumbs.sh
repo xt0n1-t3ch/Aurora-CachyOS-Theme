@@ -3,8 +3,8 @@
 # SPDX-License-Identifier: GPL-3.0-only
 # Additional terms (GPL-3.0 section 7, author attribution): see NOTICE.md.
 # The path segments of File Explorer's address field and path bar: at rest, hovered, the chevron's folder menu, the
-# ellipsis menu, a file dragged onto a segment (the accent target, the segment opening while the drag rests on it,
-# KIO's Move, Copy or Link menu at the pointer, on a segment and on the sidebar), a drop refused on the folder the file
+# ellipsis menu, a file dragged onto a segment (the accent target, nothing opening while the drag rests on it, KIO's
+# Move, Copy or Link menu at the pointer, on a segment and on the sidebar), a drop refused on the folder the file
 # is in, Ctrl+L for typing, Ctrl+click and a middle click for new tabs, and a click on the first segment. Captures
 # shots/crumbs-*.png and writes PASS or FAIL lines to logs/crumbs.txt. The positions are those of File Explorer's
 # first window at 2560x1440 on ~/Crumbs/Projects/Aurora-CachyOS-Theme/docs, a path long enough that the address field
@@ -19,13 +19,13 @@ rm -rf "$HOME/Crumbs" && mkdir -p "$DOCS" "$HOME/Crumbs/Projects/Orion" "$HOME/C
 printf 'int main(void) { return 0; }\n' > "$DOCS/main.c"
 printf '#!/bin/sh\necho hola\n' > "$DOCS/hola"; chmod +x "$DOCS/hola"
 
-# check NAME BEFORE AFTER X0 Y0 X1 Y1: PASS when the region changed between the two captures.
+# check NAME BEFORE AFTER X0 Y0 X1 Y1 [same]: PASS when the region changed between the two captures (or, with "same",
+# when it did not).
 check() {
-    if python3 -I "$CHANGED" "$SHOTS/$2.png" "$SHOTS/$3.png" "$4" "$5" "$6" "$7" > /dev/null 2>&1; then
-        echo "PASS $1" >> "$OUT"
-    else
-        echo "FAIL $1" >> "$OUT"
-    fi
+    local changed=1
+    python3 -I "$CHANGED" "$SHOTS/$2.png" "$SHOTS/$3.png" "$4" "$5" "$6" "$7" > /dev/null 2>&1 && changed=0
+    if [ "${8:-}" = same ]; then changed=$((1 - changed)); fi
+    if [ "$changed" = 0 ]; then echo "PASS $1" >> "$OUT"; else echo "FAIL $1" >> "$OUT"; fi
 }
 # drag X0 Y0 X1 Y1 HOLD_MS: presses at the first point, glides to the second, holds there and lets go, in one fakeinput
 # run in the background (KWin lets go of the button when the fakeinput client ends). Arrives about a second after it
@@ -64,20 +64,19 @@ input move 959 "$BOTTOM_Y" wait 200 down wait 80 up wait 900
 shot crumbs-bottom-menu
 input keydown 1 keyup 1 wait 500
 
-# The drag rests on xt0n1: first the segment takes the drop in the accent, then the home folder opens under the drag.
-# Esc cancels the drag and Alt+Left goes back to docs.
+# The drag rests on xt0n1: the segment takes the drop in the accent, and however long the drag stays there the window
+# keeps showing docs. Esc cancels the drag.
 drag "$MAIN_X" "$MAIN_Y" 995 "$TOP_Y" 2600
-# The drag arrives about 1.2 s after it starts and the segment opens 0.7 s later; Spectacle takes a few tenths of a
-# second to capture (about 0.5 s measured), so the capture starts early.
-sleep 0.8
+# The drag arrives about 1.2 s after it starts; Spectacle takes about 0.5 s to capture.
+sleep 1.1
 shot crumbs-drop-target
 check drop-target-in-accent crumbs-hover crumbs-drop-target 975 298 1015 320
 sleep 0.6
-shot crumbs-spring
-check holding-a-drag-opens-the-segment crumbs-drop-target crumbs-spring 830 440 1400 470
+shot crumbs-held
+check holding-a-drag-opens-nothing crumbs-drop-target crumbs-held 830 440 1400 470 same
 input keydown 1 keyup 1
 wait "$DRAG"
-input wait 600 keydown 56 keydown 105 keyup 105 keyup 56 wait 1200
+input wait 1200
 
 # A quick drop on Crumbs in the path bar: KIO asks Move, Copy or Link, at the pointer; Esc cancels.
 drag "$MAIN_X" "$MAIN_Y" 927 "$BOTTOM_Y" 250
