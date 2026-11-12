@@ -43,15 +43,17 @@ pub enum Install {
 }
 
 impl Install {
-    /// The command that installs the package at `url` this way. `pacman -U` checks a downloaded package's signature
-    /// as strictly as a repository's (pacman.conf: `RemoteFileSigLevel` takes `SigLevel` by default).
+    /// The command that installs the package at `url` this way; with `yes`, pacman asks nothing (`--noconfirm`), as
+    /// `aurora update --yes` promises. `pacman -U` checks a downloaded package's signature as strictly as a
+    /// repository's (pacman.conf: `RemoteFileSigLevel` takes `SigLevel` by default).
     #[must_use]
-    pub fn command(self, url: &str) -> Vec<String> {
-        let words: &[&str] = match self {
-            Install::WithSystem => &["sudo", "pacman", "-Syu", "--needed", updates::PACKAGE],
-            Install::Alone => &["sudo", "pacman", "-U", url],
+    pub fn command(self, url: &str, yes: bool) -> Vec<String> {
+        let quiet: &[&str] = if yes { &["--noconfirm"] } else { &[] };
+        let (verb, target): (&[&str], &str) = match self {
+            Install::WithSystem => (&["-Syu", "--needed"], updates::PACKAGE),
+            Install::Alone => (&["-U"], url),
         };
-        words.iter().map(|word| (*word).to_string()).collect()
+        ["sudo", "pacman"].iter().chain(verb).chain(quiet).chain([&target]).map(|word| (*word).to_string()).collect()
     }
 }
 
@@ -253,8 +255,18 @@ mod tests {
     #[test]
     fn with_the_system_pacman_upgrades_everything_and_alone_it_installs_the_signed_package_from_its_address() {
         let url = "https://github.com/xt0n1-t3ch/Aurora-CachyOS-Theme/releases/download/repo/aurora-theme-1.2.0-1-x86_64.pkg.tar.zst";
-        assert_eq!(Install::WithSystem.command(url), ["sudo", "pacman", "-Syu", "--needed", "aurora-theme"]);
-        assert_eq!(Install::Alone.command(url), ["sudo", "pacman", "-U", url]);
+        assert_eq!(Install::WithSystem.command(url, false), ["sudo", "pacman", "-Syu", "--needed", "aurora-theme"]);
+        assert_eq!(Install::Alone.command(url, false), ["sudo", "pacman", "-U", url]);
+    }
+
+    #[test]
+    fn asked_for_no_questions_pacman_asks_none() {
+        let url = "https://github.com/xt0n1-t3ch/Aurora-CachyOS-Theme/releases/download/repo/aurora-theme-1.3.5-1-x86_64.pkg.tar.zst";
+        assert_eq!(
+            Install::WithSystem.command(url, true),
+            ["sudo", "pacman", "-Syu", "--needed", "--noconfirm", "aurora-theme"]
+        );
+        assert_eq!(Install::Alone.command(url, true), ["sudo", "pacman", "-U", "--noconfirm", url]);
     }
 
     #[test]
