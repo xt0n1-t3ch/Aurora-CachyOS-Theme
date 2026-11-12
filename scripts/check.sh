@@ -53,6 +53,8 @@ fi
 run "file explorer" "$B/file-explorer/fe_tests"
 run "file explorer finder" "$B/file-explorer/fe_finder_tests"
 QT_QPA_PLATFORM=offscreen run "file explorer widgets" "$B/file-explorer/fe_widget_tests"
+run "file explorer git" "$B/file-explorer/fe_git_tests"
+QT_QPA_PLATFORM=offscreen run "file explorer git sheets" "$B/file-explorer/fe_git_widget_tests"
 run "window buttons" "$B/window-buttons/decoration_tests"
 run "energy page" "$B/energy-page/test_power"
 run "glass blur" qml components/glass tests/tst_blurbehind.qml "$B/glass/qml"

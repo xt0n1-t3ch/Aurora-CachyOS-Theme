@@ -10,6 +10,7 @@
 
 #include "browsertab.h"
 #include "core/places.h"
+#include "gitactions.h"
 #include "tagging.h"
 
 #include <KFileItemActions>
@@ -226,15 +227,37 @@ void execContextMenu(BrowserTab *tab, const QPoint &globalPos, const KFileItemLi
     } else {
         fillItemMenu(menu, tab, items, fileActions, actions, window);
     }
-    if (!versionControl.isEmpty()) {
+    // Git has a menu of its own, which reads the repository of what was clicked; Dolphin's Git plugin only knows the
+    // folder on screen. Other systems (Subversion, Mercurial) keep the plugin's actions.
+    QList<QAction *> otherSystems;
+    for (QAction *action : versionControl) {
+        if (!action->parent() || !action->parent()->inherits("FileViewGitPlugin")) {
+            otherSystems.append(action);
+        }
+    }
+    if (!otherSystems.isEmpty()) {
         QStringList texts;
-        for (const QAction *action : versionControl) {
+        for (const QAction *action : std::as_const(otherSystems)) {
             texts.append(action->text());
         }
         menu.addSeparator();
         QMenu *submenu = menu.addMenu(icon("vcs-normal"), versionControlMenuTitle(texts));
-        submenu->addActions(versionControl);
+        submenu->addActions(otherSystems);
     }
+    QList<git::SelectedPath> selected;
+    for (const KFileItem &item : items) {
+        if (item.localPath().isEmpty()) {
+            selected.clear();
+            break;
+        }
+        selected.append({item.localPath(), item.isDir()});
+    }
+    QPointer<BrowserTab> view(tab);
+    addGitMenu(menu, {git::targetOf(selected, onBackground, gitSafeDirectories), window, [view] {
+                          if (view) {
+                              view->reload();
+                          }
+                      }});
     menu.exec(globalPos);
 }
 
