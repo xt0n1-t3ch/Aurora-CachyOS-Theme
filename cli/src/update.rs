@@ -20,9 +20,10 @@ use crate::updates;
 
 /// The command that updates an aurora-theme built from the AUR, which no repository pacman uses has: the AUR helper
 /// when there is one (paru first), else pacman through sudo. Either upgrades the whole system with it, so no partial
-/// upgrade happens. `on_path` tells whether a program is installed.
-fn package_update(on_path: impl Fn(&str) -> bool) -> Vec<&'static str> {
-    let upgrade = ["-Syu", "--needed", "aurora-theme"];
+/// upgrade happens. `on_path` tells whether a program is installed; with `yes` the command asks nothing.
+fn package_update(on_path: impl Fn(&str) -> bool, yes: bool) -> Vec<&'static str> {
+    let quiet: &[&str] = if yes { &["--noconfirm"] } else { &[] };
+    let upgrade = ["-Syu", "--needed"].iter().chain(quiet).chain(&["aurora-theme"]).copied();
     match ["paru", "yay"].into_iter().find(|helper| on_path(helper)) {
         Some(helper) => [helper].into_iter().chain(upgrade).collect(),
         None => ["sudo", "pacman"].into_iter().chain(upgrade).collect(),
@@ -63,7 +64,7 @@ fn upgrade(command: &[&str]) -> Result<()> {
 
 /// Brings a newer aurora-theme from the repositories pacman uses the way its build allows (see [`plan`]): with the
 /// whole system upgrade, on its own, or not yet. It says which and why; nothing changes when no newer one is out.
-fn update_package(places: &Places) -> Result<Next> {
+fn update_package(places: &Places, yes: bool) -> Result<Next> {
     let spinner = cliclack::spinner();
     spinner.start("Looking for a newer Aurora");
     let Some(found) = plan::look(&places.databases(), &places.cache.join("aurora/update"))? else {
@@ -98,7 +99,7 @@ fn update_package(places: &Places) -> Result<Next> {
             return Ok(Next::Stop);
         }
     };
-    let command = install.command(&found.url);
+    let command = install.command(&found.url, yes);
     cliclack::log::step(format!("{title}: {}", command.join(" ")))?;
     upgrade(&command.iter().map(String::as_str).collect::<Vec<_>>())?;
     // pacman can end without error and without the new version (a mirror behind, a package held back): say so instead
@@ -137,13 +138,13 @@ pub fn update(places: &Places, yes: bool) -> Result<()> {
             let ours = repo::ensure(&places.cache.join("aurora/update"), yes)?;
             // pacman -Qm lists a package that no repository has: one built from the AUR, which its helper updates.
             if !ours && run::capture("pacman", &["-Qmq", updates::PACKAGE]).is_ok() {
-                let command = package_update(run::on_path);
+                let command = package_update(run::on_path, yes);
                 cliclack::log::step(format!(
                     "Updating the system and the aurora-theme package: {}",
                     command.join(" ")
                 ))?;
                 upgrade(&command)?;
-            } else if update_package(places)? == Next::Stop {
+            } else if update_package(places, yes)? == Next::Stop {
                 return Ok(());
             }
             source.clone()
@@ -182,12 +183,22 @@ mod tests {
     // with it, since Arch does not support partial upgrades (pacman -S without -y may also miss the update).
     #[test]
     fn the_package_updates_with_the_whole_system_through_an_aur_helper_when_there_is_one() {
-        assert_eq!(package_update(|program| program == "yay"), ["yay", "-Syu", "--needed", "aurora-theme"]);
-        assert_eq!(package_update(|_| true), ["paru", "-Syu", "--needed", "aurora-theme"]);
+        assert_eq!(package_update(|program| program == "yay", false), ["yay", "-Syu", "--needed", "aurora-theme"]);
+        assert_eq!(package_update(|_| true, false), ["paru", "-Syu", "--needed", "aurora-theme"]);
     }
 
     #[test]
     fn without_an_aur_helper_pacman_updates_the_package_with_the_whole_system() {
-        assert_eq!(package_update(|_| false), ["sudo", "pacman", "-Syu", "--needed", "aurora-theme"]);
+        assert_eq!(package_update(|_| false, false), ["sudo", "pacman", "-Syu", "--needed", "aurora-theme"]);
+    }
+
+    // Without a terminal nobody answers pacman's question, and the update would wait for ever.
+    #[test]
+    fn asked_for_no_questions_the_helper_and_pacman_ask_none() {
+        assert_eq!(package_update(|_| true, true), ["paru", "-Syu", "--needed", "--noconfirm", "aurora-theme"]);
+        assert_eq!(
+            package_update(|_| false, true),
+            ["sudo", "pacman", "-Syu", "--needed", "--noconfirm", "aurora-theme"]
+        );
     }
 }
