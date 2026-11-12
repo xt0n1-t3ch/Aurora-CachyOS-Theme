@@ -11,7 +11,7 @@ One command installs it and one removes it. The installer saves every setting be
 
 Nothing in KWin is patched and no file that belongs to a package is edited. Some parts are Plasma's own code rebuilt with a small patch, some are plugins that load ahead of the stock ones, some are Plasma widgets, and the rest are settings. When a system update brings a new Plasma, KWin or Qt, the parts built for the old version are skipped at login and Plasma uses its own until you rebuild them.
 
-<h2 align="center" id="showcase"><img src="assets/readme/heading-showcase.svg" alt="Showcase: The desktop, Quick Menu, Control Center, notifications and Mission Center" width="880"></h2>
+<h2 align="center" id="showcase"><img src="assets/readme/heading-showcase.svg" alt="Showcase: The desktop, File Explorer, Quick Menu, Control Center, notifications and Mission Center" width="880"></h2>
 
 <p align="center">
 <a href="assets/screenshots/desktop.jpg"><img src="assets/screenshots/desktop.jpg" alt="The desktop: the menu bar with the CachyOS logo, the tray, Quick Menu, Control Center and the clock; File Explorer on the left; the Dock at the bottom; Dawn Bird, Aurora's wallpaper, a bird of folded glass rising on the right" width="960"></a>
@@ -33,6 +33,21 @@ Nothing in KWin is patched and no file that belongs to a package is edited. Some
   </tr>
   <tr>
     <td colspan="2" align="center"><a href="assets/screenshots/mission-center-apps.jpg"><img src="assets/screenshots/mission-center-apps.jpg" alt="Mission Center on Apps: the running apps and processes on a glass card, busy cells tinted warmer as they rise" width="840"></a><br>Apps and processes as in the Windows 11 Task Manager, with busy values tinted warmer as they rise.</td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center"><a href="assets/screenshots/file-explorer-git.jpg"><img src="assets/screenshots/file-explorer-git.jpg" alt="File Explorer in a Git repository: the files carry their status marks, and README.md's menu is open on Git, with Stage, Discard Changes, Show Changes, History, Commit 5 Changes, Branches, Stash and Repository History" width="840"></a><br>In a Git repository each file shows its status, and the Git menu acts on what you right-clicked: stage, discard, commit, switch branches, stash and read the history.</td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><a href="assets/screenshots/file-explorer-commit.jpg"><img src="assets/screenshots/file-explorer-commit.jpg" alt="The Commit sheet: the changed files with a box each, the selected file's diff in color, and the summary and description fields" width="420"></a><br>Commit lists every change with its diff. Tick what goes in, write the summary and commit.</td>
+    <td width="50%" align="center"><a href="assets/screenshots/file-explorer-columns.jpg"><img src="assets/screenshots/file-explorer-columns.jpg" alt="File Explorer in the columns view: Projects, weather-station, src and sensors side by side, each folder on the way marked" width="420"></a><br>The columns view: a column for each folder on the way, as in Finder.</td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><a href="assets/screenshots/file-explorer-gallery.jpg"><img src="assets/screenshots/file-explorer-gallery.jpg" alt="File Explorer in the gallery view: the selected wallpaper large, the other pictures in a row under it" width="420"></a><br>The gallery shows the selected picture large, with the rest of the folder under it.</td>
+    <td width="50%" align="center"><a href="assets/screenshots/file-explorer-inspector.jpg"><img src="assets/screenshots/file-explorer-inspector.jpg" alt="The Inspector beside the files: a picture's preview, its kind, size, place, dates and permissions, and a SHA-256 field to compute or compare a hash" width="420"></a><br>The Inspector shows what is selected, counts what a folder holds and checks a file's hash.</td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><a href="assets/screenshots/file-explorer-palette.jpg"><img src="assets/screenshots/file-explorer-palette.jpg" alt="The command palette under the toolbar: view typed, and the matching commands listed with their menus and shortcuts" width="420"></a><br>Ctrl+Shift+P opens the command palette: a few letters find any command and show its shortcut.</td>
+    <td width="50%" align="center"><a href="assets/screenshots/file-explorer-rename.jpg"><img src="assets/screenshots/file-explorer-rename.jpg" alt="The Rename sheet over six selected files: Replace Text, img- found and lisbon- in its place, each old name beside its new one" width="420"></a><br>F2 on several files renames them together, with every new name shown before anything changes.</td>
   </tr>
 </table>
 
