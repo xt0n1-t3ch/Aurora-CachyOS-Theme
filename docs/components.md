@@ -37,10 +37,27 @@ archives as folders (`fe::BrowserTab::archiveFolderUrl`, View > Open Archives as
 `file-explorerrc [General] ArchivesAsFolders`: a double click opens a zip, tar or 7z through kio-extras' archive worker,
 as Windows' File Explorer opens a zip; OpenDocument and other zip-based documents still open in their applications;
 the path reads as the archive's own path, then the folders in it, and Up from its top opens its folder with the
-archive selected), Git (Dolphin's Git plugin from `dolphin-plugins`, which the installer turns on in `dolphinrc
-[VersionControl] enabledPlugins` without turning off the user's others: each file in a repository shows its status,
-and the context menu has a Git submenu with Log, Add, Commit, Push and the rest, taken from the part's action groups
-by `fe::BrowserTab::versionControlActions`), smart folders (Save at the right of the search row names the search
+archive selected), Git (each file in a repository shows its status through Dolphin's Git plugin from
+`dolphin-plugins`, which the installer turns on in `dolphinrc [VersionControl] enabledPlugins` without turning off the
+user's others; the context menu's Git submenu is File Explorer's own. `core/gitrepo` finds the repository of what was
+clicked the way git does (`setup.c`, checked against `git rev-parse --show-toplevel`: the nearest `.git` folder or
+`gitdir:` file, linked work trees and submodules, an empty `.git` skipped, a broken `.git` file, a bare repository, a
+ceiling folder, another filesystem or another user's repository without `safe.directory` ending the search), so a
+repository's folder seen from a plain folder gets its own Git menu, a plain folder gets none, and only the background of
+a plain folder offers Clone Repository Here and Create Repository Here. The submenu reads `git status --porcelain=v2`,
+the remotes, `ls-files` and `check-ignore` when it opens (`fe::loadGitSnapshot`) and `core/gitmenu` decides from that
+alone what it offers and says: a line with the branch and how it stands ("main, 2 to push, 1 to pull", "Merging into
+main, 2 conflicts"), then Commit, Pull, Push or Publish Branch, Fetch, Branches, Stash and Restore Latest Stash, Show
+Changes, History, Abort or Continue an operation under way and Open on the remote's site; for items, first Stage (Mark
+as Resolved for conflicts), Unstage, Discard Changes (only back to the last commit; a new file is unstaged, never
+deleted), Show Changes, History, Stop Tracking and Ignore. `core/gitcommands` holds every command line. Jobs run as
+`fe::GitJob`s in the transfer center with git's progress, with terminal prompts off and KDE's password prompt for HTTPS
+and SSH; git's own message shows when one fails. The sheets (`gitsheets.cpp`): Commit (changed files with a colored
+letter each and a box to leave one out, its diff beside, summary, description, amend, Commit or Commit and Push; it
+stays open on an error with the message kept), Show Changes, Clone (address from the clipboard, folder named from it),
+Branches (switch, create with git's naming rules, merge, delete) and History (the commits of the repository or of a
+file through its renames, each with its diff); Dolphin's own Git actions are left out of the menu, other version
+control systems keep theirs), smart folders (Save at the right of the search row names the search
 and puts it in Favorites as a KDE place, so Dolphin lists it under Search For; it opens like a folder, its icon a
 magnifier, and the index's change notices keep it current), a columns view (`fe::ColumnsStrip`, the fourth view button, View > as
 Columns, remembered with the gallery in `file-explorerrc [View] Mode`; which folders in `core/paths` `columnFolders`: a column per
@@ -111,8 +128,12 @@ folder and again after a change, hashing a file and comparing a pasted hash, a t
 folder, Up out of it, the Inspector counting inside it, the search row's Save and its folder capsule hidden when the index
 does not hold the folder, the columns leading to a folder and opening
 what is clicked, the gallery showing the selected picture, the transfer center
-following a job until it ends, Compare Folders listing differences and copying a folder across), `tests/installer/test_tag_emblems.sh` (5). Sandbox: `explorer.sh`, `explorer-crumbs.sh` (the path
-segments: hover, both menus, a drop in the accent, a segment opening under a drag, KIO's menu at the pointer on a
+following a job until it ends, Compare Folders listing differences and copying a folder across, a narrow toolbar
+folding its view buttons), `fe_git_tests` (64: the repository of 17 kinds of item checked against `git rev-parse`,
+`git status` and log and branch output, the menu in each state, every command line run on real repositories, branch
+names judged by git itself), `fe_git_widget_tests` (9, offscreen, real repositories and a local remote: the menus,
+Create Repository, Commit and Push, Clone, Branches, History, Stage), `tests/installer/test_tag_emblems.sh` (5). Sandbox: `explorer.sh`, `explorer-crumbs.sh` (the path
+segments: hover, both menus, a drop in the accent, a drag held on a segment opening nothing, KIO's menu at the pointer on a
 segment and on the sidebar, a refused drop, Ctrl+L, Ctrl+click and middle click), `explorer-finder.sh` (the
 mockup's scene: tags, the unfolded sidebar, the menu, a typed path, Quick Look, Split View, a tag's shelf, the Group
 menu and the folder grouped by Kind from it, and the window inactive behind another),
@@ -124,8 +145,9 @@ Enter; 3 PASS), `explorer-copypaths.sh` (Ctrl+A, Ctrl+Alt+C, the three paths rea
 from Klipper and pasted into KWrite), `explorer-inspector.sh` (Ctrl+Alt+I on a
 folder, a picture, Compute and a typed SHA-256 that matches; 3 PASS), `explorer-archive.sh` (a double click on a
 zip, then Alt+Up; 2 PASS), `explorer-git.sh` (a repository's
-status emblems, the context menu and its Git submenu; needs `dolphin-plugins` or `AURORA_DOLPHIN_PLUGINS` naming its
-unpacked package; 2 PASS), `explorer-columns.sh` (the
+folder seen from a plain folder has its own Git menu, a plain folder none, the background offers Clone and Create, a
+file's Git menu acts on the file, then fe-shots opens Commit, Show Changes, History, Branches and Clone; needs
+`dolphin-plugins` or `AURORA_DOLPHIN_PLUGINS` naming its unpacked package; 5 PASS), `explorer-columns.sh` (the
 columns view from the palette, a click in a column; 2 PASS), `explorer-gallery.sh` (the gallery from the palette,
 the first picture large, Right to the next; 2 PASS), `explorer-transfers.sh` (a copy of 30,000 small files: the
 ring in the action row, the panel, the button gone at the end, every file there; 4 PASS), `explorer-compare.sh` (Split

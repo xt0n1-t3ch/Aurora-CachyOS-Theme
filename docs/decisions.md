@@ -29,6 +29,11 @@ The rules I set while building Aurora, and why. They decide every design questio
 - A file dragged onto a segment of File Explorer's path goes into that folder when it is let go; holding it there
   opens nothing, so the window never moves away in the middle of a drag (2026-11-11, after trying Finder's
   spring-loaded segments).
+- File Explorer's Git menu follows the repository of what was clicked, found the way git itself finds it: a
+  repository's folder seen from outside gets its own commands, a file or folder outside every repository gets no Git
+  entry, and Clone and Create Repository appear only on the empty space of a plain folder. Its commands open File
+  Explorer's own sheets, not Dolphin's Git dialogs, and nothing in it is fixed text: every entry and its words come
+  from the repository's state (2026-11-11).
 - Power and Battery stays visible in the tray, where the power profile is switched.
 - The pointing hand on everything clickable; the black minimalist macOS cursor elsewhere, GTK apps included.
 - The clock follows the region's 12- or 24-hour format.

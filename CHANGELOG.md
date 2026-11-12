@@ -39,9 +39,15 @@ it changes. A change that needs a fresh install, or that an earlier backup canno
 - File Explorer opens a zip, tar or 7z archive as a folder on a double click, as Windows' File Explorer does, with
   the path bar reading through the archive and Up leaving it for its folder. View > Open Archives as Folders turns it
   off; documents that are zips inside, like OpenDocument files, still open in their applications.
-- In a Git repository, File Explorer and Dolphin show each file's Git status, and File Explorer's context menu has
-  a Git submenu (Log, Add, Commit, Push and more). Aurora now installs `dolphin-plugins` for it and turns its Git
-  plugin on, leaving any other plugin you turned on as it is.
+- In a Git repository, File Explorer and Dolphin show each file's Git status. Aurora now installs `dolphin-plugins`
+  for it and turns its Git plugin on, leaving any other plugin you turned on as it is.
+- File Explorer has a Git menu of its own in the context menu. It finds the repository of what you clicked the way
+  git does, so a repository's folder seen from outside gets its commands, a plain folder gets no Git entry, and only
+  the empty space of a plain folder offers Clone Repository Here and Create Repository Here. The menu starts with the
+  branch and how it stands ("main, 2 to push, 1 to pull") and offers Commit, Pull, Push or Publish Branch, Fetch,
+  Branches, Stash, Show Changes, History and Open on the remote's site; for files, Stage, Unstage, Discard Changes,
+  Stop Tracking and Ignore. Commit, Show Changes, Clone, Branches and History open sheets with each change's diff in
+  color, and pulls, pushes and clones show their progress in the transfer center.
 - Smart folders: Save in File Explorer's search row keeps the search in the sidebar under a name you choose. It
   opens like a folder and stays current as files come and go; Dolphin lists it too, under Search For.
 - File Explorer has Finder's columns view (the fourth view button, or View > as Columns): a column for each folder

@@ -48,7 +48,11 @@ add_library(fe_core STATIC
     src/core/palette.cpp
     src/core/inspector.cpp
     src/core/transfers.cpp
-    src/core/compare.cpp)
+    src/core/compare.cpp
+    src/core/gitrepo.cpp
+    src/core/gitstatus.cpp
+    src/core/gitmenu.cpp
+    src/core/gitcommands.cpp)
 target_include_directories(fe_core PUBLIC src)
 target_link_libraries(fe_core PUBLIC Qt6::Core Qt6::Gui)
 
@@ -77,6 +81,10 @@ add_library(fe_app OBJECT
     src/gallerystage.cpp
     src/transfers.cpp
     src/comparesheet.cpp
+    src/gitrunner.cpp
+    src/gitviews.cpp
+    src/gitsheets.cpp
+    src/gitactions.cpp
     src/bottombar.cpp
     src/contextmenu.cpp
     src/mainwindow.cpp
@@ -134,10 +142,19 @@ add_test(NAME fe_tests COMMAND fe_tests)
 add_executable(fe_finder_tests tests/test_finder.cpp)
 target_link_libraries(fe_finder_tests PRIVATE fe_core Qt6::Test)
 add_test(NAME fe_finder_tests COMMAND fe_finder_tests)
+# Git's logic without widgets, checked against git itself on real repositories in a temporary folder.
+add_executable(fe_git_tests tests/test_git.cpp)
+target_link_libraries(fe_git_tests PRIVATE fe_core Qt6::Test)
+add_test(NAME fe_git_tests COMMAND fe_git_tests)
 # The widgets' behavior on the offscreen platform: clicks, drags and what assistive technology reads.
 add_executable(fe_widget_tests tests/test_widgets.cpp)
 target_link_libraries(fe_widget_tests PRIVATE fe_app Qt6::Test)
 add_test(NAME fe_widget_tests COMMAND fe_widget_tests)
 set_tests_properties(fe_widget_tests PROPERTIES ENVIRONMENT QT_QPA_PLATFORM=offscreen)
+# The Git menu and sheets against real repositories and a local remote in a temporary folder.
+add_executable(fe_git_widget_tests tests/test_gitwidgets.cpp)
+target_link_libraries(fe_git_widget_tests PRIVATE fe_app Qt6::Test)
+add_test(NAME fe_git_widget_tests COMMAND fe_git_widget_tests)
+set_tests_properties(fe_git_widget_tests PROPERTIES ENVIRONMENT QT_QPA_PLATFORM=offscreen)
 
 install(TARGETS file-explorer)

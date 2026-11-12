@@ -73,6 +73,14 @@ inline const QColor HOVER{255, 255, 255, 20};
 inline const QColor CAPACITY_TRACK{255, 255, 255, 36};
 inline const QColor CAPACITY_LOW{255, 159, 10};
 inline const QColor CAPACITY_CRITICAL{255, 69, 58};
+// Git's kinds of change, in Apple's dark system colors (Human Interface Guidelines, Color): green for new, orange for
+// changed, red for deleted, blue for renamed; the fills tint whole diff lines.
+inline const QColor GIT_ADDED{48, 209, 88};
+inline const QColor GIT_MODIFIED{255, 159, 10};
+inline const QColor GIT_DELETED{255, 69, 58};
+inline const QColor GIT_RENAMED{10, 132, 255};
+inline const QColor DIFF_ADDED_FILL{48, 209, 88, 34};
+inline const QColor DIFF_REMOVED_FILL{255, 69, 58, 34};
 inline const QColor CAPSULE_FILL{255, 255, 255, 22};
 inline const QColor CAPSULE_HOVER{255, 255, 255, 30};
 inline const QColor CAPSULE_PRESSED{255, 255, 255, 50};

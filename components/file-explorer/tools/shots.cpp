@@ -15,6 +15,7 @@
 #include "addressfield.h"
 #include "application.h"
 #include "browsertab.h"
+#include "gitactions.h"
 #include "mainwindow.h"
 #include "tabbar.h"
 #include "toolbar.h"
@@ -281,7 +282,7 @@ int main(int argc, char *argv[])
     fe::configureApplication();
     const QStringList arguments = QApplication::arguments();
     if (arguments.size() < 3 || arguments.size() > 4) {
-        qCritical("usage: fe-shots OUTPUT_DIR FOLDER [states|menus|controls|drives|finder]");
+        qCritical("usage: fe-shots OUTPUT_DIR FOLDER [states|menus|controls|drives|finder|git]");
         return 2;
     }
     const QString mode = arguments.size() == 4 ? arguments.at(3) : QStringLiteral("states");
@@ -525,10 +526,51 @@ int main(int argc, char *argv[])
              elsewhere->activateWindow();
          }},
     };
+    // Git's sheets over a repository: folder is the repository, and its parent the folder a clone goes into.
+    const auto gitContext = [window, folder] {
+        fe::GitMenuContext context;
+        context.target.kind = fe::git::Target::Kind::Repository;
+        context.target.repository = fe::git::repositoryOf(folder, true).value_or(fe::git::Repository{});
+        context.target.folder = QFileInfo(folder).absolutePath();
+        context.window = window;
+        return context;
+    };
+    const auto openGit = [gitContext](fe::git::Command command) {
+        const fe::GitMenuContext context = gitContext();
+        fe::loadGitSnapshot(context.target.repository, {}, context.window, [context, command](const std::optional<fe::GitSnapshot> &snapshot) {
+            if (snapshot) {
+                fe::runGitCommand(command, context, *snapshot);
+            }
+        });
+    };
+    const auto closeSheet = [] {
+        if (QWidget *sheet = QApplication::activeModalWidget()) {
+            sheet->close();
+        }
+    };
+    const QList<Step> gitSteps{
+        {QStringLiteral("fe-git-window"), 4000, [] {}},
+        {QStringLiteral("fe-git-commit"), 2500, [openGit] { openGit(fe::git::Command::Commit); }},
+        {QString(), 400, closeSheet},
+        {QStringLiteral("fe-git-changes"), 2500, [openGit] { openGit(fe::git::Command::Changes); }},
+        {QString(), 400, closeSheet},
+        {QStringLiteral("fe-git-history"), 2500, [openGit] { openGit(fe::git::Command::History); }},
+        {QString(), 400, closeSheet},
+        {QStringLiteral("fe-git-branches"), 2500, [openGit] { openGit(fe::git::Command::Branches); }},
+        {QString(), 400, closeSheet},
+        {QStringLiteral("fe-git-clone"), 1500, [gitContext] {
+             fe::GitMenuContext context = gitContext();
+             context.target.kind = fe::git::Target::Kind::Outside;
+             fe::runGitCommand(fe::git::Command::Clone, context, {});
+         }},
+        {QString(), 400, closeSheet},
+    };
+
     const QList<Step> &steps = mode == u"menus"      ? menuSteps
         : mode == u"controls"                         ? controlSteps
         : mode == u"drives"                           ? driveSteps
         : mode == u"finder"                           ? finderSteps
+        : mode == u"git"                              ? gitSteps
                                                       : stateSteps;
     Script script(out, steps);
     script.start();

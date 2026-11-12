@@ -657,10 +657,27 @@ archives as folders (`fe::BrowserTab::archiveFolderUrl`, View > Open Archives as
 `file-explorerrc [General] ArchivesAsFolders`: a double click opens a zip, tar or 7z through kio-extras' archive worker,
 as Windows' File Explorer opens a zip; OpenDocument and other zip-based documents still open in their applications;
 the path reads as the archive's own path, then the folders in it, and Up from its top opens its folder with the
-archive selected), Git (Dolphin's Git plugin from `dolphin-plugins`, which the installer turns on in `dolphinrc
-[VersionControl] enabledPlugins` without turning off the user's others: each file in a repository shows its status,
-and the context menu has a Git submenu with Log, Add, Commit, Push and the rest, taken from the part's action groups
-by `fe::BrowserTab::versionControlActions`), smart folders (Save at the right of the search row names the search
+archive selected), Git (each file in a repository shows its status through Dolphin's Git plugin from
+`dolphin-plugins`, which the installer turns on in `dolphinrc [VersionControl] enabledPlugins` without turning off the
+user's others; the context menu's Git submenu is File Explorer's own. `core/gitrepo` finds the repository of what was
+clicked the way git does (`setup.c`, checked against `git rev-parse --show-toplevel`: the nearest `.git` folder or
+`gitdir:` file, linked work trees and submodules, an empty `.git` skipped, a broken `.git` file, a bare repository, a
+ceiling folder, another filesystem or another user's repository without `safe.directory` ending the search), so a
+repository's folder seen from a plain folder gets its own Git menu, a plain folder gets none, and only the background of
+a plain folder offers Clone Repository Here and Create Repository Here. The submenu reads `git status --porcelain=v2`,
+the remotes, `ls-files` and `check-ignore` when it opens (`fe::loadGitSnapshot`) and `core/gitmenu` decides from that
+alone what it offers and says: a line with the branch and how it stands ("main, 2 to push, 1 to pull", "Merging into
+main, 2 conflicts"), then Commit, Pull, Push or Publish Branch, Fetch, Branches, Stash and Restore Latest Stash, Show
+Changes, History, Abort or Continue an operation under way and Open on the remote's site; for items, first Stage (Mark
+as Resolved for conflicts), Unstage, Discard Changes (only back to the last commit; a new file is unstaged, never
+deleted), Show Changes, History, Stop Tracking and Ignore. `core/gitcommands` holds every command line. Jobs run as
+`fe::GitJob`s in the transfer center with git's progress, with terminal prompts off and KDE's password prompt for HTTPS
+and SSH; git's own message shows when one fails. The sheets (`gitsheets.cpp`): Commit (changed files with a colored
+letter each and a box to leave one out, its diff beside, summary, description, amend, Commit or Commit and Push; it
+stays open on an error with the message kept), Show Changes, Clone (address from the clipboard, folder named from it),
+Branches (switch, create with git's naming rules, merge, delete) and History (the commits of the repository or of a
+file through its renames, each with its diff); Dolphin's own Git actions are left out of the menu, other version
+control systems keep theirs), smart folders (Save at the right of the search row names the search
 and puts it in Favorites as a KDE place, so Dolphin lists it under Search For; it opens like a folder, its icon a
 magnifier, and the index's change notices keep it current), a columns view (`fe::ColumnsStrip`, the fourth view button, View > as
 Columns, remembered with the gallery in `file-explorerrc [View] Mode`; which folders in `core/paths` `columnFolders`: a column per
@@ -731,8 +748,12 @@ folder and again after a change, hashing a file and comparing a pasted hash, a t
 folder, Up out of it, the Inspector counting inside it, the search row's Save and its folder capsule hidden when the index
 does not hold the folder, the columns leading to a folder and opening
 what is clicked, the gallery showing the selected picture, the transfer center
-following a job until it ends, Compare Folders listing differences and copying a folder across), `tests/installer/test_tag_emblems.sh` (5). Sandbox: `explorer.sh`, `explorer-crumbs.sh` (the path
-segments: hover, both menus, a drop in the accent, a segment opening under a drag, KIO's menu at the pointer on a
+following a job until it ends, Compare Folders listing differences and copying a folder across, a narrow toolbar
+folding its view buttons), `fe_git_tests` (64: the repository of 17 kinds of item checked against `git rev-parse`,
+`git status` and log and branch output, the menu in each state, every command line run on real repositories, branch
+names judged by git itself), `fe_git_widget_tests` (9, offscreen, real repositories and a local remote: the menus,
+Create Repository, Commit and Push, Clone, Branches, History, Stage), `tests/installer/test_tag_emblems.sh` (5). Sandbox: `explorer.sh`, `explorer-crumbs.sh` (the path
+segments: hover, both menus, a drop in the accent, a drag held on a segment opening nothing, KIO's menu at the pointer on a
 segment and on the sidebar, a refused drop, Ctrl+L, Ctrl+click and middle click), `explorer-finder.sh` (the
 mockup's scene: tags, the unfolded sidebar, the menu, a typed path, Quick Look, Split View, a tag's shelf, the Group
 menu and the folder grouped by Kind from it, and the window inactive behind another),
@@ -744,8 +765,9 @@ Enter; 3 PASS), `explorer-copypaths.sh` (Ctrl+A, Ctrl+Alt+C, the three paths rea
 from Klipper and pasted into KWrite), `explorer-inspector.sh` (Ctrl+Alt+I on a
 folder, a picture, Compute and a typed SHA-256 that matches; 3 PASS), `explorer-archive.sh` (a double click on a
 zip, then Alt+Up; 2 PASS), `explorer-git.sh` (a repository's
-status emblems, the context menu and its Git submenu; needs `dolphin-plugins` or `AURORA_DOLPHIN_PLUGINS` naming its
-unpacked package; 2 PASS), `explorer-columns.sh` (the
+folder seen from a plain folder has its own Git menu, a plain folder none, the background offers Clone and Create, a
+file's Git menu acts on the file, then fe-shots opens Commit, Show Changes, History, Branches and Clone; needs
+`dolphin-plugins` or `AURORA_DOLPHIN_PLUGINS` naming its unpacked package; 5 PASS), `explorer-columns.sh` (the
 columns view from the palette, a click in a column; 2 PASS), `explorer-gallery.sh` (the gallery from the palette,
 the first picture large, Right to the next; 2 PASS), `explorer-transfers.sh` (a copy of 30,000 small files: the
 ring in the action row, the panel, the button gone at the end, every file there; 4 PASS), `explorer-compare.sh` (Split
@@ -1251,7 +1273,9 @@ export QT_QPA_PLATFORM=offscreen q=/usr/lib/qt6/bin/qmltestrunner B=$PWD/build
 | File Explorer core | `build/file-explorer/fe_tests` | 95 pass |
 | File Explorer's Finder features (typed paths and their suggestions and Tab, the path segments' layout, folding, hit test and which drops they take, color tags and their emblems, the tag shelf's names and path, the sidebar's folder tree, Quick Look's kinds and when Space opens it, batch rename's rules: replace without case or with a regular expression, add, index, counter, a date per item numbered within a day, case, extensions kept as KIO keeps them, and every reason a name cannot be taken) | `build/file-explorer/fe_finder_tests` | 55 pass |
 | File Explorer's widgets on the offscreen platform: a click, middle click and Ctrl+click on a segment, a click beside them, a slot that replaces the segments still gets its URL, which drops a segment takes (files from elsewhere, not a folder into itself or files into their own folder, not a read-only folder), a drag resting on a segment opens nothing, the address field at rest opens a segment without taking the keyboard, screen readers read each segment as a link they can press, the filter row sends each key and closes on Escape, a filter over a real Dolphin view hides what does not match and ends with the folder, a field inside a tab shows the glass behind it (no style sheet above it), the Rename sheet renames a real folder and one Undo takes the batch back, waits while a name is taken and plans again on Rename, and F2 on two selected items opens it, the command palette finds a command by a few letters, runs it with Enter, moves with Down and runs nothing disabled or on Escape, Copy Path (Ctrl+Alt+C) copies every selected item, or the folder with nothing selected, the Inspector counts nothing while hidden, counts a folder and counts again when it changes, hashes a file and compares a pasted hash, a tar.gz opens as a folder (an OpenDocument file does not), Up leaves it for its folder and the Inspector counts inside it through KIO, the search row's Save sends its request and a folder the index does not hold has no capsule to press, the columns view leads to the folder, marks it, and opens a clicked file's folder with the file selected, the gallery shows the selected picture with its own preview and leaves with another mode, the transfer center shows a job's label until the job ends, Compare Folders lists what differs and copies a selected folder across with what is in it, a narrow toolbar folds the five view buttons into one pop-up whose menu chooses a mode, and a wide one shows them again with that mode checked | `QT_QPA_PLATFORM=offscreen build/file-explorer/fe_widget_tests` | 28 pass |
-| The same three File Explorer suites under AddressSanitizer and UBSan (configure `build/file-explorer-asan` with `-fsanitize=address,undefined`; `ASAN_OPTIONS=detect_leaks=0:max_free_fill_size=1048576:free_fill_byte=85` makes a read of freed memory crash, so the URL test bites) | `build/file-explorer-asan/fe_tests`, `fe_finder_tests`, `fe_widget_tests` | 95, 55, 28 pass, no findings |
+| The same five File Explorer suites under AddressSanitizer and UBSan (configure `build/file-explorer-asan` with `-fsanitize=address,undefined`; `ASAN_OPTIONS=detect_leaks=0:max_free_fill_size=1048576:free_fill_byte=85` makes a read of freed memory crash, so the URL test bites) | `build/file-explorer-asan/fe_tests`, `fe_finder_tests`, `fe_widget_tests`, `fe_git_tests`, `fe_git_widget_tests` | 95, 55, 28, 64, 9 pass, no findings |
+| File Explorer's Git logic: the repository of a repository's folder, a file and a folder deep inside, a nested repository, an empty `.git` (skipped), a `.git` file that names nothing (stops), a linked work tree, a submodule, a bare repository, a plain folder and a link, each against `git rev-parse --show-toplevel`; a ceiling folder; `safe.directory` entries; `git status --porcelain=v2` of every kind of entry and of a real repository; remotes and their web pages; the folder a clone gets; log and branches of a real repository; an operation under way; the menu's line and entries in eight states and for items of each state, with no two entries alike; what the menu is for (a repository's folder from outside, a plain folder, items of one or two repositories); Discard putting tracked files back and never deleting a new one, a commit taking only the chosen changes with a rename whole, amend, unstaging before the first commit, an ignore line matching only its path, branch names judged by `git branch` itself, an untracked file's diff | `build/file-explorer/fe_git_tests` | 64 pass |
+| File Explorer's Git menu and sheets on the offscreen platform, with real repositories and a bare remote: a repository's folder seen from a plain folder gets its own menu (never Clone), a plain folder gets none and its background offers Clone and Create (Create makes a repository), the Commit sheet shows the first diff, commits only the ticked files and pushes, Clone names the folder from the address and refuses a name in use, Branches refuses a bad or taken name, creates and switches, History lists a file's commits with the diff, Stage stages only the item | `QT_QPA_PLATFORM=offscreen build/file-explorer/fe_git_widget_tests` | 9 pass |
 | aurora-search, File Explorer's search helper: the index against random histories of a model disk (300 seeds), the query syntax and ranking, hidden names, scan, store (damaged files refused), the catch-up by folder times, mountinfo, fanotify's event layout, the config, the ioctl numbers checked against `linux/btrfs.h` | `cargo test --manifest-path components/file-explorer/search/Cargo.toml` | 25 pass |
 | The helper as root on a real btrfs, in a virtme-ng machine on this PC's kernel (no sudo): the changed folders come from transaction ids after a commit; it indexes, follows a create, a move and a delete live, hides a 0700 folder's names and their count from nobody, scopes, leaves when idle and catches up after a restart | `components/file-explorer/search/tests/vm.sh` | 3 pass |
 | Window buttons | `build/window-buttons/decoration_tests` | 11 pass |
@@ -1290,7 +1314,7 @@ others capture `tests/sandbox/shots/` to compare by eye.
 | `quick-menu-app-menu.sh` | the app menu: right-click, Pin to Top and the Pinned section, the Menu key (not the field's text menu), Unpin from Dock, an opened app in Suggestions and Remove from Suggestions, no QML warnings (8 PASS); labels found with `tests/helpers/find_text.py` |
 | `readme.sh` | the README's pictures, the notifications popover among them (run with `SANDBOX_SCALE=2`, then `assets/screenshots/make.py`, which also crops Mission Center's two from its own sandbox) |
 | `kali-menu.sh` | the Kali menu with PC labels |
-| `explorer.sh`, `explorer-menus.sh`, `explorer-drives.sh`, `explorer-sidebar-order.sh`, `explorer-crumbs.sh`, `explorer-search.sh`, `explorer-undo.sh`, `explorer-filter.sh`, `explorer-rename.sh`, `explorer-palette.sh`, `explorer-copypaths.sh`, `explorer-inspector.sh`, `explorer-archive.sh`, `explorer-git.sh`, `explorer-columns.sh`, `explorer-gallery.sh`, `explorer-transfers.sh`, `explorer-compare.sh`, `show-in-folder.sh`, `open-save.sh` | File Explorer, its menus (X11 client), its drives, dragging sidebar rows into a new order (2 PASS: the saved order and the sidebar after a restart), the path segments (clicks, menus, drops, a drag held on a segment opening nothing, KIO's menu at the pointer, new tabs; 10 PASS), search from the index (the helper runs as the user on the sandbox's home; 5 PASS with Save to a smart folder and opening it, and the times in logs/search.txt), Undo after Delete (2 PASS), the filter row (3 PASS), the Rename sheet and its Undo (3 PASS), the command palette (3 PASS), Copy Path with several items (1 PASS), the Inspector (3 PASS), archives as folders (2 PASS), Git's status and menu (2 PASS), the columns view (2 PASS), the gallery view (2 PASS), the transfer center (4 PASS), Compare Folders (3 PASS), "Show in folder", Open and Save |
+| `explorer.sh`, `explorer-menus.sh`, `explorer-drives.sh`, `explorer-sidebar-order.sh`, `explorer-crumbs.sh`, `explorer-search.sh`, `explorer-undo.sh`, `explorer-filter.sh`, `explorer-rename.sh`, `explorer-palette.sh`, `explorer-copypaths.sh`, `explorer-inspector.sh`, `explorer-archive.sh`, `explorer-git.sh`, `explorer-columns.sh`, `explorer-gallery.sh`, `explorer-transfers.sh`, `explorer-compare.sh`, `show-in-folder.sh`, `open-save.sh` | File Explorer, its menus (X11 client), its drives, dragging sidebar rows into a new order (2 PASS: the saved order and the sidebar after a restart), the path segments (clicks, menus, drops, a drag held on a segment opening nothing, KIO's menu at the pointer, new tabs; 10 PASS), search from the index (the helper runs as the user on the sandbox's home; 5 PASS with Save to a smart folder and opening it, and the times in logs/search.txt), Undo after Delete (2 PASS), the filter row (3 PASS), the Rename sheet and its Undo (3 PASS), the command palette (3 PASS), Copy Path with several items (1 PASS), the Inspector (3 PASS), archives as folders (2 PASS), Git's menu by repository, item and background, and its sheets (5 PASS), the columns view (2 PASS), the gallery view (2 PASS), the transfer center (4 PASS), Compare Folders (3 PASS), "Show in folder", Open and Save |
 | `notifications.sh` | banners in the bottom-right corner, hover buttons |
 | `tray-click.sh`, `tray-drag.sh`, `tray-show.sh` | tray clicks, drag to reorder and hide, bring back |
 | `control-center.sh`, `control-center-panels.sh`, `control-center-bluetooth.sh`, `control-center-shortcut.sh` | the Control Center, its panels, reopening, its shortcut |
@@ -1591,9 +1615,15 @@ it changes. A change that needs a fresh install, or that an earlier backup canno
 - File Explorer opens a zip, tar or 7z archive as a folder on a double click, as Windows' File Explorer does, with
   the path bar reading through the archive and Up leaving it for its folder. View > Open Archives as Folders turns it
   off; documents that are zips inside, like OpenDocument files, still open in their applications.
-- In a Git repository, File Explorer and Dolphin show each file's Git status, and File Explorer's context menu has
-  a Git submenu (Log, Add, Commit, Push and more). Aurora now installs `dolphin-plugins` for it and turns its Git
-  plugin on, leaving any other plugin you turned on as it is.
+- In a Git repository, File Explorer and Dolphin show each file's Git status. Aurora now installs `dolphin-plugins`
+  for it and turns its Git plugin on, leaving any other plugin you turned on as it is.
+- File Explorer has a Git menu of its own in the context menu. It finds the repository of what you clicked the way
+  git does, so a repository's folder seen from outside gets its commands, a plain folder gets no Git entry, and only
+  the empty space of a plain folder offers Clone Repository Here and Create Repository Here. The menu starts with the
+  branch and how it stands ("main, 2 to push, 1 to pull") and offers Commit, Pull, Push or Publish Branch, Fetch,
+  Branches, Stash, Show Changes, History and Open on the remote's site; for files, Stage, Unstage, Discard Changes,
+  Stop Tracking and Ignore. Commit, Show Changes, Clone, Branches and History open sheets with each change's diff in
+  color, and pulls, pushes and clones show their progress in the transfer center.
 - Smart folders: Save in File Explorer's search row keeps the search in the sidebar under a name you choose. It
   opens like a folder and stays current as files come and go; Dolphin lists it too, under Search For.
 - File Explorer has Finder's columns view (the fourth view button, or View > as Columns): a column for each folder
@@ -1884,6 +1914,11 @@ The rules I set while building Aurora, and why. They decide every design questio
 - A file dragged onto a segment of File Explorer's path goes into that folder when it is let go; holding it there
   opens nothing, so the window never moves away in the middle of a drag (2026-11-11, after trying Finder's
   spring-loaded segments).
+- File Explorer's Git menu follows the repository of what was clicked, found the way git itself finds it: a
+  repository's folder seen from outside gets its own commands, a file or folder outside every repository gets no Git
+  entry, and Clone and Create Repository appear only on the empty space of a plain folder. Its commands open File
+  Explorer's own sheets, not Dolphin's Git dialogs, and nothing in it is fixed text: every entry and its words come
+  from the repository's state (2026-11-11).
 - Power and Battery stays visible in the tray, where the power profile is switched.
 - The pointing hand on everything clickable; the black minimalist macOS cursor elsewhere, GTK apps included.
 - The clock follows the region's 12- or 24-hour format.
