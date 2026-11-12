@@ -37,7 +37,8 @@ EMBER = (246, 160, 82)
 # height, the slice's centre), so neighbouring headings show different parts of the image.
 HEADINGS = {
     "overview": ("Overview", "What Aurora is and what it changes on your desktop", (0.62, 0.30)),
-    "showcase": ("Showcase", "The desktop, Quick Menu, Control Center, notifications and Mission Center", (0.35, 0.75)),
+    "showcase": ("Showcase", "The desktop, File Explorer, Quick Menu, Control Center, notifications and Mission Center",
+                 (0.35, 0.75)),
     "features": ("Features", "Every part, what it does and where its code lives", (0.78, 0.18)),
     "requirements": ("Requirements", "What your system needs first", (0.20, 0.40)),
     "installation": ("Installation", "One command, and the guide does the rest", (0.55, 0.62)),

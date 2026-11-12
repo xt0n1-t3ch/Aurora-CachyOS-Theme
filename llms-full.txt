@@ -42,6 +42,24 @@ Mission Center in File Explorer's glass, with each app's GPU, memory and network
 (Picture: Mission Center on Apps: the running apps and processes on a glass card, busy cells tinted warmer as they rise)
 Apps and processes as in the Windows 11 Task Manager, with busy values tinted warmer as they rise.
 
+(Picture: File Explorer in a Git repository: the files carry their status marks, and README.md's menu is open on Git, with Stage, Discard Changes, Show Changes, History, Commit 5 Changes, Branches, Stash and Repository History)
+In a Git repository each file shows its status, and the Git menu acts on what you right-clicked: stage, discard, commit, switch branches, stash and read the history.
+
+(Picture: The Commit sheet: the changed files with a box each, the selected file's diff in color, and the summary and description fields)
+Commit lists every change with its diff. Tick what goes in, write the summary and commit.
+(Picture: File Explorer in the columns view: Projects, weather-station, src and sensors side by side, each folder on the way marked)
+The columns view: a column for each folder on the way, as in Finder.
+
+(Picture: File Explorer in the gallery view: the selected wallpaper large, the other pictures in a row under it)
+The gallery shows the selected picture large, with the rest of the folder under it.
+(Picture: The Inspector beside the files: a picture's preview, its kind, size, place, dates and permissions, and a SHA-256 field to compute or compare a hash)
+The Inspector shows what is selected, counts what a folder holds and checks a file's hash.
+
+(Picture: The command palette under the toolbar: view typed, and the matching commands listed with their menus and shortcuts)
+Ctrl+Shift+P opens the command palette: a few letters find any command and show its shortcut.
+(Picture: The Rename sheet over six selected files: Replace Text, img- found and lisbon- in its place, each old name beside its new one)
+F2 on several files renames them together, with every new name shown before anything changes.
+
 ## Features
 
 | Part | What it does | Source |
@@ -1313,6 +1331,7 @@ others capture `tests/sandbox/shots/` to compare by eye.
 | `cli.sh` | the `aurora` command in Konsole with Aurora's profile on Dawn Bird: its menu under the banner and the credit, then `aurora status` (captures) |
 | `quick-menu-app-menu.sh` | the app menu: right-click, Pin to Top and the Pinned section, the Menu key (not the field's text menu), Unpin from Dock, an opened app in Suggestions and Remove from Suggestions, no QML warnings (8 PASS); labels found with `tests/helpers/find_text.py` |
 | `readme.sh` | the README's pictures, the notifications popover among them (run with `SANDBOX_SCALE=2`, then `assets/screenshots/make.py`, which also crops Mission Center's two from its own sandbox) |
+| `readme-explorer.sh` | the README's File Explorer pictures from a made-up project and Plasma's wallpapers: a file's Git menu in a repository, the Commit sheet, the columns view, the gallery, the Inspector, the command palette and batch rename (captures; `assets/screenshots/make.py` crops them) |
 | `kali-menu.sh` | the Kali menu with PC labels |
 | `explorer.sh`, `explorer-menus.sh`, `explorer-drives.sh`, `explorer-sidebar-order.sh`, `explorer-crumbs.sh`, `explorer-search.sh`, `explorer-undo.sh`, `explorer-filter.sh`, `explorer-rename.sh`, `explorer-palette.sh`, `explorer-copypaths.sh`, `explorer-inspector.sh`, `explorer-archive.sh`, `explorer-git.sh`, `explorer-columns.sh`, `explorer-gallery.sh`, `explorer-transfers.sh`, `explorer-compare.sh`, `show-in-folder.sh`, `open-save.sh` | File Explorer, its menus (X11 client), its drives, dragging sidebar rows into a new order (2 PASS: the saved order and the sidebar after a restart), the path segments (clicks, menus, drops, a drag held on a segment opening nothing, KIO's menu at the pointer, new tabs; 10 PASS), search from the index (the helper runs as the user on the sandbox's home; 5 PASS with Save to a smart folder and opening it, and the times in logs/search.txt), Undo after Delete (2 PASS), the filter row (3 PASS), the Rename sheet and its Undo (3 PASS), the command palette (3 PASS), Copy Path with several items (1 PASS), the Inspector (3 PASS), archives as folders (2 PASS), Git's menu by repository, item and background, and its sheets (5 PASS), the columns view (2 PASS), the gallery view (2 PASS), the transfer center (4 PASS), Compare Folders (3 PASS), "Show in folder", Open and Save |
 | `notifications.sh` | banners in the bottom-right corner, hover buttons |
@@ -1345,6 +1364,7 @@ KWin runs SCENARIO as its session and exits with it. Nothing touches the real se
 ```bash
 tests/sandbox/run.sh "$PWD/tests/sandbox/scenarios/quick-menu.sh" 200 > tests/sandbox/logs/run-quick-menu.log 2>&1
 SANDBOX_SCALE=2 tests/sandbox/run.sh "$PWD/tests/sandbox/scenarios/readme.sh" 240   # the README's pictures, sharp
+tests/sandbox/run.sh "$PWD/tests/sandbox/scenarios/readme-explorer.sh" 300          # its File Explorer pictures
 python3 -I assets/screenshots/make.py                                                # crops them into assets/
 ```
 
