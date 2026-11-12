@@ -5,15 +5,17 @@
 # The path segments of File Explorer's address field and path bar: at rest, hovered, the chevron's folder menu, the
 # ellipsis menu, a file dragged onto a segment (the accent target, the segment opening while the drag rests on it,
 # KIO's Move, Copy or Link menu at the pointer, on a segment and on the sidebar), a drop refused on the folder the file
-# is in, Ctrl+L for typing, Ctrl+click and a middle click for new tabs, and a click on the first segment. Captures shots/crumbs-*.png and writes PASS or FAIL lines to logs/crumbs.txt. The positions are those of
-# File Explorer's first window at 2560x1440 on ~/Crumbs/Projects/Aurora/docs.
+# is in, Ctrl+L for typing, Ctrl+click and a middle click for new tabs, and a click on the first segment. Captures
+# shots/crumbs-*.png and writes PASS or FAIL lines to logs/crumbs.txt. The positions are those of File Explorer's
+# first window at 2560x1440 on ~/Crumbs/Projects/Aurora-CachyOS-Theme/docs, a path long enough that the address field
+# folds its middle behind the ellipsis.
 source "$SBX/prelude.sh"
 FI="$SB/tests/helpers/fakeinput/fakeinput"
 CHANGED="$SB/tests/helpers/region_changed.py"
 OUT="$SBX/logs/crumbs.txt"; : > "$OUT"
 SHOTS="$SBX/shots"
-DOCS="$HOME/Crumbs/Projects/Aurora/docs"
-mkdir -p "$DOCS" "$HOME/Crumbs/Projects/Orion" "$HOME/Crumbs/Projects/Notes"
+DOCS="$HOME/Crumbs/Projects/Aurora-CachyOS-Theme/docs"
+rm -rf "$HOME/Crumbs" && mkdir -p "$DOCS" "$HOME/Crumbs/Projects/Orion" "$HOME/Crumbs/Projects/Notes"
 printf 'int main(void) { return 0; }\n' > "$DOCS/main.c"
 printf '#!/bin/sh\necho hola\n' > "$DOCS/hola"; chmod +x "$DOCS/hola"
 
@@ -43,30 +45,33 @@ TOP_Y=309 BOTTOM_Y=1135
 MAIN_X=900 MAIN_Y=454
 shot crumbs-rest
 
-input move 1060 "$TOP_Y" wait 100 move 1075 "$TOP_Y" wait 1500
+# The address field reads xt0n1 > ... > docs: xt0n1 at 979 to 1011, its chevron at 1020, the ellipsis at 1027 to 1040.
+input move 985 "$TOP_Y" wait 100 move 995 "$TOP_Y" wait 1500
 shot crumbs-hover
-check hover-brightens-the-segment crumbs-rest crumbs-hover 1060 300 1095 318
+check hover-brightens-the-segment crumbs-rest crumbs-hover 975 300 1015 318
 
-input move 1103 "$TOP_Y" wait 200 down wait 80 up wait 900
+input move 1020 "$TOP_Y" wait 200 down wait 80 up wait 900
 shot crumbs-folder-menu
-check chevron-lists-folders crumbs-rest crumbs-folder-menu 1100 325 1300 400
+check chevron-lists-folders crumbs-rest crumbs-folder-menu 1020 325 1220 400
 input keydown 1 keyup 1 wait 500
 
-input move 1035 "$TOP_Y" wait 200 down wait 80 up wait 900
+input move 1034 "$TOP_Y" wait 200 down wait 80 up wait 900
 shot crumbs-folded-menu
-check ellipsis-lists-folded-segments crumbs-rest crumbs-folded-menu 1035 325 1200 380
+check ellipsis-lists-folded-segments crumbs-rest crumbs-folded-menu 1034 325 1200 380
 input keydown 1 keyup 1 wait 500
 
 input move 959 "$BOTTOM_Y" wait 200 down wait 80 up wait 900
 shot crumbs-bottom-menu
 input keydown 1 keyup 1 wait 500
 
-# The drag rests on Aurora: first the segment takes the drop in the accent, then Aurora opens under the drag. Esc
-# cancels the drag and Alt+Left goes back to docs.
-drag "$MAIN_X" "$MAIN_Y" 1075 "$TOP_Y" 2600
-sleep 1.1
+# The drag rests on xt0n1: first the segment takes the drop in the accent, then the home folder opens under the drag.
+# Esc cancels the drag and Alt+Left goes back to docs.
+drag "$MAIN_X" "$MAIN_Y" 995 "$TOP_Y" 2600
+# The drag arrives about 1.2 s after it starts and the segment opens 0.7 s later; Spectacle takes a few tenths of a
+# second to capture (about 0.5 s measured), so the capture starts early.
+sleep 0.8
 shot crumbs-drop-target
-check drop-target-in-accent crumbs-hover crumbs-drop-target 1055 298 1098 320
+check drop-target-in-accent crumbs-hover crumbs-drop-target 975 298 1015 320
 sleep 0.6
 shot crumbs-spring
 check holding-a-drag-opens-the-segment crumbs-drop-target crumbs-spring 830 440 1400 470
@@ -91,7 +96,7 @@ check sidebar-drop-menu-opens-at-the-pointer crumbs-rest crumbs-sidebar-drop-men
 input keydown 1 keyup 1 wait 600
 
 # main.c is in docs already: the segment stays plain and the drag shows it is refused.
-drag "$MAIN_X" "$MAIN_Y" 1153 "$BOTTOM_Y" 2200
+drag "$MAIN_X" "$MAIN_Y" 1255 "$BOTTOM_Y" 2200
 sleep 1.4
 shot crumbs-refused
 input keydown 1 keyup 1

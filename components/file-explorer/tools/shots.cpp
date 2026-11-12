@@ -328,7 +328,11 @@ int main(int argc, char *argv[])
              const KFileItem folderItem(tab()->url(), QStringLiteral("inode/directory"), S_IFDIR);
              captureContextMenu(out, QStringLiteral("fe-menu-folder"), tab(), viewPoint(tab(), 0.55, 0.62), KFileItemList{folderItem}, {});
          }},
-        {QStringLiteral("fe-menu-group"), 1500, [window] { Q_EMIT window->findChild<fe::Toolbar *>()->groupClicked(); }},
+        // The Group menu runs its own event loop (QMenu::exec), so it opens from a timer: the step returns at once and
+        // the capture and the next step, which closes it, still run.
+        {QStringLiteral("fe-menu-group"), 1500, [window] {
+             QTimer::singleShot(0, window, [window] { Q_EMIT window->findChild<fe::Toolbar *>()->groupClicked(); });
+         }},
         {QString(), 300, [] {
              if (QWidget *popup = QApplication::activePopupWidget()) {
                  popup->close();

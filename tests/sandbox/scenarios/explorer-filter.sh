@@ -16,8 +16,9 @@ for name in "Report 2026.pdf" "report-draft.odt" "beach.jpg" "holiday.png" "note
             "quarterly report.xlsx"; do
     printf 'x\n' > "$DIR/$name"
 done
-# On the sandbox's 2560x1440 screen: the last rows of the unfiltered list, and the rows the filter keeps.
-LAST_ROWS=(820 900 1400 1010)
+# On the sandbox's 2560x1440 screen, in the default icons view: the second row of the unfiltered folder (empty once
+# the four matches fit in one row), and the rows the filter keeps.
+LAST_ROWS=(820 560 1400 640)
 FIRST_ROWS=(820 460 1400 700)
 VIEW=(810 420 1990 1130)
 

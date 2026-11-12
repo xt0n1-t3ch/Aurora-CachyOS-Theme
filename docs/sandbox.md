@@ -14,8 +14,9 @@ python3 -I assets/screenshots/make.py                                           
 ```
 
 Pass the scenario's full path: KWin looks a bare name up in `PATH`. A scenario sources `prelude.sh` (starts
-kactivitymanagerd and kded6, defines `shot NAME`, a Spectacle capture into `tests/sandbox/shots/NAME.png`, and
-`waitfor SECONDS`), starts plasmashell or the app under test, drives it, captures, and writes PASS or FAIL lines to
+kactivitymanagerd and kded6, puts File Explorer's view mode, Inspector, archives and search settings back to their
+defaults so no scenario inherits them from the one before, defines `shot NAME`, a Spectacle capture into
+`tests/sandbox/shots/NAME.png`, and `waitfor SECONDS`), starts plasmashell or the app under test, drives it, captures, and writes PASS or FAIL lines to
 `tests/sandbox/logs/<name>.txt` where it checks something. The home, captures and logs are not in git.
 
 ## Its home folder

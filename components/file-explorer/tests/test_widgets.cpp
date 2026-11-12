@@ -32,6 +32,7 @@
 #include <QImage>
 #include <QLineEdit>
 #include <QListView>
+#include <QMenu>
 #include <QProcess>
 #include <QPushButton>
 #include <QStandardPaths>
@@ -42,6 +43,9 @@
 #include <QSignalSpy>
 #include <QTemporaryDir>
 #include <QTest>
+#include <QTimer>
+
+#include <optional>
 
 Q_DECLARE_METATYPE(fe::CrumbOpen)
 
@@ -210,6 +214,48 @@ private Q_SLOTS:
         QSignalSpy again(bar->crumbs(), &fe::CrumbStrip::crumbActivated);
         QVERIFY(takesDrag(bar->crumbs(), centerOf(*bar, 1), {QUrl::fromLocalFile(QStringLiteral("/etc/hostname"))}));
         QVERIFY(!again.wait(1200));
+    }
+
+    void aNarrowToolbarFoldsTheViewButtonsIntoOnePopUp()
+    {
+        fe::Toolbar toolbar(QDir::homePath());
+        toolbar.resize(1800, toolbar.height());
+        toolbar.show();
+        auto *buttons = toolbar.findChild<QWidget *>(QStringLiteral("viewButtons"));
+        auto *picker = toolbar.findChild<fe::GlassButton *>(QStringLiteral("viewPicker"));
+        QVERIFY(buttons && picker);
+        QVERIFY(buttons->isVisibleTo(&toolbar));
+        QVERIFY(!picker->isVisibleTo(&toolbar));
+
+        // Narrow enough that the five buttons would leave the path under 300 px: they fold, the path keeps its room.
+        toolbar.resize(1000, toolbar.height());
+        QVERIFY(!buttons->isVisibleTo(&toolbar));
+        QVERIFY(picker->isVisibleTo(&toolbar));
+        QVERIFY(toolbar.addressField()->width() >= 300);
+
+        // The pop-up's menu chooses a mode like the buttons do.
+        std::optional<fe::ViewMode> chosen;
+        connect(&toolbar, &fe::Toolbar::viewModeChosen, this, [&chosen](fe::ViewMode mode) { chosen = mode; });
+        int entries = 0;
+        QTimer::singleShot(0, [&entries] {
+            if (auto *menu = qobject_cast<QMenu *>(QApplication::activePopupWidget())) {
+                entries = int(menu->actions().size());
+                menu->actions().at(3)->trigger();
+                menu->close();
+            }
+        });
+        picker->click();
+        QCOMPARE(entries, 5);
+        QVERIFY(chosen.has_value());
+        QCOMPARE(int(*chosen), int(fe::ViewMode::Columns));
+
+        // Wide again: the five buttons come back with the chosen one checked.
+        toolbar.resize(1800, toolbar.height());
+        QVERIFY(buttons->isVisibleTo(&toolbar));
+        QVERIFY(!picker->isVisibleTo(&toolbar));
+        const auto modes = buttons->findChildren<QAbstractButton *>();
+        QCOMPARE(modes.size(), 5);
+        QVERIFY(modes.at(3)->isChecked());
     }
 
     void theAddressFieldAtRestOpensASegmentWithoutTakingTheKeyboard()

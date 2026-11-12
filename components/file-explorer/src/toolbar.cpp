@@ -10,6 +10,8 @@
 
 #include <QButtonGroup>
 #include <QHBoxLayout>
+#include <QIcon>
+#include <QMenu>
 #include <QPainter>
 #include <QPainterPath>
 
@@ -20,6 +22,23 @@ namespace {
 constexpr int SEARCH_MIN_WIDTH = 150;
 /// The address field never gets narrower than this; below it the buttons fold away first.
 constexpr int ADDRESS_MIN_WIDTH = 200;
+/// Below this width the address field folds most of a path behind its ellipsis, so the view buttons fold into one
+/// first. At 300 px a path of four short folders still reads whole.
+constexpr int ADDRESS_ROOMY_WIDTH = 300;
+
+/// The view modes in the toolbar's order, with the icon and the words of each.
+struct ViewChoice {
+    const char *icon;
+    const char *label;
+    ViewMode mode;
+};
+constexpr ViewChoice VIEW_CHOICES[] = {
+    {"view-grid-symbolic", "as Icons", ViewMode::Icons},
+    {"view-list-symbolic", "as List", ViewMode::List},
+    {"view-list-compact-symbolic", "as Compact List", ViewMode::Compact},
+    {"view-file-columns-symbolic", "as Columns", ViewMode::Columns},
+    {"view-preview-symbolic", "as Gallery", ViewMode::Gallery},
+};
 /// The inner padding and gaps of a text button, and the size of its chevron.
 constexpr int LABEL_PADDING = 12;
 constexpr int LABEL_GAP = 6;
@@ -70,12 +89,12 @@ void GlassButton::setChevron(bool chevron)
 
 QSize GlassButton::sizeHint() const
 {
-    if (m_label.isEmpty()) {
+    if (m_label.isEmpty() && !m_chevron) {
         return {m_standalone ? style::CAPSULE_HEIGHT : style::BUTTON_WIDTH, style::CAPSULE_HEIGHT};
     }
     int width = 2 * LABEL_PADDING + fontMetrics().horizontalAdvance(m_label);
     if (!m_iconName.isEmpty()) {
-        width += style::TOOL_ICON_SIZE + LABEL_GAP;
+        width += style::TOOL_ICON_SIZE + (m_label.isEmpty() ? 0 : LABEL_GAP);
     }
     if (m_chevron) {
         width += CHEVRON_SIZE + 2;
@@ -109,7 +128,7 @@ void GlassButton::paintEvent(QPaintEvent *)
     }
 
     const QColor iconColor = isEnabled() ? style::TEXT : style::TEXT_TERTIARY;
-    if (m_label.isEmpty()) {
+    if (m_label.isEmpty() && !m_chevron) {
         const QPixmap icon = style::tintedIcon(m_iconName, style::TOOL_ICON_SIZE, iconColor, devicePixelRatioF());
         const QPointF topLeft((width() - style::TOOL_ICON_SIZE) / 2.0, (height() - style::TOOL_ICON_SIZE) / 2.0);
         painter.drawPixmap(topLeft, icon);
@@ -119,7 +138,7 @@ void GlassButton::paintEvent(QPaintEvent *)
     if (!m_iconName.isEmpty()) {
         const QPixmap icon = style::tintedIcon(m_iconName, style::TOOL_ICON_SIZE, iconColor, devicePixelRatioF());
         painter.drawPixmap(QPointF(x, (height() - style::TOOL_ICON_SIZE) / 2.0), icon);
-        x += style::TOOL_ICON_SIZE + LABEL_GAP;
+        x += style::TOOL_ICON_SIZE + (m_label.isEmpty() ? 0 : LABEL_GAP);
     }
     painter.setPen(iconColor);
     const int textWidth = fontMetrics().horizontalAdvance(m_label);
@@ -220,6 +239,8 @@ Toolbar::Toolbar(const QString &homePath, QWidget *parent)
     , m_up(new GlassButton(QStringLiteral("go-up-symbolic"), QStringLiteral("Enclosing Folder"), this))
     , m_address(new AddressField(homePath, this))
     , m_viewModes(new QButtonGroup(this))
+    , m_views(new Capsule(this))
+    , m_viewPicker(new GlassButton(QString::fromLatin1(VIEW_CHOICES[0].icon), QStringLiteral("Change how the items are shown"), this))
     , m_group(new GlassButton(QString(), QStringLiteral("Group files by name, kind, date or size"), this))
     , m_share(new GlassButton(QStringLiteral(":/icons/actions/share.svg"), QStringLiteral("Share"), this))
     , m_tags(new GlassButton(QStringLiteral(":/icons/actions/tag.svg"), QStringLiteral("Tag the selected items with a color"), this))
@@ -238,26 +259,20 @@ Toolbar::Toolbar(const QString &homePath, QWidget *parent)
     m_address->setMinimumWidth(ADDRESS_MIN_WIDTH);
     m_address->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 
-    auto *views = new Capsule(this);
-    const struct {
-        const char *icon;
-        const char *tip;
-        ViewMode mode;
-    } modes[] = {
-        {"view-grid-symbolic", "as Icons", ViewMode::Icons},
-        {"view-list-symbolic", "as List", ViewMode::List},
-        {"view-list-compact-symbolic", "as Compact List", ViewMode::Compact},
-        {"view-file-columns-symbolic", "as Columns", ViewMode::Columns},
-        {"view-preview-symbolic", "as Gallery", ViewMode::Gallery},
-    };
-    for (const auto &mode : modes) {
-        auto *button = new GlassButton(QString::fromLatin1(mode.icon), QString::fromLatin1(mode.tip));
+    for (const ViewChoice &choice : VIEW_CHOICES) {
+        auto *button = new GlassButton(QString::fromLatin1(choice.icon), QString::fromLatin1(choice.label));
         button->setCheckable(true);
-        m_viewModes->addButton(button, static_cast<int>(mode.mode));
-        views->addButton(button);
+        m_viewModes->addButton(button, static_cast<int>(choice.mode));
+        m_views->addButton(button);
     }
+    m_views->setObjectName(QStringLiteral("viewButtons"));
     m_viewModes->setExclusive(true);
     connect(m_viewModes, &QButtonGroup::idClicked, this, [this](int id) { Q_EMIT viewModeChosen(static_cast<ViewMode>(id)); });
+    m_viewPicker->setObjectName(QStringLiteral("viewPicker"));
+    m_viewPicker->setStandalone(true);
+    m_viewPicker->setChevron(true);
+    m_viewPicker->hide();
+    connect(m_viewPicker, &QAbstractButton::clicked, this, &Toolbar::showViewPicker);
 
     m_group->setStandalone(true);
     m_group->setLabel(QStringLiteral("Group"));
@@ -281,7 +296,8 @@ Toolbar::Toolbar(const QString &homePath, QWidget *parent)
     layout->addWidget(navigation);
     layout->addWidget(m_up);
     layout->addWidget(m_address, 1);
-    layout->addWidget(views);
+    layout->addWidget(m_views);
+    layout->addWidget(m_viewPicker);
     layout->addWidget(m_group);
     layout->addWidget(m_share);
     layout->addWidget(m_tags);
@@ -293,7 +309,7 @@ Toolbar::Toolbar(const QString &homePath, QWidget *parent)
     layout->addLayout(m_trailing);
 
     // Everything they do stays in the More menu, the context menu and the menu bar.
-    m_collapsible = {m_tags, m_share, m_group, views};
+    m_collapsible = {m_tags, m_share, m_group, m_viewPicker};
 }
 
 void Toolbar::resizeEvent(QResizeEvent *event)
@@ -314,7 +330,16 @@ void Toolbar::fitToWidth()
     for (QWidget *button : std::as_const(m_collapsible)) {
         button->setVisible(true);
     }
+    m_views->setVisible(true);
+    m_viewPicker->setVisible(false);
     m_tags->setLabel(QStringLiteral("Edit Tags"));
+    // The view buttons fold into one before the path has to: Finder does the same with its view control.
+    m_address->setMinimumWidth(ADDRESS_ROOMY_WIDTH);
+    if (overflow() > 0) {
+        m_views->setVisible(false);
+        m_viewPicker->setVisible(true);
+    }
+    m_address->setMinimumWidth(ADDRESS_MIN_WIDTH);
     if (const int excess = overflow(); excess > 0) {
         m_search->setFixedWidth(qMax(SEARCH_MIN_WIDTH, style::SEARCH_WIDTH - excess));
     }
@@ -342,6 +367,27 @@ void Toolbar::setViewMode(ViewMode mode)
     if (QAbstractButton *button = m_viewModes->button(static_cast<int>(mode))) {
         button->setChecked(true);
     }
+    for (const ViewChoice &choice : VIEW_CHOICES) {
+        if (choice.mode == mode) {
+            m_viewPicker->setIconName(QString::fromLatin1(choice.icon));
+        }
+    }
+}
+
+void Toolbar::showViewPicker()
+{
+    QMenu menu(this);
+    for (const ViewChoice &choice : VIEW_CHOICES) {
+        QAction *entry = menu.addAction(QIcon::fromTheme(QString::fromLatin1(choice.icon)), QString::fromLatin1(choice.label));
+        entry->setCheckable(true);
+        entry->setChecked(m_viewModes->checkedId() == static_cast<int>(choice.mode));
+        connect(entry, &QAction::triggered, this, [this, mode = choice.mode] {
+            setViewMode(mode);
+            Q_EMIT viewModeChosen(mode);
+        });
+    }
+    // The same place as the toolbar's other menus, 6 px under the button (MainWindow's execBelow).
+    menu.exec(m_viewPicker->mapToGlobal(QPoint(0, m_viewPicker->height() + 6)));
 }
 
 void Toolbar::setSearchText(const QString &term)

@@ -13,7 +13,8 @@ and color Tags (drives can be renamed inline, kept in `file-explorerrc [Drive Na
 with a tooltip, amber above 90 % and red above 95 %; a folder the user added unfolds into its subfolders and each
 section folds away, kept in `file-explorerrc [Sidebar Tree]`), tabs, a toolbar with an address field
 (`fe::AddressField`) that shows the path as clickable segments and takes a typed path on a click beside them, Ctrl+L or
-Alt+D (rules in `core/address`: `~`, relative paths, suggestions, shell Tab) and the Group, Share
+Alt+D (rules in `core/address`: `~`, relative paths, suggestions, shell Tab), the view buttons (they fold into one
+pop-up button before the address field gets under 300 px, as Finder's view control does) and the Group, Share
 (Purpose), Edit Tags and More menus, a row of file actions (`fe::ActionBar`), Quick Look (`fe::QuickLook`, Space;
 rules in `core/quicklook`), Split View (`fe::TabPage`, F3), a path bar that names the selected file and shows the item
 count, Undo (Ctrl+Z) from KIO's undo history, which Dolphin's view records its operations in, a filter row
@@ -102,7 +103,7 @@ It also serves `org.freedesktop.FileManager1` (`--service`: "Show in folder" sel
 portal backend (`--portal`: Open and Save panels with a chooser bar; it quits after three idle minutes). Installed as
 `~/.local/bin/file-explorer`; Win+E launches it. Folders without a view of their own show Finder's columns (Name,
 Modified, Size, Type) from `~/.local/share/file-explorer/view_properties/global/.directory`. Tests: `fe_tests` (95),
-`fe_finder_tests` (55), `fe_widget_tests` (27, offscreen: clicks, drops, a drag resting on a segment, the address
+`fe_finder_tests` (55), `fe_widget_tests` (28, offscreen: clicks, drops, a drag resting on a segment, the address
 field at rest, accessibility, the filter row over a real Dolphin view, the glass behind a field inside a tab, the
 Rename sheet renaming a real folder and one Undo taking it back, F2 on two items opening it, the command palette
 finding, running and closing, Copy Path with three items and with none, the Inspector counting a

@@ -37,9 +37,10 @@ shot archive-before
 input move 1500 900 wait 200 down wait 60 up wait 600
 input move 885 440 wait 200 down wait 60 up wait 80 down wait 60 up wait 2500
 shot archive-inside
-# The address field names the zip once it is open.
-check a-double-click-opens-the-zip-as-a-folder archive-before archive-inside 1080 290 1200 325
+# The first items of the view: the zip's icon before, its Docs and Photos folders once it is open. The address field
+# changes too, but a few letters of text stay under the change threshold.
+check a-double-click-opens-the-zip-as-a-folder archive-before archive-inside 800 395 1200 495
 # Alt+Up (56, 103).
 input keydown 56 keydown 103 keyup 103 keyup 56 wait 2000
 shot archive-up
-check alt-up-leaves-the-archive archive-inside archive-up 1080 290 1200 325
+check alt-up-leaves-the-archive archive-inside archive-up 800 395 1200 495
