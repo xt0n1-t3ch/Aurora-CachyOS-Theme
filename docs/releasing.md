@@ -86,6 +86,12 @@ before the upload (saved with the server's time, so pacman asks only for a newer
 release), syncs, and must see the new version, verify its signature and download the very file the checks passed.
 A failure there means users would not get the release.
 
+GitHub caches the redirect behind a release download for about two minutes: on 1.3.5 the database uploaded at
+03:37:13 UTC was served from 03:38:53, and until then the address gave the old database while its signature was
+already the new one, which pacman refuses. So the check waits, up to five minutes (`AURORA_VERIFY_WAIT`), until the
+server serves the new database, and the copy of the old one taken before the upload is asked for at an address of its
+own (`aurora.db?before=...`), so it leaves no cached redirect behind for users.
+
 Everything is signed with Aurora's key. Its public half is [packaging/repo/aurora.asc](../packaging/repo/aurora.asc)
 (fingerprint `657D8110799A4E65BE4E1AB4F028284112794CC2`), which users trust with `pacman-key --lsign-key`; its secret
 half lives only in my GnuPG keyring and an offline copy, never in the repository. A new key means every user trusts
