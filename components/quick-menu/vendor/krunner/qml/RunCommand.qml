@@ -692,11 +692,13 @@ Item {
                     } else if (root.isKeyDown(event)) {
                         event.accepted = true
                         // Aurora: Down leaves the list for the field from its last entry only, as Up does from the
-                        // first. plasma-workspace 6.8.3 tests for every entry but the last here.
+                        // first; plasma-workspace 6.8.3 tests for every entry but the last here. Losing focus on the
+                        // last entry makes the first one current (onActiveFocusChanged), so nothing moves after it.
                         if (currentIndex === count - 1) {
                             KeyNavigation.down.forceActiveFocus(Qt.TabFocusReason)
+                        } else {
+                            incrementCurrentIndex()
                         }
-                        incrementCurrentIndex()
                     } else if (event.key === Qt.Key_Delete && event.modifiers === Qt.ShiftModifier) {
                         runAction(0)
                         event.accepted = true

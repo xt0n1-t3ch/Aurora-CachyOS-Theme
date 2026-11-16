@@ -1330,6 +1330,7 @@ others capture `tests/sandbox/shots/` to compare by eye.
 | `quick-menu-rail.sh` | the rail: the account's picture and name; Restart, Shut Down, Log Out and Lock each reach Plasma's session services, stood in for by `tests/helpers/fake_session.py` so no real call can restart or lock the machine (5 PASS) |
 | `cli.sh` | the `aurora` command in Konsole with Aurora's profile on Dawn Bird: its menu under the banner and the credit, then `aurora status` (captures) |
 | `quick-menu-app-menu.sh` | the app menu: right-click, Pin to Top and the Pinned section, the Menu key (not the field's text menu), Unpin from Dock, an opened app in Suggestions and Remove from Suggestions, no QML warnings (8 PASS); labels found with `tests/helpers/find_text.py` |
+| `quick-menu-history.sh` | past searches under the arrow keys: Up lists them, Down walks to the last one, Down on the last one returns to the field with the first one current, Up from the field stands on the last one (5 PASS) |
 | `readme.sh` | the README's pictures, the notifications popover among them (run with `SANDBOX_SCALE=2`, then `assets/screenshots/make.py`, which also crops Mission Center's two from its own sandbox) |
 | `readme-explorer.sh` | the README's File Explorer pictures from a made-up project and Plasma's wallpapers: a file's Git menu in a repository, the Commit sheet, the columns view, the gallery, the Inspector, the command palette and batch rename (captures; `assets/screenshots/make.py` crops them) |
 | `kali-menu.sh` | the Kali menu with PC labels |
