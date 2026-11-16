@@ -25,11 +25,11 @@ expect() {
     if [ "$got" = "$2" ]; then echo "PASS $1"; else echo "FAIL $1: got '$got', want '$2'"; failures=$((failures + 1)); fi
 }
 
-fake_plasma 6.8.2-1.1
+fake_plasma 6.8.3-1.1
 expect "the vendored version is installed: every part builds from vendor/" \
-"system-tray vendor 6.8.2
-notifications vendor 6.8.2
-quick-menu vendor 6.8.2"
+"system-tray vendor 6.8.3
+notifications vendor 6.8.3
+quick-menu vendor 6.8.3"
 
 fake_plasma 6.9.0-1
 expect "a newer Plasma: every part builds from that version's sources" \
@@ -37,11 +37,11 @@ expect "a newer Plasma: every part builds from that version's sources" \
 notifications fetch 6.9.0
 quick-menu fetch 6.9.0"
 
-fake_plasma 6.8.2-3
+fake_plasma 6.8.3-3
 expect "only the package release differs: vendor/ still matches" \
-"system-tray vendor 6.8.2
-notifications vendor 6.8.2
-quick-menu vendor 6.8.2"
+"system-tray vendor 6.8.3
+notifications vendor 6.8.3
+quick-menu vendor 6.8.3"
 
 # The aurora command builds with the parts when Rust is installed, and says so when it is not.
 root=$(readlink -f "$here/../..")

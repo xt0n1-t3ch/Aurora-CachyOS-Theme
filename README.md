@@ -204,7 +204,7 @@ Four system settings, each measured on a Ryzen 7 5800X with 32 GB of RAM before 
 
 | Project | Used for | Version | License |
 | --- | --- | --- | --- |
-| [Plasma Workspace](https://invent.kde.org/plasma/plasma-workspace) by KDE | The system tray, notifications and KRunner, each rebuilt with a patch | 6.8.2 | GPL-2.0-or-later |
+| [Plasma Workspace](https://invent.kde.org/plasma/plasma-workspace) by KDE | The system tray, notifications and KRunner, each rebuilt with a patch | 6.8.3 | GPL-2.0-or-later |
 | [Dolphin](https://invent.kde.org/system/dolphin) by KDE | The file view inside File Explorer, loaded at run time | installed version | GPL-2.0-or-later |
 | [Inter](https://rsms.me/inter/) by Rasmus Andersson (`inter-font`) | The interface font, and the text of the pictures on this page | 4.1 | OFL-1.1 |
 | [JetBrains Mono](https://www.jetbrains.com/lp/mono/) with [Nerd Fonts](https://www.nerdfonts.com) symbols (`ttf-jetbrains-mono-nerd`) | Konsole's font | 3.5.1 | OFL-1.1 |

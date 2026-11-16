@@ -1,17 +1,17 @@
 # SPDX-FileCopyrightText: 2026 xt0n1 (https://github.com/xt0n1-t3ch)
 # SPDX-License-Identifier: GPL-3.0-only
 # Additional terms (GPL-3.0 section 7, author attribution): see NOTICE.md.
-# Quick Menu: Plasma's own KRunner, built from plasma-workspace v6.8.2 with its window drawn as macOS
+# Quick Menu: Plasma's own KRunner, built from plasma-workspace v6.8.3 with its window drawn as macOS
 # Tahoe's Spotlight (qml/RunCommand.qml and the QuickMenu*.qml beside it, a frameless glass window in view.cpp). It
 # keeps the D-Bus name org.kde.krunner, its runners and its settings; the user unit drop-in that starts it instead
 # of /usr/bin/krunner is the only switch, so removing the drop-in brings the stock KRunner back.
 cmake_minimum_required(VERSION 3.24)
-project(quick-menu VERSION 6.8.2 LANGUAGES CXX)
+project(quick-menu VERSION 6.8.3 LANGUAGES CXX)
 
 # Minimum Qt and KDE Frameworks versions, and the Plasma version of the vendored sources.
 set(QT_MIN_VERSION "6.9.0")
 set(KF6_MIN_VERSION "6.18.0")
-set(PROJECT_DEP_VERSION "6.8.2")
+set(PROJECT_DEP_VERSION "6.8.3")
 
 find_package(ECM ${KF6_MIN_VERSION} REQUIRED NO_MODULE)
 set(CMAKE_MODULE_PATH ${ECM_MODULE_PATH})

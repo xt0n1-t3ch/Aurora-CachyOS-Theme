@@ -1,18 +1,18 @@
 # SPDX-FileCopyrightText: 2026 xt0n1 (https://github.com/xt0n1-t3ch)
 # SPDX-License-Identifier: GPL-3.0-only
 # Additional terms (GPL-3.0 section 7, author attribution): see NOTICE.md.
-# Aurora notifications: Plasma's own notifications applet, built from plasma-workspace v6.8.2 with its popups
+# Aurora notifications: Plasma's own notifications applet, built from plasma-workspace v6.8.3 with its popups
 # drawn as macOS banners (NotificationPopup.qml, delegates/DelegatePopup.qml, components/Banner*.qml, and an input
 # region in notificationwindow.cpp). It keeps the plugin id org.kde.plasma.notifications, so Plasma loads it ahead of
 # the system copy through QT_PLUGIN_PATH and the tray keeps its notifications and settings; deleting the .so brings
 # the stock applet back.
 cmake_minimum_required(VERSION 3.24)
-project(notifications VERSION 6.8.2 LANGUAGES C CXX) # C: the generated Wayland protocol code
+project(notifications VERSION 6.8.3 LANGUAGES C CXX) # C: the generated Wayland protocol code
 
 # Minimum Qt and KDE Frameworks versions, and the Plasma version of the vendored sources.
 set(QT_MIN_VERSION "6.9.0")
 set(KF6_MIN_VERSION "6.18.0")
-set(PROJECT_DEP_VERSION "6.8.2")
+set(PROJECT_DEP_VERSION "6.8.3")
 
 find_package(ECM ${KF6_MIN_VERSION} REQUIRED NO_MODULE)
 set(CMAKE_MODULE_PATH ${ECM_MODULE_PATH})

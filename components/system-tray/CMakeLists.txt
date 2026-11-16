@@ -1,16 +1,16 @@
 # SPDX-FileCopyrightText: 2026 xt0n1 (https://github.com/xt0n1-t3ch)
 # SPDX-License-Identifier: GPL-3.0-only
 # Additional terms (GPL-3.0 section 7, author attribution): see NOTICE.md.
-# Aurora system tray: Plasma's own system tray applet, built from plasma-workspace v6.8.2 with
+# Aurora system tray: Plasma's own system tray applet, built from plasma-workspace v6.8.3 with
 # its C++ untouched and only its QML changed (tray icons can be dragged). It keeps the plugin id
 # org.kde.plasma.systemtray, so Plasma loads it ahead of the system copy through QT_PLUGIN_PATH and
 # every panel keeps its tray and settings; deleting the .so brings the stock tray back.
 cmake_minimum_required(VERSION 3.24)
-project(system-tray VERSION 6.8.2 LANGUAGES CXX)
+project(system-tray VERSION 6.8.3 LANGUAGES CXX)
 
 set(QT_MIN_VERSION "6.9.0")
 set(KF6_MIN_VERSION "6.18.0")
-set(PROJECT_DEP_VERSION "6.8.2")
+set(PROJECT_DEP_VERSION "6.8.3")
 
 find_package(ECM ${KF6_MIN_VERSION} REQUIRED NO_MODULE)
 set(CMAKE_MODULE_PATH ${ECM_MODULE_PATH})
