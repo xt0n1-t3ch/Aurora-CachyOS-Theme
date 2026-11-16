@@ -300,17 +300,19 @@ Item {
                         event.accepted = true
                     }
                     if (root.isKeyUp(event) || root.isKeyDown(event)) {
+                        event.accepted = true
                         if (root.isKeyUp(event)) {
+                            if (!results.visible && !listView.visible) {
+                                return
+                            }
                             activeListView.currentIndex = activeListView.count - 1
-                        } else {
-                            activeListView.incrementCurrentIndex()
-                        }
-                        if (queryField.text.length === 0) {
-                            event.accepted = true
+                            KeyNavigation.up.forceActiveFocus(Qt.BacktabFocusReason)
+                        } else if (queryField.text.length === 0 && !root.showHistory) {
                             root.showHistory = true
                             focusCurrentListView()
                         } else {
-                            return // KeyNavigation takes it to the list
+                            activeListView.incrementCurrentIndex()
+                            KeyNavigation.down.forceActiveFocus(Qt.TabFocusReason)
                         }
                     }
                     !event.accepted && results.navigationKeyHandler(event)
@@ -504,6 +506,15 @@ Item {
                                                 : root.mode === "history" ? listView.contentHeight + listView.topMargin + listView.bottomMargin
                                                 : results.contentHeight + results.topMargin + results.bottomMargin)
 
+            // Ctrl+J and Ctrl+K leave the results for the search field from here: the results view has a key
+            // handler of its own, and what it does not take comes up to its parent.
+            Keys.onPressed: event => {
+                if (event.modifiers & Qt.ControlModifier && (event.key == Qt.Key_J || event.key == Qt.Key_K)) {
+                    queryField.forceActiveFocus(event.key == Qt.Key_J ? Qt.TabFocusReason : Qt.BacktabFocusReason)
+                    event.accepted = true
+                }
+            }
+
             // Aurora: the Menu key or Shift+F10 opens the menu of the app the arrows stand on, as on Windows. A
             // Shortcut takes the key before the search field does: the field's style opens its own text menu for it.
             Shortcut {
@@ -673,15 +684,21 @@ Item {
                 }
                 Keys.onPressed: event => {
                     if (root.isKeyUp(event)) {
-                        if (currentIndex !== 0) {
-                            event.accepted = true
+                        event.accepted = true
+                        if (currentIndex === 0) {
+                            KeyNavigation.up.forceActiveFocus(Qt.BacktabFocusReason)
                         }
                         decrementCurrentIndex()
                     } else if (root.isKeyDown(event)) {
-                        if (currentIndex !== count - 1) {
-                            event.accepted = true
+                        event.accepted = true
+                        // Aurora: Down leaves the list for the field from its last entry only, as Up does from the
+                        // first; plasma-workspace 6.8.3 tests for every entry but the last here. Losing focus on the
+                        // last entry makes the first one current (onActiveFocusChanged), so nothing moves after it.
+                        if (currentIndex === count - 1) {
+                            KeyNavigation.down.forceActiveFocus(Qt.TabFocusReason)
+                        } else {
+                            incrementCurrentIndex()
                         }
-                        incrementCurrentIndex()
                     } else if (event.key === Qt.Key_Delete && event.modifiers === Qt.ShiftModifier) {
                         runAction(0)
                         event.accepted = true

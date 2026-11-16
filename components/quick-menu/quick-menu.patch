@@ -1,5 +1,5 @@
-diff -ruN -x '*.qsb' a/CMakeLists.txt b/CMakeLists.txt
---- a/CMakeLists.txt	2026-11-05 02:44:25.332371661 -0500
+diff --color -ruN -x '*.qsb' a/CMakeLists.txt b/CMakeLists.txt
+--- a/CMakeLists.txt	2026-11-16 06:31:25.154259205 -0500
 +++ b/CMakeLists.txt	2026-11-05 02:44:25.333585775 -0500
 @@ -15,6 +15,19 @@
  add_executable(krunner ${krunner_SRCS})
@@ -21,9 +21,9 @@ diff -ruN -x '*.qsb' a/CMakeLists.txt b/CMakeLists.txt
  
  target_link_libraries(krunner PRIVATE
      Qt::Quick
-diff -ruN -x '*.qsb' a/qml/QuickMenuApps.qml b/qml/QuickMenuApps.qml
+diff --color -ruN -x '*.qsb' a/qml/QuickMenuApps.qml b/qml/QuickMenuApps.qml
 --- a/qml/QuickMenuApps.qml	1969-12-31 19:00:00.000000000 -0500
-+++ b/qml/QuickMenuApps.qml	2026-11-05 13:28:11.745956904 -0500
++++ b/qml/QuickMenuApps.qml	2026-11-05 13:34:11.812836298 -0500
 @@ -0,0 +1,483 @@
 +/*
 +    SPDX-FileCopyrightText: 2026 xt0n1-t3ch
@@ -508,7 +508,7 @@ diff -ruN -x '*.qsb' a/qml/QuickMenuApps.qml b/qml/QuickMenuApps.qml
 +        }
 +    }
 +}
-diff -ruN -x '*.qsb' a/qml/QuickMenuBlur.qml b/qml/QuickMenuBlur.qml
+diff --color -ruN -x '*.qsb' a/qml/QuickMenuBlur.qml b/qml/QuickMenuBlur.qml
 --- a/qml/QuickMenuBlur.qml	1969-12-31 19:00:00.000000000 -0500
 +++ b/qml/QuickMenuBlur.qml	2026-11-05 02:44:25.334227431 -0500
 @@ -0,0 +1,12 @@
@@ -524,7 +524,7 @@ diff -ruN -x '*.qsb' a/qml/QuickMenuBlur.qml b/qml/QuickMenuBlur.qml
 +BlurBehind {
 +    saturation: 1.6
 +}
-diff -ruN -x '*.qsb' a/qml/QuickMenuGlass.qml b/qml/QuickMenuGlass.qml
+diff --color -ruN -x '*.qsb' a/qml/QuickMenuGlass.qml b/qml/QuickMenuGlass.qml
 --- a/qml/QuickMenuGlass.qml	1969-12-31 19:00:00.000000000 -0500
 +++ b/qml/QuickMenuGlass.qml	2026-11-05 02:44:25.334227431 -0500
 @@ -0,0 +1,37 @@
@@ -565,9 +565,9 @@ diff -ruN -x '*.qsb' a/qml/QuickMenuGlass.qml b/qml/QuickMenuGlass.qml
 +        fragmentShader: Qt.resolvedUrl("shaders/glass.frag.qsb")
 +    }
 +}
-diff -ruN -x '*.qsb' a/qml/quickmenu.js b/qml/quickmenu.js
+diff --color -ruN -x '*.qsb' a/qml/quickmenu.js b/qml/quickmenu.js
 --- a/qml/quickmenu.js	1969-12-31 19:00:00.000000000 -0500
-+++ b/qml/quickmenu.js	2026-11-05 05:11:20.859243250 -0500
++++ b/qml/quickmenu.js	2026-11-05 13:34:11.812836298 -0500
 @@ -0,0 +1,347 @@
 +/*
 +    SPDX-FileCopyrightText: 2026 xt0n1-t3ch
@@ -916,7 +916,7 @@ diff -ruN -x '*.qsb' a/qml/quickmenu.js b/qml/quickmenu.js
 +        moveDuration: Math.round(longDuration * 1.4),
 +    }
 +}
-diff -ruN -x '*.qsb' a/qml/QuickMenuPopup.qml b/qml/QuickMenuPopup.qml
+diff --color -ruN -x '*.qsb' a/qml/QuickMenuPopup.qml b/qml/QuickMenuPopup.qml
 --- a/qml/QuickMenuPopup.qml	1969-12-31 19:00:00.000000000 -0500
 +++ b/qml/QuickMenuPopup.qml	2026-11-05 02:44:25.334227431 -0500
 @@ -0,0 +1,220 @@
@@ -1140,7 +1140,7 @@ diff -ruN -x '*.qsb' a/qml/QuickMenuPopup.qml b/qml/QuickMenuPopup.qml
 +
 +    onOpened: contentItem.forceActiveFocus()
 +}
-diff -ruN -x '*.qsb' a/qml/QuickMenuRail.qml b/qml/QuickMenuRail.qml
+diff --color -ruN -x '*.qsb' a/qml/QuickMenuRail.qml b/qml/QuickMenuRail.qml
 --- a/qml/QuickMenuRail.qml	1969-12-31 19:00:00.000000000 -0500
 +++ b/qml/QuickMenuRail.qml	2026-11-05 02:44:25.334227431 -0500
 @@ -0,0 +1,171 @@
@@ -1315,7 +1315,7 @@ diff -ruN -x '*.qsb' a/qml/QuickMenuRail.qml b/qml/QuickMenuRail.qml
 +        }
 +    }
 +}
-diff -ruN -x '*.qsb' a/qml/QuickMenuResult.qml b/qml/QuickMenuResult.qml
+diff --color -ruN -x '*.qsb' a/qml/QuickMenuResult.qml b/qml/QuickMenuResult.qml
 --- a/qml/QuickMenuResult.qml	1969-12-31 19:00:00.000000000 -0500
 +++ b/qml/QuickMenuResult.qml	2026-11-05 02:44:25.334487279 -0500
 @@ -0,0 +1,184 @@
@@ -1503,7 +1503,7 @@ diff -ruN -x '*.qsb' a/qml/QuickMenuResult.qml b/qml/QuickMenuResult.qml
 +        }
 +    }
 +}
-diff -ruN -x '*.qsb' a/qml/QuickMenuScrollBar.qml b/qml/QuickMenuScrollBar.qml
+diff --color -ruN -x '*.qsb' a/qml/QuickMenuScrollBar.qml b/qml/QuickMenuScrollBar.qml
 --- a/qml/QuickMenuScrollBar.qml	1969-12-31 19:00:00.000000000 -0500
 +++ b/qml/QuickMenuScrollBar.qml	2026-11-05 02:44:25.334487279 -0500
 @@ -0,0 +1,28 @@
@@ -1535,7 +1535,7 @@ diff -ruN -x '*.qsb' a/qml/QuickMenuScrollBar.qml b/qml/QuickMenuScrollBar.qml
 +        }
 +    }
 +}
-diff -ruN -x '*.qsb' a/qml/QuickMenuTile.qml b/qml/QuickMenuTile.qml
+diff --color -ruN -x '*.qsb' a/qml/QuickMenuTile.qml b/qml/QuickMenuTile.qml
 --- a/qml/QuickMenuTile.qml	1969-12-31 19:00:00.000000000 -0500
 +++ b/qml/QuickMenuTile.qml	2026-11-05 02:44:25.334487279 -0500
 @@ -0,0 +1,151 @@
@@ -1690,9 +1690,9 @@ diff -ruN -x '*.qsb' a/qml/QuickMenuTile.qml b/qml/QuickMenuTile.qml
 +        }
 +    }
 +}
-diff -ruN -x '*.qsb' a/qml/RunCommand.qml b/qml/RunCommand.qml
---- a/qml/RunCommand.qml	2026-11-05 02:44:25.333278976 -0500
-+++ b/qml/RunCommand.qml	2026-11-05 13:28:11.746293923 -0500
+diff --color -ruN -x '*.qsb' a/qml/RunCommand.qml b/qml/RunCommand.qml
+--- a/qml/RunCommand.qml	2026-11-16 06:31:25.154502034 -0500
++++ b/qml/RunCommand.qml	2026-11-16 06:51:53.264124760 -0500
 @@ -1,12 +1,16 @@
  /*
      SPDX-FileCopyrightText: 2014 Marco Martin <mart@kde.org>
@@ -1755,15 +1755,15 @@ diff -ruN -x '*.qsb' a/qml/RunCommand.qml b/qml/RunCommand.qml
 +            runnerWindow.visible = false
 +        }
 +    }
-+
+ 
+-    // Spacing needs to be 0 to not make the last spacer item add a fake margin
+-    spacing: 0
 +    implicitWidth: panelWidth + 2 * shadowPad
 +    implicitHeight: panel.height + 2 * shadowPad
 +
 +    LayoutMirroring.enabled: Application.layoutDirection === Qt.RightToLeft
 +    LayoutMirroring.childrenInherit: true
- 
--    // Spacing needs to be 0 to not make the last spacer item add a fake margin
--    spacing: 0
++
 +    Binding {
 +        target: root.runnerWindow
 +        property: "inputRect"
@@ -1809,7 +1809,7 @@ diff -ruN -x '*.qsb' a/qml/RunCommand.qml b/qml/RunCommand.qml
                  }
              } else {
                  if (root.runnerWindow.retainPriorSearch) {
-@@ -79,412 +99,637 @@
+@@ -79,425 +99,654 @@
                  }
                  root.singleRunner = ""
                  root.query = ""
@@ -2094,17 +2094,19 @@ diff -ruN -x '*.qsb' a/qml/RunCommand.qml b/qml/RunCommand.qml
 +                        event.accepted = true
 +                    }
 +                    if (root.isKeyUp(event) || root.isKeyDown(event)) {
++                        event.accepted = true
 +                        if (root.isKeyUp(event)) {
++                            if (!results.visible && !listView.visible) {
++                                return
++                            }
 +                            activeListView.currentIndex = activeListView.count - 1
-+                        } else {
-+                            activeListView.incrementCurrentIndex()
-+                        }
-+                        if (queryField.text.length === 0) {
-+                            event.accepted = true
++                            KeyNavigation.up.forceActiveFocus(Qt.BacktabFocusReason)
++                        } else if (queryField.text.length === 0 && !root.showHistory) {
 +                            root.showHistory = true
 +                            focusCurrentListView()
 +                        } else {
-+                            return // KeyNavigation takes it to the list
++                            activeListView.incrementCurrentIndex()
++                            KeyNavigation.down.forceActiveFocus(Qt.TabFocusReason)
 +                        }
 +                    }
 +                    !event.accepted && results.navigationKeyHandler(event)
@@ -2161,19 +2163,19 @@ diff -ruN -x '*.qsb' a/qml/RunCommand.qml b/qml/RunCommand.qml
                          queryDisplay = true
                      }
 -                    interval: 500
--                }
+                 }
 -
 -                running: queryTimer.queryDisplay
--            }
--
+             }
+ 
 -            function focusCurrentListView() {
 -                if (listView.count > 0) {
 -                    listView.forceActiveFocus();
 -                } else if (results.count > 0) {
 -                    results.forceActiveFocus();
-                 }
-             }
- 
+-                }
+-            }
+-
 -            onTextChanged: {
 -                root.query = queryField.text
 -                if (!allowCompletion || !root.query ) { // Clear suggestion in case it was disabled or the query is cleared
@@ -2187,6 +2189,31 @@ diff -ruN -x '*.qsb' a/qml/RunCommand.qml b/qml/RunCommand.qml
 -                    if (suggestedText.length > 0) {
 -                        text = text + suggestedText.substr(oldText.length)
 -                        select(text.length, oldText.length)
+-                    }
+-                }
+-            }
+-            Keys.onPressed: event => {
+-                allowCompletion = (event.key !== Qt.Key_Backspace && event.key !== Qt.Key_Delete)
+-                // We only need to handle the Key_End case, the first item is focused by default
+-                if (event.key === Qt.Key_End && results.count > 0 && cursorPosition === text.length) {
+-                    results.currentIndex = results.count - 1
+-                    event.accepted = true;
+-                    focusCurrentListView()
+-                }
+-                if (root.runnerWindow.historyBehavior === RunnerWindow.CompletionSuggestion
+-                    && fadedTextCompletion.text.length > 0
+-                    && cursorPosition === text.length
+-                    && event.key === Qt.Key_Right
+-                ) {
+-                    queryField.text = fadedTextCompletion.text
+-                    fadedTextCompletion.text = ""
+-                    event.accepted = true
+-                }
+-                if (root.isKeyUp(event) || root.isKeyDown(event)) {
+-                    event.accepted = true
+-                    if (root.isKeyUp(event)) {
+-                        if (!results.visible && !listView.visible) {
+-                            return
 +            // All Applications: a ring like ⋯ beside it, with four squares for the app grid; filled while the list shows.
 +            T.AbstractButton {
 +                id: allAppsButton
@@ -2224,49 +2251,19 @@ diff -ruN -x '*.qsb' a/qml/RunCommand.qml b/qml/RunCommand.qml
 +                                radius: Math.max(1, width / 4)
 +                                color: allAppsButton.checked ? Qt.rgba(0, 0, 0, 0.75) : Qt.rgba(1, 1, 1, 0.8)
 +                            }
-+                        }
-                     }
-                 }
--            }
--            Keys.onPressed: event => {
--                allowCompletion = (event.key !== Qt.Key_Backspace && event.key !== Qt.Key_Delete)
--                // We only need to handle the Key_End case, the first item is focused by default
--                if (event.key === Qt.Key_End && results.count > 0 && cursorPosition === text.length) {
--                    results.currentIndex = results.count - 1
--                    event.accepted = true;
--                    focusCurrentListView()
--                }
--                if (root.runnerWindow.historyBehavior === RunnerWindow.CompletionSuggestion
--                    && fadedTextCompletion.text.length > 0
--                    && cursorPosition === text.length
--                    && event.key === Qt.Key_Right
--                ) {
--                    queryField.text = fadedTextCompletion.text
--                    fadedTextCompletion.text = ""
--                    event.accepted = true
-+                HoverHandler {
-+                    cursorShape: Qt.PointingHandCursor
-                 }
--                if (root.isKeyUp(event) || root.isKeyDown(event)) {
--                    if (root.isKeyUp(event)) {
+                         }
 -                        activeListView.currentIndex = activeListView.count - 1
--                    } else {
--                        activeListView.incrementCurrentIndex();
--                    }
--                    if (queryField.text.length === 0) {
--                        event.accepted = true
+-                        KeyNavigation.up.forceActiveFocus(Qt.BacktabFocusReason);
+-                    } else if (queryField.text.length === 0 && !root.showHistory) {
 -                        root.showHistory = true
 -                        focusCurrentListView()
 -                    } else {
--                        return; // pass to KeyNavigation
--                    }
-+                // The binding to apps.allApps stays: the click asks the view, and the view's state checks the button.
-+                onClicked: {
-+                    apps.showAllApps(!apps.allApps)
-+                    checked = Qt.binding(() => apps.allApps)
+-                        activeListView.incrementCurrentIndex();
+-                        KeyNavigation.down.forceActiveFocus(Qt.TabFocusReason);
+                     }
                  }
 -                !event.accepted && results.navigationKeyHandler(event)
-             }
+-            }
 -            Keys.onTabPressed: event => {
 -                if (root.runnerWindow.historyBehavior === RunnerWindow.CompletionSuggestion
 -                    && fadedTextCompletion.text && queryField.text !== fadedTextCompletion.text) {
@@ -2274,7 +2271,41 @@ diff -ruN -x '*.qsb' a/qml/RunCommand.qml b/qml/RunCommand.qml
 -                    fadedTextCompletion.text = ""
 -                } else {
 -                    event.accepted = false
-+
++                HoverHandler {
++                    cursorShape: Qt.PointingHandCursor
+                 }
+-            }
+-            function closeOrRun(event) {
+-                // Close KRunner if no text was typed and enter was pressed, FEATURE: 211225
+-                if (!root.query) {
+-                    root.runnerWindow.visible = false
+-                } else {
+-                    results.runCurrentIndex(event)
++                // The binding to apps.allApps stays: the click asks the view, and the view's state checks the button.
++                onClicked: {
++                    apps.showAllApps(!apps.allApps)
++                    checked = Qt.binding(() => apps.allApps)
+                 }
+             }
+-            Keys.onEnterPressed: event => closeOrRun(event)
+-            Keys.onReturnPressed: event => closeOrRun(event)
+ 
+-            Kirigami.Icon {
+-                anchors {
+-                    right: parent.right
+-                    rightMargin: 6 // from PlasmaStyle TextFieldStyle
+-                    verticalCenter: parent.verticalCenter
+-                }
+-                // match clear button
+-                width: Math.max(parent.height * 0.8, Kirigami.Units.iconSizes.small)
+-                height: width
+-                source: "expand"
+-                visible: queryField.length === 0 && root.runnerManager.historyEnabled
+-                enabled: root.runnerManager.history.length > 0
+-                rotation: root.showHistory ? 180 : 0
+-                Behavior on rotation {
+-                    RotationAnimation {
+-                        duration: Kirigami.Units.shortDuration
 +            // Tahoe's ⋯: a ring with three dots, opening KRunner's own controls.
 +            T.AbstractButton {
 +                id: moreButton
@@ -2303,39 +2334,21 @@ diff -ruN -x '*.qsb' a/qml/RunCommand.qml b/qml/RunCommand.qml
 +                                color: Qt.rgba(1, 1, 1, 0.8)
 +                            }
 +                        }
-+                    }
+                     }
                  }
--            }
--            function closeOrRun(event) {
--                // Close KRunner if no text was typed and enter was pressed, FEATURE: 211225
--                if (!root.query) {
--                    root.runnerWindow.visible = false
--                } else {
--                    results.runCurrentIndex(event)
+-                MouseArea {
+-                    anchors.fill: parent
+-                    onPressed: {
+-                        root.showHistory = !root.showHistory
+-                        if (root.showHistory) {
+-                            listView.forceActiveFocus(); // is the history list
+-                        } else {
+-                            queryField.forceActiveFocus();
 +                HoverHandler {
 +                    cursorShape: Qt.PointingHandCursor
-                 }
--            }
--            Keys.onEnterPressed: event => closeOrRun(event)
--            Keys.onReturnPressed: event => closeOrRun(event)
++                }
 +                onClicked: moreMenu.openRelative()
- 
--            Kirigami.Icon {
--                anchors {
--                    right: parent.right
--                    rightMargin: 6 // from PlasmaStyle TextFieldStyle
--                    verticalCenter: parent.verticalCenter
--                }
--                // match clear button
--                width: Math.max(parent.height * 0.8, Kirigami.Units.iconSizes.small)
--                height: width
--                source: "expand"
--                visible: queryField.length === 0 && root.runnerManager.historyEnabled
--                enabled: root.runnerManager.history.length > 0
--                rotation: root.showHistory ? 180 : 0
--                Behavior on rotation {
--                    RotationAnimation {
--                        duration: Kirigami.Units.shortDuration
++
 +                PlasmaExtras.Menu {
 +                    id: moreMenu
 +                    visualParent: moreButton
@@ -2356,16 +2369,7 @@ diff -ruN -x '*.qsb' a/qml/RunCommand.qml b/qml/RunCommand.qml
 +                            root.query = "?"
 +                            queryField.forceActiveFocus()
 +                        }
-                     }
--                }
--                MouseArea {
--                    anchors.fill: parent
--                    onPressed: {
--                        root.showHistory = !root.showHistory
--                        if (root.showHistory) {
--                            listView.forceActiveFocus(); // is the history list
--                        } else {
--                            queryField.forceActiveFocus();
++                    }
 +                    PlasmaExtras.MenuItem {
 +                        separator: true
 +                    }
@@ -2408,7 +2412,33 @@ diff -ruN -x '*.qsb' a/qml/RunCommand.qml b/qml/RunCommand.qml
 -            KeyNavigation.down: queryField.activeListView
 -            PlasmaComponents3.ToolTip {
 -                text: i18n("Keep Open")
-+
+-            }
+-        }
+-    }
+-
+-    PlasmaComponents3.ScrollView {
+-        visible: results.count > 0
+-        enabled: visible
+-        Layout.fillWidth: true
+-        Layout.fillHeight: true
+-        Layout.maximumHeight: Math.max(listView.contentHeight, results.contentHeight)
+-        // This replaces the ColumnLayout spacing
+-        Layout.topMargin: Kirigami.Units.smallSpacing
+-
+-        // vim bindings for moving out of ResultsView need to be handled here, it already has its
+-        // own Keys.onPressed handler
+-        Keys.onPressed: event => {
+-            if (event.modifiers & Qt.ControlModifier && (event.key == Qt.Key_J || event.key == Qt.Key_K)) {
+-                queryField.forceActiveFocus(event.key == Qt.Key_J ? Qt.TabFocusReason : Qt.BacktabFocusReason)
+-                event.accepted = true;
+-            }
+-        }
+ 
+-        Milou.ResultsView {
+-            id: results
+-            queryString: root.query
+-            queryField: queryField
+-            singleRunner: root.singleRunner
 +        Rectangle {
 +            id: divider
 +            anchors.top: header.bottom
@@ -2428,7 +2458,30 @@ diff -ruN -x '*.qsb' a/qml/RunCommand.qml b/qml/RunCommand.qml
 +            height: Math.min(root.bodyMaxHeight, root.mode === "apps" ? apps.contentHeight
 +                                                : root.mode === "history" ? listView.contentHeight + listView.topMargin + listView.bottomMargin
 +                                                : results.contentHeight + results.topMargin + results.bottomMargin)
-+
+ 
+-            keyNavigationWraps: false
+-            Keys.onEscapePressed: {
+-                root.runnerWindow.visible = false
+-            }
+-            KeyNavigation.up: queryField
+-            KeyNavigation.down: queryField
+-
+-            onActivated: {
+-                if (!root.runnerWindow.pinned) {
+-                    root.runnerWindow.visible = false
++            // Ctrl+J and Ctrl+K leave the results for the search field from here: the results view has a key
++            // handler of its own, and what it does not take comes up to its parent.
++            Keys.onPressed: event => {
++                if (event.modifiers & Qt.ControlModifier && (event.key == Qt.Key_J || event.key == Qt.Key_K)) {
++                    queryField.forceActiveFocus(event.key == Qt.Key_J ? Qt.TabFocusReason : Qt.BacktabFocusReason)
++                    event.accepted = true
+                 }
+             }
+ 
+-            onUpdateQueryString: (text, cursorPosition) => {
+-                queryField.text = text
+-                queryField.select(cursorPosition, root.query.length)
+-                queryField.focus = true;
 +            // Aurora: the Menu key or Shift+F10 opens the menu of the app the arrows stand on, as on Windows. A
 +            // Shortcut takes the key before the search field does: the field's style opens its own text menu for it.
 +            Shortcut {
@@ -2451,30 +2504,84 @@ diff -ruN -x '*.qsb' a/qml/RunCommand.qml b/qml/RunCommand.qml
 -    }
  
 -    PlasmaComponents3.ScrollView {
--        visible: results.count > 0
--        enabled: visible
+-        id: historyScrollView
 -        Layout.fillWidth: true
 -        Layout.fillHeight: true
--        Layout.maximumHeight: Math.max(listView.contentHeight, results.contentHeight)
+-        Layout.maximumHeight: listView.contentHeight
 -        // This replaces the ColumnLayout spacing
 -        Layout.topMargin: Kirigami.Units.smallSpacing
+-        visible: root.query.length === 0 && listView.count > 0
+-        // don't accept keyboard input when not visible so the keys propagate to the other list
+-        enabled: visible
 -
--        Milou.ResultsView {
--            id: results
--            queryString: root.query
--            queryField: queryField
--            singleRunner: root.singleRunner
--
+-        ListView {
+-            id: listView // needs this id so the delegate can access it
 -            keyNavigationWraps: false
--            Keys.onEscapePressed: {
--                root.runnerWindow.visible = false
+-            highlight: PlasmaExtras.Highlight {}
+-            highlightMoveDuration: 0
+-            activeFocusOnTab: true
+-            model: []
+-            reuseItems: true
+-            delegate: Milou.ResultDelegate {
+-                id: resultDelegate
+-
+-                required property var modelData
+-
+-                width: listView.width
+-                typeText: index === 0 ? i18n("Recent Queries") : ""
+-                displayText: modelData
+-                actions: [{
+-                    iconSource: "list-remove-symbolic",
+-                    text: i18n("Remove")
+-                }]
+-                Accessible.description: i18n("Recent Queries")
+-            }
+-
+-            onActiveFocusChanged: {
+-                if (!activeFocus && currentIndex == listView.count-1) {
+-                    currentIndex = 0;
+-                }
 -            }
 -            KeyNavigation.up: queryField
 -            KeyNavigation.down: queryField
+-            Keys.onReturnPressed: runCurrentIndex(event)
+-            Keys.onEnterPressed: runCurrentIndex(event)
 -
--            onActivated: {
--                if (!root.runnerWindow.pinned) {
--                    root.runnerWindow.visible = false
+-            Keys.onTabPressed: {
+-                if (currentIndex == listView.count-1) {
+-                    listView.nextItemInFocusChain(true).forceActiveFocus();
+-                } else {
+-                    incrementCurrentIndex()
+-                }
+-            }
+-            Keys.onBacktabPressed: {
+-                if (currentIndex == 0) {
+-                    listView.nextItemInFocusChain(false).forceActiveFocus();
+-                } else {
+-                    decrementCurrentIndex()
+-                }
+-            }
+-            Keys.onPressed: event => {
+-                if (root.isKeyUp(event)) {
+-                    event.accepted = true;
+-                    if (currentIndex === 0) {
+-                        KeyNavigation.up.forceActiveFocus(Qt.BacktabFocusReason)
+-                    }
+-                    decrementCurrentIndex();
+-                } else if (root.isKeyDown(event)) {
+-                    event.accepted = true;
+-                    if (currentIndex !== count - 1) {
+-                        KeyNavigation.down.forceActiveFocus(Qt.TabFocusReason)
+-                    }
+-                    incrementCurrentIndex();
+-                } else if (event.text !== "" && !event.accepted) {
+-                    // This prevents unprintable control characters from being inserted
+-                    if (event.key == Qt.Key_Escape) {
+-                        root.showHistory = false
+-                    } else if (!/[\x00-\x1F\x7F]/.test(event.text)) {
+-                        queryField.text += event.text;
+-                    }
+-                    queryField.focus = true;
 +            Milou.ResultsView {
 +                    id: results
 +                    anchors.fill: parent
@@ -2601,13 +2708,6 @@ diff -ruN -x '*.qsb' a/qml/RunCommand.qml b/qml/RunCommand.qml
                  }
 -            }
  
--            onUpdateQueryString: (text, cursorPosition) => {
--                queryField.text = text
--                queryField.select(cursorPosition, root.query.length)
--                queryField.focus = true;
--            }
--        }
--    }
 +                onActiveFocusChanged: {
 +                    if (!activeFocus && currentIndex == listView.count - 1) {
 +                        currentIndex = 0
@@ -2633,15 +2733,21 @@ diff -ruN -x '*.qsb' a/qml/RunCommand.qml b/qml/RunCommand.qml
 +                }
 +                Keys.onPressed: event => {
 +                    if (root.isKeyUp(event)) {
-+                        if (currentIndex !== 0) {
-+                            event.accepted = true
++                        event.accepted = true
++                        if (currentIndex === 0) {
++                            KeyNavigation.up.forceActiveFocus(Qt.BacktabFocusReason)
 +                        }
 +                        decrementCurrentIndex()
 +                    } else if (root.isKeyDown(event)) {
-+                        if (currentIndex !== count - 1) {
-+                            event.accepted = true
++                        event.accepted = true
++                        // Aurora: Down leaves the list for the field from its last entry only, as Up does from the
++                        // first; plasma-workspace 6.8.3 tests for every entry but the last here. Losing focus on the
++                        // last entry makes the first one current (onActiveFocusChanged), so nothing moves after it.
++                        if (currentIndex === count - 1) {
++                            KeyNavigation.down.forceActiveFocus(Qt.TabFocusReason)
++                        } else {
++                            incrementCurrentIndex()
 +                        }
-+                        incrementCurrentIndex()
 +                    } else if (event.key === Qt.Key_Delete && event.modifiers === Qt.ShiftModifier) {
 +                        runAction(0)
 +                        event.accepted = true
@@ -2656,87 +2762,6 @@ diff -ruN -x '*.qsb' a/qml/RunCommand.qml b/qml/RunCommand.qml
 +                    }
 +                }
  
--    PlasmaComponents3.ScrollView {
--        id: historyScrollView
--        Layout.fillWidth: true
--        Layout.fillHeight: true
--        Layout.maximumHeight: listView.contentHeight
--        // This replaces the ColumnLayout spacing
--        Layout.topMargin: Kirigami.Units.smallSpacing
--        visible: root.query.length === 0 && listView.count > 0
--        // don't accept keyboard input when not visible so the keys propagate to the other list
--        enabled: visible
--
--        ListView {
--            id: listView // needs this id so the delegate can access it
--            keyNavigationWraps: false
--            highlight: PlasmaExtras.Highlight {}
--            highlightMoveDuration: 0
--            activeFocusOnTab: true
--            model: []
--            reuseItems: true
--            delegate: Milou.ResultDelegate {
--                id: resultDelegate
--
--                required property var modelData
--
--                width: listView.width
--                typeText: index === 0 ? i18n("Recent Queries") : ""
--                displayText: modelData
--                actions: [{
--                    iconSource: "list-remove-symbolic",
--                    text: i18n("Remove")
--                }]
--                Accessible.description: i18n("Recent Queries")
--            }
--
--            onActiveFocusChanged: {
--                if (!activeFocus && currentIndex == listView.count-1) {
--                    currentIndex = 0;
--                }
--            }
--            KeyNavigation.up: queryField
--            KeyNavigation.down: queryField
--            Keys.onReturnPressed: runCurrentIndex(event)
--            Keys.onEnterPressed: runCurrentIndex(event)
--
--            Keys.onTabPressed: {
--                if (currentIndex == listView.count-1) {
--                    listView.nextItemInFocusChain(true).forceActiveFocus();
--                } else {
--                    incrementCurrentIndex()
--                }
--            }
--            Keys.onBacktabPressed: {
--                if (currentIndex == 0) {
--                    listView.nextItemInFocusChain(false).forceActiveFocus();
--                } else {
--                    decrementCurrentIndex()
--                }
--            }
--            Keys.onPressed: event => {
--                if (root.isKeyUp(event)) {
--                    if (currentIndex !== 0) {
--                        event.accepted = true;
--                    }
--                    decrementCurrentIndex();
--                } else if (root.isKeyDown(event)) {
--                    if (currentIndex !== count - 1) {
--                        event.accepted = true;
--                    }
--                    incrementCurrentIndex();
--                } else if (event.text !== "" && !event.accepted) {
--                    // This prevents unprintable control characters from being inserted
--                    if (event.key == Qt.Key_Escape) {
--                        root.showHistory = false
--                    } else if (!/[\x00-\x1F\x7F]/.test(event.text)) {
--                        queryField.text += event.text;
--                    }
--                    queryField.focus = true;
--                }
--            }
--
--
 -            function runCurrentIndex(event) {
 -                var entry = root.runnerManager.history[currentIndex]
 -                if (entry) {
@@ -2796,7 +2821,7 @@ diff -ruN -x '*.qsb' a/qml/RunCommand.qml b/qml/RunCommand.qml
 +        }
      }
  }
-diff -ruN -x '*.qsb' a/qml/shaders/glass.frag b/qml/shaders/glass.frag
+diff --color -ruN -x '*.qsb' a/qml/shaders/glass.frag b/qml/shaders/glass.frag
 --- a/qml/shaders/glass.frag	1969-12-31 19:00:00.000000000 -0500
 +++ b/qml/shaders/glass.frag	2026-11-05 02:44:25.334487279 -0500
 @@ -0,0 +1,57 @@
@@ -2857,8 +2882,8 @@ diff -ruN -x '*.qsb' a/qml/shaders/glass.frag b/qml/shaders/glass.frag
 +    vec4 glass = rim + body * (1.0 - rim.a);
 +    fragColor = (glass * coverage + outside * (1.0 - coverage)) * qt_Opacity;
 +}
-diff -ruN -x '*.qsb' a/view.cpp b/view.cpp
---- a/view.cpp	2026-11-05 02:44:25.333278976 -0500
+diff --color -ruN -x '*.qsb' a/view.cpp b/view.cpp
+--- a/view.cpp	2026-11-16 06:31:25.154502034 -0500
 +++ b/view.cpp	2026-11-05 02:44:25.335555874 -0500
 @@ -34,8 +34,10 @@
  
@@ -2927,8 +2952,8 @@ diff -ruN -x '*.qsb' a/view.cpp b/view.cpp
  void View::positionOnScreen()
  {
      const auto screens = QGuiApplication::screens();
-diff -ruN -x '*.qsb' a/view.h b/view.h
---- a/view.h	2026-11-05 02:44:25.333278976 -0500
+diff --color -ruN -x '*.qsb' a/view.h b/view.h
+--- a/view.h	2026-11-16 06:31:25.154502034 -0500
 +++ b/view.h	2026-11-05 02:44:25.335555874 -0500
 @@ -31,6 +31,9 @@
      Q_PROPERTY(bool helpEnabled READ helpEnabled NOTIFY helpEnabledChanged)

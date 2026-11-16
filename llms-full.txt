@@ -213,7 +213,7 @@ Four system settings, each measured on a Ryzen 7 5800X with 32 GB of RAM before 
 
 | Project | Used for | Version | License |
 | --- | --- | --- | --- |
-| [Plasma Workspace](https://invent.kde.org/plasma/plasma-workspace) by KDE | The system tray, notifications and KRunner, each rebuilt with a patch | 6.8.2 | GPL-2.0-or-later |
+| [Plasma Workspace](https://invent.kde.org/plasma/plasma-workspace) by KDE | The system tray, notifications and KRunner, each rebuilt with a patch | 6.8.3 | GPL-2.0-or-later |
 | [Dolphin](https://invent.kde.org/system/dolphin) by KDE | The file view inside File Explorer, loaded at run time | installed version | GPL-2.0-or-later |
 | [Inter](https://rsms.me/inter/) by Rasmus Andersson (`inter-font`) | The interface font, and the text of the pictures on this page | 4.1 | OFL-1.1 |
 | [JetBrains Mono](https://www.jetbrains.com/lp/mono/) with [Nerd Fonts](https://www.nerdfonts.com) symbols (`ttf-jetbrains-mono-nerd`) | Konsole's font | 3.5.1 | OFL-1.1 |
@@ -886,14 +886,14 @@ plugin path is set); the login script pauses it when KDecoration changes.
 
 ## System tray (`components/system-tray`)
 
-Plasma 6.8.2's tray applet with `system-tray.patch`: Windows 11 drag and drop (reorder, drop on the arrow to hide),
+Plasma 6.8.3's tray applet with `system-tray.patch`: Windows 11 drag and drop (reorder, drop on the arrow to hide),
 working clicks on app icons, SF-like status icons (from `themes/icons/status_glyphs.py`). The items behind the arrow
 are set by `themes/panels/tray_hide.py` while plasmashell is stopped. Tests: `tests/tst_draglayering.qml` (5).
 Sandbox: `tray-click.sh`, `tray-drag.sh`, `tray-show.sh`.
 
 ## Notifications (`components/notifications`)
 
-Plasma 6.8.2's notifications applet with `notifications.patch`: macOS banners (356 px wide, a radius of about 22, the
+Plasma 6.8.3's notifications applet with `notifications.patch`: macOS banners (356 px wide, a radius of about 22, the
 Control Center's glass shader, the app icon leading, a bold title, "now" in the trailing corner, four lines of body, a
 close button on hover over the top-left corner, the button shared with the popover in `components/BannerButton.qml`),
 in the bottom-right corner (`PopupPosition=BottomRight`), 8 px apart. The popover (`FullRepresentation.qml`) keeps
@@ -912,7 +912,7 @@ protocol code; `plasma-shell.xml` is kept in `vendor/protocols`. Sandbox: `notif
 
 ## Quick Menu (`components/quick-menu`)
 
-KRunner from plasma-workspace 6.8.2 (`upstream/`, `vendor/`, `quick-menu.patch`) drawn as macOS Tahoe's Spotlight: one
+KRunner from plasma-workspace 6.8.3 (`upstream/`, `vendor/`, `quick-menu.patch`) drawn as macOS Tahoe's Spotlight: one
 frameless glass window floating a quarter of the way down the active screen. With nothing typed it shows the
 Applications view: Suggestions (the apps used most, from Plasma's activity statistics through Kicker's
 `RecentUsageModel`) and Plasma's menu in Tahoe's sections (`quickmenu.js`: categories keyed by their `.directory`
@@ -1330,6 +1330,7 @@ others capture `tests/sandbox/shots/` to compare by eye.
 | `quick-menu-rail.sh` | the rail: the account's picture and name; Restart, Shut Down, Log Out and Lock each reach Plasma's session services, stood in for by `tests/helpers/fake_session.py` so no real call can restart or lock the machine (5 PASS) |
 | `cli.sh` | the `aurora` command in Konsole with Aurora's profile on Dawn Bird: its menu under the banner and the credit, then `aurora status` (captures) |
 | `quick-menu-app-menu.sh` | the app menu: right-click, Pin to Top and the Pinned section, the Menu key (not the field's text menu), Unpin from Dock, an opened app in Suggestions and Remove from Suggestions, no QML warnings (8 PASS); labels found with `tests/helpers/find_text.py` |
+| `quick-menu-history.sh` | past searches under the arrow keys: Up lists them, Down walks to the last one, Down on the last one returns to the field with the first one current, Up from the field stands on the last one (5 PASS) |
 | `readme.sh` | the README's pictures, the notifications popover among them (run with `SANDBOX_SCALE=2`, then `assets/screenshots/make.py`, which also crops Mission Center's two from its own sandbox) |
 | `readme-explorer.sh` | the README's File Explorer pictures from a made-up project and Plasma's wallpapers: a file's Git menu in a repository, the Commit sheet, the columns view, the gallery, the Inspector, the command palette and batch rename (captures; `assets/screenshots/make.py` crops them) |
 | `kali-menu.sh` | the Kali menu with PC labels |
@@ -1615,6 +1616,9 @@ it changes. A change that needs a fresh install, or that an earlier backup canno
 
 ### Fixed
 
+- After the update to KDE Plasma 6.8.3 the Windows key opened Plasma's plain search bar instead of Quick Menu, and
+  `aurora rebuild` could not bring Quick Menu back: its patch no longer fitted the new KRunner. Quick Menu, the system
+  tray and the notifications are now built for Plasma 6.8.3, with the arrow-key fixes that version brought to KRunner.
 - `aurora update --yes` asks nothing, as it says: pacman, or paru and yay for a package from the AUR, no longer stops
   at its own question, which nobody could answer when the update ran without a terminal.
 - Right after a release, pacman could say for about two minutes that the signature of Aurora's repository is invalid.

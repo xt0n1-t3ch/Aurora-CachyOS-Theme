@@ -248,14 +248,14 @@ plugin path is set); the login script pauses it when KDecoration changes.
 
 ## System tray (`components/system-tray`)
 
-Plasma 6.8.2's tray applet with `system-tray.patch`: Windows 11 drag and drop (reorder, drop on the arrow to hide),
+Plasma 6.8.3's tray applet with `system-tray.patch`: Windows 11 drag and drop (reorder, drop on the arrow to hide),
 working clicks on app icons, SF-like status icons (from `themes/icons/status_glyphs.py`). The items behind the arrow
 are set by `themes/panels/tray_hide.py` while plasmashell is stopped. Tests: `tests/tst_draglayering.qml` (5).
 Sandbox: `tray-click.sh`, `tray-drag.sh`, `tray-show.sh`.
 
 ## Notifications (`components/notifications`)
 
-Plasma 6.8.2's notifications applet with `notifications.patch`: macOS banners (356 px wide, a radius of about 22, the
+Plasma 6.8.3's notifications applet with `notifications.patch`: macOS banners (356 px wide, a radius of about 22, the
 Control Center's glass shader, the app icon leading, a bold title, "now" in the trailing corner, four lines of body, a
 close button on hover over the top-left corner, the button shared with the popover in `components/BannerButton.qml`),
 in the bottom-right corner (`PopupPosition=BottomRight`), 8 px apart. The popover (`FullRepresentation.qml`) keeps
@@ -274,7 +274,7 @@ protocol code; `plasma-shell.xml` is kept in `vendor/protocols`. Sandbox: `notif
 
 ## Quick Menu (`components/quick-menu`)
 
-KRunner from plasma-workspace 6.8.2 (`upstream/`, `vendor/`, `quick-menu.patch`) drawn as macOS Tahoe's Spotlight: one
+KRunner from plasma-workspace 6.8.3 (`upstream/`, `vendor/`, `quick-menu.patch`) drawn as macOS Tahoe's Spotlight: one
 frameless glass window floating a quarter of the way down the active screen. With nothing typed it shows the
 Applications view: Suggestions (the apps used most, from Plasma's activity statistics through Kicker's
 `RecentUsageModel`) and Plasma's menu in Tahoe's sections (`quickmenu.js`: categories keyed by their `.directory`

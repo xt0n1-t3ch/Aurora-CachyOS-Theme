@@ -13,6 +13,9 @@ it changes. A change that needs a fresh install, or that an earlier backup canno
 
 ### Fixed
 
+- After the update to KDE Plasma 6.8.3 the Windows key opened Plasma's plain search bar instead of Quick Menu, and
+  `aurora rebuild` could not bring Quick Menu back: its patch no longer fitted the new KRunner. Quick Menu, the system
+  tray and the notifications are now built for Plasma 6.8.3, with the arrow-key fixes that version brought to KRunner.
 - `aurora update --yes` asks nothing, as it says: pacman, or paru and yay for a package from the AUR, no longer stops
   at its own question, which nobody could answer when the update ran without a terminal.
 - Right after a release, pacman could say for about two minutes that the signature of Aurora's repository is invalid.
