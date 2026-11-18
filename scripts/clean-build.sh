@@ -39,7 +39,7 @@ makepkg_conf=/usr/share/devtools/makepkg.conf.d/x86_64.conf
 sudo ${SUDO_ASKPASS:+-A} -v
 ( while sudo -n -v 2> /dev/null; do sleep 60; done ) &
 keepalive=$!
-trap 'kill "$keepalive" 2> /dev/null' EXIT
+trap 'kill "$keepalive" 2> /dev/null || true' EXIT
 
 if [ -d "$chroot/root" ]; then
     say "Updating the clean chroot"

@@ -55,4 +55,6 @@ check "an unprivileged run without SUDO_ASKPASS uses sudo -n" \
     "$(PYTHONPATH="$root/scripts" python3 -c 'import old_cpu; print(" ".join(old_cpu.command("/c", ("run", "/p", []), euid=1000, askpass="")[:2]))')" "sudo -n"
 check "the repository's table names programs only by absolute path" \
     "$(grep -v '^#' "$root/packaging/repo/old-cpu-runs.txt" | grep -v '^$' | grep -vc '^/')" 0
+check "clean-build's EXIT trap stays zero when the keepalive loop already ended" \
+    "$(grep -c 'kill .* 2> /dev/null || true' "$root/scripts/clean-build.sh")" 1
 exit "$failures"
