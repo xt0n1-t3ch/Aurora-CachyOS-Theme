@@ -11,6 +11,8 @@ it changes. A change that needs a fresh install, or that an earlier backup canno
 
 ## [Unreleased]
 
+## [1.3.7] - 2026-11-17
+
 ### Changed
 
 - File Explorer's Back, Forward and Enclosing Folder buttons draw full arrows instead of bare chevrons, with a divider
@@ -329,7 +331,8 @@ question, and removed with one command.
 - After a Plasma, KWin or Qt update, the parts built for the old version step aside on their own until the package
   brings them built for the new one; `aurora rebuild` builds them right away.
 
-[Unreleased]: https://github.com/xt0n1-t3ch/Aurora-CachyOS-Theme/compare/v1.3.6...HEAD
+[Unreleased]: https://github.com/xt0n1-t3ch/Aurora-CachyOS-Theme/compare/v1.3.7...HEAD
+[1.3.7]: https://github.com/xt0n1-t3ch/Aurora-CachyOS-Theme/compare/v1.3.6...v1.3.7
 [1.3.6]: https://github.com/xt0n1-t3ch/Aurora-CachyOS-Theme/compare/v1.3.5...v1.3.6
 [1.3.5]: https://github.com/xt0n1-t3ch/Aurora-CachyOS-Theme/compare/v1.3.1...v1.3.5
 [1.3.1]: https://github.com/xt0n1-t3ch/Aurora-CachyOS-Theme/compare/v1.3.0...v1.3.1
