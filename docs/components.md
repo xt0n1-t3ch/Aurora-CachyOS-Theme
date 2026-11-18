@@ -14,8 +14,8 @@ with a tooltip, amber above 90 % and red above 95 %; a folder the user added unf
 section folds away, kept in `file-explorerrc [Sidebar Tree]`), tabs, a toolbar with an address field
 (`fe::AddressField`) that shows the path as clickable segments and takes a typed path on a click beside them, Ctrl+L or
 Alt+D (rules in `core/address`: `~`, relative paths, suggestions, shell Tab), the view buttons (they fold into one
-pop-up button before the address field gets under 300 px, as Finder's view control does) and the Group, Share
-(Purpose), Edit Tags and More menus, a row of file actions (`fe::ActionBar`), Quick Look (`fe::QuickLook`, Space;
+pop-up button before the address field gets under 380 px, as Finder's view control does) and the Group, Share
+(Purpose), Tags and More menus, a row of file actions (`fe::ActionBar`), Quick Look (`fe::QuickLook`, Space;
 rules in `core/quicklook`), Split View (`fe::TabPage`, F3), a path bar that names the selected file and shows the item
 count, Undo (Ctrl+Z) from KIO's undo history, which Dolphin's view records its operations in, a filter row
 (`fe::FilterBar`, Ctrl+Alt+F or More > Filter by Name) that keeps the items whose names contain what is typed, case
@@ -88,8 +88,9 @@ the layout, the hit test and the drop rules are pure functions in `core/crumbs`,
 at rest without icons, as Windows' address bar does, and opens for typing on a click beside them, Ctrl+L or Alt+D (its
 focus policy is Tab, so a click on a segment opens the folder instead of the field). A click opens a segment and a
 middle click or Ctrl+click opens it in a background tab; the chevron after a segment lists its visible folders (250 at
-most, the next one of the path in bold, then Show All); a path too long for its bar folds the segments after the
-first into an ellipsis, outermost first, which lists them, and the folder on screen keeps the rest of the room; a
+most, the next one of the path in bold, then Show All); a long folder on screen elides before its enclosing folders disappear, and a path still too wide for its bar folds
+its outermost segments into a leading ellipsis, as Windows' address bar does, so the closest parent folders stay
+in reach; a
 right-click offers Open, Open in New Tab, Open Terminal Here, Copy Path and Get Info. Files dropped on a segment go
 through `KIO::drop`, as on the sidebar, so KIO asks Move, Copy or Link; a tag's shelf tags them instead. Refused: a
 folder into itself or a folder inside it, files into the folder they are in, Recents, a search, Network, the shelf
@@ -119,8 +120,8 @@ Dolphin, with the 63 emblems `themes/icons/tag_emblems.py` adds to the icon them
 It also serves `org.freedesktop.FileManager1` (`--service`: "Show in folder" selects the file) and the FileChooser
 portal backend (`--portal`: Open and Save panels with a chooser bar; it quits after three idle minutes). Installed as
 `~/.local/bin/file-explorer`; Win+E launches it. Folders without a view of their own show Finder's columns (Name,
-Modified, Size, Type) from `~/.local/share/file-explorer/view_properties/global/.directory`. Tests: `fe_tests` (95),
-`fe_finder_tests` (55), `fe_widget_tests` (28, offscreen: clicks, drops, a drag resting on a segment, the address
+Modified, Size, Type) from `~/.local/share/file-explorer/view_properties/global/.directory`. Tests: `fe_tests` (98),
+`fe_finder_tests` (56), `fe_widget_tests` (30, offscreen: clicks, drops, a drag resting on a segment, the address
 field at rest, accessibility, the filter row over a real Dolphin view, the glass behind a field inside a tab, the
 Rename sheet renaming a real folder and one Undo taking it back, F2 on two items opening it, the command palette
 finding, running and closing, Copy Path with three items and with none, the Inspector counting a

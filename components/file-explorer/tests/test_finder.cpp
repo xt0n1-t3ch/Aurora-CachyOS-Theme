@@ -371,33 +371,53 @@ private Q_SLOTS:
         QVERIFY(layout.folded.isEmpty());
     }
 
-    void aLongPathFoldsItsMiddleIntoAnEllipsisOutermostFirst()
+    void aLongPathFoldsFromTheStartKeepingTheClosestParents()
     {
-        // 40 + 50 + 60 + 70 + 80 and four separators of 10 is 340; folding the first two middle segments leaves
-        // 40 + 12 + 70 + 80 and three separators, 232, inside 250.
+        // 40 + 50 + 60 + 70 + 80 and four separators of 10 is 340; folding the two outermost segments into a leading
+        // ellipsis leaves 12 + 60 + 70 + 80 and three separators, 252 > 250, so three fold: 12 + 70 + 80 + 20 = 182.
         const fe::CrumbLayout layout = fe::layoutCrumbs({40, 50, 60, 70, 80}, 0, 10, 12, 250);
-        QCOMPARE(shownCrumbs(layout), (QList<qsizetype>{0, -1, 3, 4}));
-        QCOMPARE(layout.folded, (QList<qsizetype>{1, 2}));
-        QCOMPARE(layout.cells.at(1).x, 50.0);
-        QCOMPARE(layout.cells.at(1).width, 12.0);
-        QCOMPARE(layout.cells.at(2).x, 72.0);
-        QCOMPARE(layout.cells.at(3).x, 152.0);
+        QCOMPARE(shownCrumbs(layout), (QList<qsizetype>{-1, 3, 4}));
+        QCOMPARE(layout.folded, (QList<qsizetype>{0, 1, 2}));
+        QCOMPARE(layout.cells.at(0).x, 0.0);
+        QCOMPARE(layout.cells.at(0).width, 12.0);
+        QCOMPARE(layout.cells.at(1).x, 22.0);
+        QCOMPARE(layout.cells.at(2).x, 102.0);
     }
 
-    void threeSegmentsFoldTheMiddleOneToo()
+    void aLongCurrentFolderElidesBeforeItsParentFolderDisappears()
+    {
+        // XT0N1 PC (58), mnt (26), D (12), X (12), Movies (45) and a 520 px movie folder with 16 px chevrons:
+        // at 380 px every ancestor fits whole (233 px) and the movie folder gets 147 px; at 310 px XT0N1 PC folds;
+        // at 210 px Movies still stays right before the movie folder.
+        fe::CrumbLayout layout = fe::layoutCrumbs({58, 26, 12, 12, 45, 520}, 0, 16, 12, 380);
+        QCOMPARE(shownCrumbs(layout), (QList<qsizetype>{0, 1, 2, 3, 4, 5}));
+        QVERIFY(layout.folded.isEmpty());
+        QCOMPARE(layout.cells.last().width, 147.0);
+
+        layout = fe::layoutCrumbs({58, 26, 12, 12, 45, 520}, 0, 16, 12, 310);
+        QCOMPARE(shownCrumbs(layout), (QList<qsizetype>{-1, 1, 2, 3, 4, 5}));
+        QCOMPARE(layout.folded, (QList<qsizetype>{0}));
+
+        layout = fe::layoutCrumbs({58, 26, 12, 12, 45, 520}, 0, 16, 12, 210);
+        QCOMPARE(shownCrumbs(layout), (QList<qsizetype>{-1, 4, 5}));
+        QCOMPARE(layout.folded, (QList<qsizetype>{0, 1, 2, 3}));
+    }
+
+    void threeSegmentsKeepTheCurrentFolderAndFoldAncestorsIntoLeadingEllipsis()
     {
         const fe::CrumbLayout layout = fe::layoutCrumbs({40, 300, 60}, 0, 10, 12, 150);
-        QCOMPARE(shownCrumbs(layout), (QList<qsizetype>{0, -1, 2}));
-        QCOMPARE(layout.folded, (QList<qsizetype>{1}));
+        QCOMPARE(shownCrumbs(layout), (QList<qsizetype>{-1, 2}));
+        QCOMPARE(layout.folded, (QList<qsizetype>{0, 1}));
     }
 
     void theLastSegmentShrinksWhenEvenTheFoldedPathIsTooWide()
     {
-        // The first segment, the ellipsis and two separators take 72 of 200; the folder on screen gets the rest.
+        // At 200 px, 40 folds into 12 and 50 stays (12 + 10 + 50 + 10 = 82), giving the 300 px folder 118 px; at 20 px
+        // both ancestors fold (12 + 10 = 22) and the last segment clamps to 0.
         fe::CrumbLayout layout = fe::layoutCrumbs({40, 50, 300}, 0, 10, 12, 200);
-        QCOMPARE(shownCrumbs(layout), (QList<qsizetype>{0, -1, 2}));
-        QCOMPARE(layout.cells.last().width, 128.0);
-        layout = fe::layoutCrumbs({40, 50, 300}, 0, 10, 12, 30);
+        QCOMPARE(shownCrumbs(layout), (QList<qsizetype>{-1, 1, 2}));
+        QCOMPARE(layout.cells.last().width, 118.0);
+        layout = fe::layoutCrumbs({40, 50, 300}, 0, 10, 12, 20);
         QCOMPARE(layout.cells.last().width, 0.0);
     }
 
@@ -429,8 +449,8 @@ private Q_SLOTS:
     void theEllipsisIsASlotOfItsOwn()
     {
         const fe::CrumbLayout layout = fe::layoutCrumbs({40, 50, 60, 70, 80}, 0, 10, 12, 250);
-        const fe::CrumbHit hit = fe::crumbHitAt(layout, 55, 10, 3);
-        QCOMPARE(hit.slot, 1);
+        const fe::CrumbHit hit = fe::crumbHitAt(layout, 6, 10, 3);
+        QCOMPARE(hit.slot, 0);
         QCOMPARE(hit.part, fe::CrumbPart::Label);
         QCOMPARE(layout.cells.at(hit.slot).crumb, -1);
     }

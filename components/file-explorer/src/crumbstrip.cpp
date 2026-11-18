@@ -322,10 +322,10 @@ bool CrumbStrip::mousePress(QMouseEvent *event)
     if (hit.part == CrumbPart::None) {
         return false;
     }
-    if (event->button() == Qt::LeftButton && hit.part == CrumbPart::Chevron) {
-        showFolderMenu(hit.slot);
-    } else if (event->button() == Qt::LeftButton && !crumbOf(hit.slot)) {
+    if (event->button() == Qt::LeftButton && !crumbOf(hit.slot)) {
         showFoldedMenu(hit.slot);
+    } else if (event->button() == Qt::LeftButton && hit.part == CrumbPart::Chevron) {
+        showFolderMenu(hit.slot);
     } else if ((event->button() == Qt::LeftButton || event->button() == Qt::MiddleButton) && crumbOf(hit.slot)) {
         // The click lands on release, so the press can still become a drag.
         m_pressSlot = hit.slot;

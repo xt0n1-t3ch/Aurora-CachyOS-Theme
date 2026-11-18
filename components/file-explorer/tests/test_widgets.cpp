@@ -18,6 +18,7 @@
 #include "inspectorpanel.h"
 #include "searchscopebar.h"
 #include "transfers.h"
+#include "glasswindow.h"
 #include "toolbar.h"
 #include "tabpage.h"
 #include "crumbaccessible.h"
@@ -790,6 +791,53 @@ private Q_SLOTS:
         page.render(&image, QPoint(), QRegion(), QWidget::DrawChildren);
         const QColor inside = image.pixelColor(field->mapTo(&page, QPoint(field->width() / 2, field->height() / 2)));
         QVERIFY2(inside.alphaF() < 0.5, qPrintable(inside.name(QColor::HexArgb)));
+    }
+
+    void aTabOpenedOnANestedFolderKeepsBackOutwardAndForwardInward()
+    {
+        QTemporaryDir root;
+        const QString movies = root.filePath(QStringLiteral("X/Movies"));
+        const QString film = movies + QStringLiteral("/Zack Snyders Justice League (2021) [2160p] [4K]");
+        QVERIFY(QDir().mkpath(film));
+
+        auto *tab = new fe::BrowserTab(QUrl::fromLocalFile(film));
+        if (!tab->isLoaded()) {
+            delete tab;
+            QSKIP("Dolphin's part is not installed");
+        }
+        std::unique_ptr<fe::BrowserTab> guard(tab);
+        QVERIFY(tab->canGoBack());
+        QVERIFY(!tab->canGoForward());
+
+        tab->goUp();
+        QCOMPARE(tab->folderUrl(), QUrl::fromLocalFile(movies));
+        QVERIFY(tab->canGoBack());
+        QVERIFY(tab->canGoForward());
+
+        tab->goBack();
+        QCOMPARE(tab->folderUrl(), QUrl::fromLocalFile(root.filePath(QStringLiteral("X"))));
+        tab->goForward();
+        QCOMPARE(tab->folderUrl(), QUrl::fromLocalFile(movies));
+        tab->goForward();
+        QCOMPARE(tab->folderUrl(), QUrl::fromLocalFile(film));
+    }
+
+    void doubleClickingADisabledToolbarButtonDoesNotMaximizeTheWindow()
+    {
+        GlassWindow window;
+        auto *toolbar = new fe::Toolbar(QDir::homePath(), &window);
+        toolbar->setNavigationState(false, false, false);
+        toolbar->tagsButton()->setEnabled(false);
+        window.resize(900, 400);
+        toolbar->setGeometry(0, 0, 900, toolbar->height());
+        window.addDragSurface(toolbar);
+        window.show();
+
+        const QPoint overDisabledTags = toolbar->tagsButton()->geometry().center();
+        QMouseEvent dblClick(QEvent::MouseButtonDblClick, QPointF(overDisabledTags),
+                             toolbar->mapToGlobal(overDisabledTags), Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+        QApplication::sendEvent(toolbar, &dblClick);
+        QVERIFY(!window.isMaximized());
     }
 };
 

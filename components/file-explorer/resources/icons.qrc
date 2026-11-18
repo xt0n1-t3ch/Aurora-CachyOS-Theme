@@ -20,6 +20,9 @@
     <file alias="actions/tag.svg">icons/actions/tag.svg</file>
     <file alias="actions/more.svg">icons/actions/more.svg</file>
     <file alias="actions/chevron-down.svg">icons/actions/chevron-down.svg</file>
+    <file alias="actions/go-back.svg">icons/actions/go-back.svg</file>
+    <file alias="actions/go-forward.svg">icons/actions/go-forward.svg</file>
+    <file alias="actions/go-up.svg">icons/actions/go-up.svg</file>
     <file alias="actions/folder.svg">icons/actions/folder.svg</file>
     <file alias="actions/group.svg">icons/actions/group.svg</file>
     <file alias="places/drive-system.svg">icons/places/drive-system.svg</file>

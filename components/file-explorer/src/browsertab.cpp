@@ -172,7 +172,19 @@ BrowserTab::BrowserTab(const QUrl &url, QWidget *parent)
         m_ownView = ViewMode::Gallery;
     }
     makeViewTransparent();
-    openFolder(url);
+    // A tab opened directly on a nested folder keeps its enclosing folders behind it in the history, so Back steps
+    // outward instead of starting disabled or reversed after going up.
+    QList<QUrl> initialChain;
+    if (!url.isLocalFile() && !KProtocolInfo::archiveMimetypes(url.scheme()).isEmpty()) {
+        const QUrl enclosing = QUrl::fromLocalFile(QFileInfo(url.adjusted(QUrl::StripTrailingSlash).path()).absolutePath());
+        initialChain = columnFolders(enclosing, QDir::homePath());
+        initialChain.append(enclosing);
+    } else {
+        initialChain = columnFolders(url, QDir::homePath());
+    }
+    initialChain.append(url);
+    m_history.seed(initialChain);
+    showUrl(url);
 }
 
 void BrowserTab::connectPart()
@@ -317,8 +329,12 @@ void BrowserTab::showUrl(const QUrl &url)
 void BrowserTab::openFolder(const QUrl &url)
 {
     endSearch();
-    m_history.visit(url);
-    showUrl(url);
+    if (!m_history.current().isEmpty() && isStrictAncestorUrl(url, m_history.current())) {
+        m_history.stepUp(url);
+    } else {
+        m_history.visit(url);
+    }
+    showUrl(m_history.current());
 }
 
 bool BrowserTab::listsFromIndex() const
@@ -364,7 +380,10 @@ void BrowserTab::goUp()
         const QString path = folder.adjusted(QUrl::StripTrailingSlash).path();
         if (QFileInfo(path).isFile()) {
             const QUrl archive = QUrl::fromLocalFile(path);
-            openFolder(archive.adjusted(QUrl::RemoveFilename));
+            const QUrl parent = archive.adjusted(QUrl::RemoveFilename);
+            endSearch();
+            m_history.stepUp(parent);
+            showUrl(m_history.current());
             selectItems({archive});
             return;
         }

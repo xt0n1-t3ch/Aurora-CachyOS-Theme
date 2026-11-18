@@ -652,8 +652,8 @@ with a tooltip, amber above 90 % and red above 95 %; a folder the user added unf
 section folds away, kept in `file-explorerrc [Sidebar Tree]`), tabs, a toolbar with an address field
 (`fe::AddressField`) that shows the path as clickable segments and takes a typed path on a click beside them, Ctrl+L or
 Alt+D (rules in `core/address`: `~`, relative paths, suggestions, shell Tab), the view buttons (they fold into one
-pop-up button before the address field gets under 300 px, as Finder's view control does) and the Group, Share
-(Purpose), Edit Tags and More menus, a row of file actions (`fe::ActionBar`), Quick Look (`fe::QuickLook`, Space;
+pop-up button before the address field gets under 380 px, as Finder's view control does) and the Group, Share
+(Purpose), Tags and More menus, a row of file actions (`fe::ActionBar`), Quick Look (`fe::QuickLook`, Space;
 rules in `core/quicklook`), Split View (`fe::TabPage`, F3), a path bar that names the selected file and shows the item
 count, Undo (Ctrl+Z) from KIO's undo history, which Dolphin's view records its operations in, a filter row
 (`fe::FilterBar`, Ctrl+Alt+F or More > Filter by Name) that keeps the items whose names contain what is typed, case
@@ -726,8 +726,9 @@ the layout, the hit test and the drop rules are pure functions in `core/crumbs`,
 at rest without icons, as Windows' address bar does, and opens for typing on a click beside them, Ctrl+L or Alt+D (its
 focus policy is Tab, so a click on a segment opens the folder instead of the field). A click opens a segment and a
 middle click or Ctrl+click opens it in a background tab; the chevron after a segment lists its visible folders (250 at
-most, the next one of the path in bold, then Show All); a path too long for its bar folds the segments after the
-first into an ellipsis, outermost first, which lists them, and the folder on screen keeps the rest of the room; a
+most, the next one of the path in bold, then Show All); a long folder on screen elides before its enclosing folders disappear, and a path still too wide for its bar folds
+its outermost segments into a leading ellipsis, as Windows' address bar does, so the closest parent folders stay
+in reach; a
 right-click offers Open, Open in New Tab, Open Terminal Here, Copy Path and Get Info. Files dropped on a segment go
 through `KIO::drop`, as on the sidebar, so KIO asks Move, Copy or Link; a tag's shelf tags them instead. Refused: a
 folder into itself or a folder inside it, files into the folder they are in, Recents, a search, Network, the shelf
@@ -757,8 +758,8 @@ Dolphin, with the 63 emblems `themes/icons/tag_emblems.py` adds to the icon them
 It also serves `org.freedesktop.FileManager1` (`--service`: "Show in folder" selects the file) and the FileChooser
 portal backend (`--portal`: Open and Save panels with a chooser bar; it quits after three idle minutes). Installed as
 `~/.local/bin/file-explorer`; Win+E launches it. Folders without a view of their own show Finder's columns (Name,
-Modified, Size, Type) from `~/.local/share/file-explorer/view_properties/global/.directory`. Tests: `fe_tests` (95),
-`fe_finder_tests` (55), `fe_widget_tests` (28, offscreen: clicks, drops, a drag resting on a segment, the address
+Modified, Size, Type) from `~/.local/share/file-explorer/view_properties/global/.directory`. Tests: `fe_tests` (98),
+`fe_finder_tests` (56), `fe_widget_tests` (30, offscreen: clicks, drops, a drag resting on a segment, the address
 field at rest, accessibility, the filter row over a real Dolphin view, the glass behind a field inside a tab, the
 Rename sheet renaming a real folder and one Undo taking it back, F2 on two items opening it, the command palette
 finding, running and closing, Copy Path with three items and with none, the Inspector counting a
@@ -1288,10 +1289,10 @@ export QT_QPA_PLATFORM=offscreen q=/usr/lib/qt6/bin/qmltestrunner B=$PWD/build
 
 | Part | Command | Result |
 | --- | --- | --- |
-| File Explorer core | `build/file-explorer/fe_tests` | 95 pass |
-| File Explorer's Finder features (typed paths and their suggestions and Tab, the path segments' layout, folding, hit test and which drops they take, color tags and their emblems, the tag shelf's names and path, the sidebar's folder tree, Quick Look's kinds and when Space opens it, batch rename's rules: replace without case or with a regular expression, add, index, counter, a date per item numbered within a day, case, extensions kept as KIO keeps them, and every reason a name cannot be taken) | `build/file-explorer/fe_finder_tests` | 55 pass |
-| File Explorer's widgets on the offscreen platform: a click, middle click and Ctrl+click on a segment, a click beside them, a slot that replaces the segments still gets its URL, which drops a segment takes (files from elsewhere, not a folder into itself or files into their own folder, not a read-only folder), a drag resting on a segment opens nothing, the address field at rest opens a segment without taking the keyboard, screen readers read each segment as a link they can press, the filter row sends each key and closes on Escape, a filter over a real Dolphin view hides what does not match and ends with the folder, a field inside a tab shows the glass behind it (no style sheet above it), the Rename sheet renames a real folder and one Undo takes the batch back, waits while a name is taken and plans again on Rename, and F2 on two selected items opens it, the command palette finds a command by a few letters, runs it with Enter, moves with Down and runs nothing disabled or on Escape, Copy Path (Ctrl+Alt+C) copies every selected item, or the folder with nothing selected, the Inspector counts nothing while hidden, counts a folder and counts again when it changes, hashes a file and compares a pasted hash, a tar.gz opens as a folder (an OpenDocument file does not), Up leaves it for its folder and the Inspector counts inside it through KIO, the search row's Save sends its request and a folder the index does not hold has no capsule to press, the columns view leads to the folder, marks it, and opens a clicked file's folder with the file selected, the gallery shows the selected picture with its own preview and leaves with another mode, the transfer center shows a job's label until the job ends, Compare Folders lists what differs and copies a selected folder across with what is in it, a narrow toolbar folds the five view buttons into one pop-up whose menu chooses a mode, and a wide one shows them again with that mode checked | `QT_QPA_PLATFORM=offscreen build/file-explorer/fe_widget_tests` | 28 pass |
-| The same five File Explorer suites under AddressSanitizer and UBSan (configure `build/file-explorer-asan` with `-fsanitize=address,undefined`; `ASAN_OPTIONS=detect_leaks=0:max_free_fill_size=1048576:free_fill_byte=85` makes a read of freed memory crash, so the URL test bites) | `build/file-explorer-asan/fe_tests`, `fe_finder_tests`, `fe_widget_tests`, `fe_git_tests`, `fe_git_widget_tests` | 95, 55, 28, 64, 9 pass, no findings |
+| File Explorer core | `build/file-explorer/fe_tests` | 98 pass |
+| File Explorer's Finder features (typed paths and their suggestions and Tab, the path segments' layout, folding, hit test and which drops they take, color tags and their emblems, the tag shelf's names and path, the sidebar's folder tree, Quick Look's kinds and when Space opens it, batch rename's rules: replace without case or with a regular expression, add, index, counter, a date per item numbered within a day, case, extensions kept as KIO keeps them, and every reason a name cannot be taken) | `build/file-explorer/fe_finder_tests` | 56 pass |
+| File Explorer's widgets on the offscreen platform: a click, middle click and Ctrl+click on a segment, a click beside them, a slot that replaces the segments still gets its URL, which drops a segment takes (files from elsewhere, not a folder into itself or files into their own folder, not a read-only folder), a drag resting on a segment opens nothing, the address field at rest opens a segment without taking the keyboard, screen readers read each segment as a link they can press, the filter row sends each key and closes on Escape, a filter over a real Dolphin view hides what does not match and ends with the folder, a field inside a tab shows the glass behind it (no style sheet above it), the Rename sheet renames a real folder and one Undo takes the batch back, waits while a name is taken and plans again on Rename, and F2 on two selected items opens it, the command palette finds a command by a few letters, runs it with Enter, moves with Down and runs nothing disabled or on Escape, Copy Path (Ctrl+Alt+C) copies every selected item, or the folder with nothing selected, the Inspector counts nothing while hidden, counts a folder and counts again when it changes, hashes a file and compares a pasted hash, a tar.gz opens as a folder (an OpenDocument file does not), Up leaves it for its folder and the Inspector counts inside it through KIO, the search row's Save sends its request and a folder the index does not hold has no capsule to press, the columns view leads to the folder, marks it, and opens a clicked file's folder with the file selected, the gallery shows the selected picture with its own preview and leaves with another mode, the transfer center shows a job's label until the job ends, Compare Folders lists what differs and copies a selected folder across with what is in it, a narrow toolbar folds the five view buttons into one pop-up whose menu chooses a mode, and a wide one shows them again with that mode checked | `QT_QPA_PLATFORM=offscreen build/file-explorer/fe_widget_tests` | 30 pass |
+| The same five File Explorer suites under AddressSanitizer and UBSan (configure `build/file-explorer-asan` with `-fsanitize=address,undefined`; `ASAN_OPTIONS=detect_leaks=0:max_free_fill_size=1048576:free_fill_byte=85` makes a read of freed memory crash, so the URL test bites) | `build/file-explorer-asan/fe_tests`, `fe_finder_tests`, `fe_widget_tests`, `fe_git_tests`, `fe_git_widget_tests` | 98, 56, 30, 64, 9 pass, no findings |
 | File Explorer's Git logic: the repository of a repository's folder, a file and a folder deep inside, a nested repository, an empty `.git` (skipped), a `.git` file that names nothing (stops), a linked work tree, a submodule, a bare repository, a plain folder and a link, each against `git rev-parse --show-toplevel`; a ceiling folder; `safe.directory` entries; `git status --porcelain=v2` of every kind of entry and of a real repository; remotes and their web pages; the folder a clone gets; log and branches of a real repository; an operation under way; the menu's line and entries in eight states and for items of each state, with no two entries alike; what the menu is for (a repository's folder from outside, a plain folder, items of one or two repositories); Discard putting tracked files back and never deleting a new one, a commit taking only the chosen changes with a rename whole, amend, unstaging before the first commit, an ignore line matching only its path, branch names judged by `git branch` itself, an untracked file's diff | `build/file-explorer/fe_git_tests` | 64 pass |
 | File Explorer's Git menu and sheets on the offscreen platform, with real repositories and a bare remote: a repository's folder seen from a plain folder gets its own menu (never Clone), a plain folder gets none and its background offers Clone and Create (Create makes a repository), the Commit sheet shows the first diff, commits only the ticked files and pushes, Clone names the folder from the address and refuses a name in use, Branches refuses a bad or taken name, creates and switches, History lists a file's commits with the diff, Stage stages only the item | `QT_QPA_PLATFORM=offscreen build/file-explorer/fe_git_widget_tests` | 9 pass |
 | aurora-search, File Explorer's search helper: the index against random histories of a model disk (300 seeds), the query syntax and ranking, hidden names, scan, store (damaged files refused), the catch-up by folder times, mountinfo, fanotify's event layout, the config, the ioctl numbers checked against `linux/btrfs.h` | `cargo test --manifest-path components/file-explorer/search/Cargo.toml` | 25 pass |
@@ -1614,6 +1615,27 @@ it changes. A change that needs a fresh install, or that an earlier backup canno
 
 ## [Unreleased]
 
+### Changed
+
+- File Explorer's Back, Forward and Enclosing Folder buttons draw full arrows instead of bare chevrons, with a divider
+  between Back and Forward, so the Enclosing Folder button reads as going up one level rather than unfolding a menu.
+  The Tags button in the toolbar is now an icon like Share beside it, giving the address bar room for a deeper path.
+
+### Fixed
+
+- In File Explorer, a folder with a long name no longer pushes its parent folders behind `...` in the address bar and
+  the path bar. The folder on screen shortens its own label first, and when a path still does not fit it folds from
+  the start inward, as Windows' File Explorer does, so the folders right above the one you are in stay on screen to
+  click.
+- Opening a nested folder directly in File Explorer, such as from a download's Show in Folder, starts with Back ready
+  to step out through the folders above it instead of dimmed. Going up with the Enclosing Folder button or a parent
+  folder in the path bar also keeps Back pointing outward and Forward pointing back into the subfolder; previously it
+  added the parent after the subfolder and left the two arrows working the wrong way round.
+- Clicking or double-clicking a dimmed button in File Explorer's toolbar no longer drags or maximizes the window, and
+  pressing the mouse's Back or Forward button twice in quick succession no longer drops the second step.
+
+## [1.3.6] - 2026-11-16
+
 ### Fixed
 
 - After the update to KDE Plasma 6.8.3 the Windows key opened Plasma's plain search bar instead of Quick Menu, and
@@ -1911,7 +1933,8 @@ question, and removed with one command.
 - After a Plasma, KWin or Qt update, the parts built for the old version step aside on their own until the package
   brings them built for the new one; `aurora rebuild` builds them right away.
 
-[Unreleased]: https://github.com/xt0n1-t3ch/Aurora-CachyOS-Theme/compare/v1.3.5...HEAD
+[Unreleased]: https://github.com/xt0n1-t3ch/Aurora-CachyOS-Theme/compare/v1.3.6...HEAD
+[1.3.6]: https://github.com/xt0n1-t3ch/Aurora-CachyOS-Theme/compare/v1.3.5...v1.3.6
 [1.3.5]: https://github.com/xt0n1-t3ch/Aurora-CachyOS-Theme/compare/v1.3.1...v1.3.5
 [1.3.1]: https://github.com/xt0n1-t3ch/Aurora-CachyOS-Theme/compare/v1.3.0...v1.3.1
 [1.3.0]: https://github.com/xt0n1-t3ch/Aurora-CachyOS-Theme/compare/v1.2.0...v1.3.0

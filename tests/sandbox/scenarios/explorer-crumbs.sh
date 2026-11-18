@@ -7,14 +7,14 @@
 # Move, Copy or Link menu at the pointer, on a segment and on the sidebar), a drop refused on the folder the file
 # is in, Ctrl+L for typing, Ctrl+click and a middle click for new tabs, and a click on the first segment. Captures
 # shots/crumbs-*.png and writes PASS or FAIL lines to logs/crumbs.txt. The positions are those of File Explorer's
-# first window at 2560x1440 on ~/Crumbs/Projects/Aurora-CachyOS-Theme/docs, a path long enough that the address field
-# folds its middle behind the ellipsis.
+# first window at 2560x1440 on ~/Crumbs/Projects/Aurora-CachyOS-Theme/components/docs, a path long enough that the
+# address field folds its start behind the leading ellipsis.
 source "$SBX/prelude.sh"
 FI="$SB/tests/helpers/fakeinput/fakeinput"
 CHANGED="$SB/tests/helpers/region_changed.py"
 OUT="$SBX/logs/crumbs.txt"; : > "$OUT"
 SHOTS="$SBX/shots"
-DOCS="$HOME/Crumbs/Projects/Aurora-CachyOS-Theme/docs"
+DOCS="$HOME/Crumbs/Projects/Aurora-CachyOS-Theme/components/docs"
 rm -rf "$HOME/Crumbs" && mkdir -p "$DOCS" "$HOME/Crumbs/Projects/Orion" "$HOME/Crumbs/Projects/Notes"
 printf 'int main(void) { return 0; }\n' > "$DOCS/main.c"
 printf '#!/bin/sh\necho hola\n' > "$DOCS/hola"; chmod +x "$DOCS/hola"
@@ -45,32 +45,33 @@ TOP_Y=309 BOTTOM_Y=1135
 MAIN_X=900 MAIN_Y=454
 shot crumbs-rest
 
-# The address field reads xt0n1 > ... > docs: xt0n1 at 979 to 1011, its chevron at 1020, the ellipsis at 1027 to 1040.
-input move 985 "$TOP_Y" wait 100 move 995 "$TOP_Y" wait 1500
+# The address field reads ... > Projects > Aurora-CachyOS-Theme > components > docs:
+# the leading ellipsis at 973 to 985, Projects at 1001 to 1051, and Projects' chevron at 1059.
+input move 1015 "$TOP_Y" wait 100 move 1025 "$TOP_Y" wait 1500
 shot crumbs-hover
-check hover-brightens-the-segment crumbs-rest crumbs-hover 975 300 1015 318
+check hover-brightens-the-segment crumbs-rest crumbs-hover 1000 300 1052 318
 
-input move 1020 "$TOP_Y" wait 200 down wait 80 up wait 900
+input move 1059 "$TOP_Y" wait 200 down wait 80 up wait 900
 shot crumbs-folder-menu
-check chevron-lists-folders crumbs-rest crumbs-folder-menu 1020 325 1220 400
+check chevron-lists-folders crumbs-rest crumbs-folder-menu 1050 325 1250 400
 input keydown 1 keyup 1 wait 500
 
-input move 1034 "$TOP_Y" wait 200 down wait 80 up wait 900
+input move 979 "$TOP_Y" wait 200 down wait 80 up wait 900
 shot crumbs-folded-menu
-check ellipsis-lists-folded-segments crumbs-rest crumbs-folded-menu 1034 325 1200 380
+check ellipsis-lists-folded-segments crumbs-rest crumbs-folded-menu 970 325 1140 380
 input keydown 1 keyup 1 wait 500
 
 input move 959 "$BOTTOM_Y" wait 200 down wait 80 up wait 900
 shot crumbs-bottom-menu
 input keydown 1 keyup 1 wait 500
 
-# The drag rests on xt0n1: the segment takes the drop in the accent, and however long the drag stays there the window
-# keeps showing docs. Esc cancels the drag.
-drag "$MAIN_X" "$MAIN_Y" 995 "$TOP_Y" 2600
+# The drag rests on Projects: the segment takes the drop in the accent, and however long the drag stays there the
+# window keeps showing docs. Esc cancels the drag.
+drag "$MAIN_X" "$MAIN_Y" 1025 "$TOP_Y" 2600
 # The drag arrives about 1.2 s after it starts; Spectacle takes about 0.5 s to capture.
 sleep 1.1
 shot crumbs-drop-target
-check drop-target-in-accent crumbs-hover crumbs-drop-target 975 298 1015 320
+check drop-target-in-accent crumbs-hover crumbs-drop-target 1000 298 1052 320
 sleep 0.6
 shot crumbs-held
 check holding-a-drag-opens-nothing crumbs-drop-target crumbs-held 830 440 1400 470 same
@@ -95,7 +96,7 @@ check sidebar-drop-menu-opens-at-the-pointer crumbs-rest crumbs-sidebar-drop-men
 input keydown 1 keyup 1 wait 600
 
 # main.c is in docs already: the segment stays plain and the drag shows it is refused.
-drag "$MAIN_X" "$MAIN_Y" 1255 "$BOTTOM_Y" 2200
+drag "$MAIN_X" "$MAIN_Y" 1345 "$BOTTOM_Y" 2200
 sleep 1.4
 shot crumbs-refused
 input keydown 1 keyup 1

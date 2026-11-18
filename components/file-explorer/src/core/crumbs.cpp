@@ -47,27 +47,38 @@ qreal rowWidth(const QList<qreal> &widths, const QList<qsizetype> &shown, qreal 
 
 CrumbLayout layoutCrumbs(const QList<qreal> &widths, qreal start, qreal separator, qreal ellipsisWidth, qreal room)
 {
+    // Enough room for a long folder name at the end to keep its start and end legible around an ellipsis before its
+    // parent folders are folded away for it.
+    constexpr qreal CURRENT_FOLDER_FLOOR = 110.0;
+
     CrumbLayout layout;
     if (widths.isEmpty()) {
         return layout;
     }
     QList<qsizetype> shown;
+    shown.reserve(widths.size());
     for (qsizetype i = 0; i < widths.size(); ++i) {
         shown.append(i);
     }
-    // Fold from the second segment on: the first (home or the disk) says where the path starts and the last is the
-    // folder on screen, so both stay.
-    while (rowWidth(widths, shown, ellipsisWidth, separator) > room && shown.size() > 2) {
-        const qsizetype next = shown.at(1) < 0 ? 2 : 1;
+    QList<qreal> fitWidths = widths;
+    fitWidths.last() = std::min(fitWidths.last(), CURRENT_FOLDER_FLOOR);
+
+    // Fold from the outermost segment inward, as Windows' address bar does, so the enclosing folders right above the
+    // current one stay visible until no room is left for them.
+    while (rowWidth(fitWidths, shown, ellipsisWidth, separator) > room && shown.size() > 1) {
+        const qsizetype next = shown.at(0) < 0 ? 1 : 0;
         if (next >= shown.size() - 1) {
             break;
         }
         layout.folded.append(shown.at(next));
-        if (next == 1) {
-            shown[1] = -1;
+        if (next == 0) {
+            shown[0] = -1;
         } else {
             shown.removeAt(next);
         }
+    }
+    if (layout.folded.size() == 1 && widths.at(layout.folded.constFirst()) <= ellipsisWidth) {
+        shown[0] = layout.folded.takeFirst();
     }
 
     qreal x = start;

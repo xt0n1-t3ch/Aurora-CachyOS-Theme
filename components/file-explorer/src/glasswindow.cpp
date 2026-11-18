@@ -151,6 +151,17 @@ bool GlassWindow::eventFilter(QObject *watched, QEvent *event)
         && (event->type() == QEvent::MouseButtonPress || event->type() == QEvent::MouseButtonDblClick)) {
         const auto *mouse = static_cast<QMouseEvent *>(event);
         if (mouse->button() == Qt::LeftButton) {
+            // Qt skips disabled child widgets during hit-testing and hands the press to the surface; a click on a
+            // dimmed toolbar button or capsule must stay inert instead of moving or maximizing the window.
+            const auto *surface = static_cast<QWidget *>(watched);
+            const QPoint pos = mouse->position().toPoint();
+            const auto children = surface->findChildren<QWidget *>(Qt::FindDirectChildrenOnly);
+            const bool overControl = std::any_of(children.cbegin(), children.cend(), [pos](const QWidget *child) {
+                return child->isVisible() && child->geometry().contains(pos);
+            });
+            if (overControl) {
+                return true;
+            }
             if (event->type() == QEvent::MouseButtonDblClick) {
                 toggleMaximized();
             } else {
