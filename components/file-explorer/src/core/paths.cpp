@@ -141,6 +141,22 @@ QList<QUrl> columnFolders(const QUrl &folder, const QString &homePath)
     return columns;
 }
 
+bool isStrictAncestorUrl(const QUrl &ancestor, const QUrl &descendant)
+{
+    if (!ancestor.isValid() || !descendant.isValid() || ancestor.hasQuery() || descendant.hasQuery()) {
+        return false;
+    }
+    if (ancestor.scheme() != descendant.scheme() || ancestor.authority() != descendant.authority()) {
+        return false;
+    }
+    const QString anc = QDir::cleanPath(ancestor.isLocalFile() ? ancestor.toLocalFile() : ancestor.path());
+    const QString desc = QDir::cleanPath(descendant.isLocalFile() ? descendant.toLocalFile() : descendant.path());
+    if (anc.isEmpty() || desc.isEmpty() || anc == desc) {
+        return false;
+    }
+    return anc == u"/" ? (desc.startsWith(u'/') && desc.size() > 1) : desc.startsWith(anc + u'/');
+}
+
 QString copiedPaths(const QList<QUrl> &items)
 {
     QStringList lines;

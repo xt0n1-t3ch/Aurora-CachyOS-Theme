@@ -249,6 +249,65 @@ private Q_SLOTS:
         QCOMPARE(history.back(), folder(QStringLiteral("/home/alex")));
     }
 
+    void strictAncestorChecksFolderBoundariesAndScheme()
+    {
+        QVERIFY(fe::isStrictAncestorUrl(folder(QStringLiteral("/mnt/D/X/Movies")),
+                                        folder(QStringLiteral("/mnt/D/X/Movies/Zack Snyders Justice League"))));
+        QVERIFY(fe::isStrictAncestorUrl(folder(QStringLiteral("/")), folder(QStringLiteral("/mnt"))));
+        QVERIFY(!fe::isStrictAncestorUrl(folder(QStringLiteral("/")), folder(QStringLiteral("/"))));
+        QVERIFY(!fe::isStrictAncestorUrl(folder(QStringLiteral("/mnt/D/X/Movie")),
+                                         folder(QStringLiteral("/mnt/D/X/Movies"))));
+        QVERIFY(!fe::isStrictAncestorUrl(folder(QStringLiteral("/")), QUrl(QStringLiteral("trash:/item"))));
+        QVERIFY(!fe::isStrictAncestorUrl(QUrl(QStringLiteral("aurora-search:/?q=test")),
+                                         QUrl(QStringLiteral("aurora-search:/sub?q=test"))));
+    }
+
+    void seedingADeepFolderEnablesBackOutwardAndForwardBackIn()
+    {
+        NavigationHistory history;
+        history.seed({folder(QStringLiteral("/")),
+                      folder(QStringLiteral("/mnt")),
+                      folder(QStringLiteral("/mnt/D")),
+                      folder(QStringLiteral("/mnt/D/X")),
+                      folder(QStringLiteral("/mnt/D/X/Movies")),
+                      folder(QStringLiteral("/mnt/D/X/Movies/Justice League"))});
+
+        QVERIFY(history.canGoBack());
+        QVERIFY(!history.canGoForward());
+        QCOMPARE(history.back(), folder(QStringLiteral("/mnt/D/X/Movies")));
+        QVERIFY(history.canGoBack());
+        QVERIFY(history.canGoForward());
+        QCOMPARE(history.back(), folder(QStringLiteral("/mnt/D/X")));
+        QCOMPARE(history.forward(), folder(QStringLiteral("/mnt/D/X/Movies")));
+        QCOMPARE(history.forward(), folder(QStringLiteral("/mnt/D/X/Movies/Justice League")));
+    }
+
+    void steppingUpToAnEnclosingFolderNeverInvertsBackAndForward()
+    {
+        NavigationHistory history;
+        history.visit(folder(QStringLiteral("/mnt/D/X")));
+        history.visit(folder(QStringLiteral("/mnt/D/X/Movies")));
+        history.visit(folder(QStringLiteral("/mnt/D/X/Movies/Justice League")));
+
+        // Stepping up to Movies moves back along the chain instead of appending a second Movies after Justice League.
+        history.stepUp(folder(QStringLiteral("/mnt/D/X/Movies")));
+        QCOMPARE(history.current(), folder(QStringLiteral("/mnt/D/X/Movies")));
+        QCOMPARE(history.back(), folder(QStringLiteral("/mnt/D/X")));
+        QCOMPARE(history.forward(), folder(QStringLiteral("/mnt/D/X/Movies")));
+        QCOMPARE(history.forward(), folder(QStringLiteral("/mnt/D/X/Movies/Justice League")));
+
+        // Jumping from Downloads straight to Justice League and then stepping up puts Movies before Justice League,
+        // so Forward re-enters Justice League and Back returns to Downloads.
+        NavigationHistory jumped;
+        jumped.visit(folder(QStringLiteral("/home/alex/Downloads")));
+        jumped.visit(folder(QStringLiteral("/mnt/D/X/Movies/Justice League")));
+        jumped.stepUp(folder(QStringLiteral("/mnt/D/X/Movies")));
+        QCOMPARE(jumped.current(), folder(QStringLiteral("/mnt/D/X/Movies")));
+        QCOMPARE(jumped.forward(), folder(QStringLiteral("/mnt/D/X/Movies/Justice League")));
+        QCOMPARE(jumped.back(), folder(QStringLiteral("/mnt/D/X/Movies")));
+        QCOMPARE(jumped.back(), folder(QStringLiteral("/home/alex/Downloads")));
+    }
+
     void historyMatchesAReferenceModelForRandomCommandSequences()
     {
         const quint32 seed = QRandomGenerator::global()->generate();

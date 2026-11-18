@@ -31,7 +31,7 @@ inline constexpr int SIDEBAR_RADIUS = 12;
 inline constexpr int TOOLBAR_HEIGHT = 52;
 inline constexpr int CAPSULE_HEIGHT = 34;
 inline constexpr int BUTTON_WIDTH = 38;
-inline constexpr int SEARCH_WIDTH = 230;
+inline constexpr int SEARCH_WIDTH = 195;
 inline constexpr int ROW_HEIGHT = 28;
 /// A drive's row: its name over its capacity bar.
 inline constexpr int DRIVE_ROW_HEIGHT = 38;

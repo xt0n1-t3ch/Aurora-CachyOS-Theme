@@ -8,13 +8,24 @@
 #include <QList>
 #include <QUrl>
 
-/// The back and forward history of one browser tab, kept the way a web browser keeps it.
+/// The back and forward history of one browser tab: sibling and cross-folder jumps work like a web browser, while
+/// opening a deep folder or stepping up to an enclosing folder keeps parents behind children so Back goes outward and
+/// Forward goes back in.
 class NavigationHistory
 {
 public:
+    /// Seeds an empty history with the folders leading to the initial folder, outermost first, leaving the last one
+    /// current. Ignored once the history already holds entries.
+    void seed(const QList<QUrl> &chain);
+
     /// Records a visit. Visiting the current folder again changes nothing; any other visit drops the
     /// forward entries.
     void visit(const QUrl &url);
+
+    /// Moves up to an enclosing folder `ancestor`: steps back along any contiguous chain of enclosing folders already
+    /// behind the current entry (keeping the deeper folders for Forward), or inserts `ancestor` right before the
+    /// current subtree when the subtree was reached by a jump.
+    void stepUp(const QUrl &ancestor);
 
     [[nodiscard]] bool canGoBack() const;
     [[nodiscard]] bool canGoForward() const;

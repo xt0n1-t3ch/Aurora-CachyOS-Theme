@@ -641,7 +641,7 @@ bool MainWindow::eventFilter(QObject *watched, QEvent *event)
     }
     // The mouse's back and forward buttons, anywhere in this window. Dolphin's view takes them
     // without telling the part, so they are caught before it.
-    if (event->type() == QEvent::MouseButtonPress && watched->isWidgetType()) {
+    if ((event->type() == QEvent::MouseButtonPress || event->type() == QEvent::MouseButtonDblClick) && watched->isWidgetType()) {
         const auto *mouse = static_cast<QMouseEvent *>(event);
         const bool back = mouse->button() == Qt::BackButton;
         if ((back || mouse->button() == Qt::ForwardButton) && static_cast<QWidget *>(watched)->window() == this) {

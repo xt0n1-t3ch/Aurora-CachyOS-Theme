@@ -22,9 +22,8 @@ namespace {
 constexpr int SEARCH_MIN_WIDTH = 150;
 /// The address field never gets narrower than this; below it the buttons fold away first.
 constexpr int ADDRESS_MIN_WIDTH = 200;
-/// Below this width the address field folds most of a path behind its ellipsis, so the view buttons fold into one
-/// first. At 300 px a path of four short folders still reads whole.
-constexpr int ADDRESS_ROOMY_WIDTH = 300;
+/// Below this width the address field folds too much of a deep path, so the view buttons fold into one first.
+constexpr int ADDRESS_ROOMY_WIDTH = 380;
 
 /// The view modes in the toolbar's order, with the icon and the words of each.
 struct ViewChoice {
@@ -121,7 +120,7 @@ void GlassButton::paintEvent(QPaintEvent *)
         state.setAlphaF(state.alphaF() * m_hover->progress());
     }
     if (state.isValid()) {
-        const QRectF inner = m_standalone ? bounds : bounds.adjusted(2, 3, -2, -3);
+        const QRectF inner = m_standalone ? bounds : bounds.adjusted(3, 3, -3, -3);
         QPainterPath path;
         path.addRoundedRect(inner, inner.height() / 2.0, inner.height() / 2.0);
         painter.fillPath(path, state);
@@ -166,7 +165,8 @@ Capsule::Capsule(QWidget *parent)
     : QWidget(parent)
     , m_layout(new QHBoxLayout(this))
 {
-    m_layout->setContentsMargins(3, 0, 3, 0);
+    // Buttons span the full width of the capsule so clicks near its rounded ends still hit the outer buttons.
+    m_layout->setContentsMargins(0, 0, 0, 0);
     m_layout->setSpacing(0);
     setFixedHeight(style::CAPSULE_HEIGHT);
 }
@@ -234,9 +234,9 @@ Toolbar::Toolbar(const QString &homePath, QWidget *parent)
     : QWidget(parent)
     , m_leading(new QHBoxLayout)
     , m_trailing(new QHBoxLayout)
-    , m_back(new GlassButton(QStringLiteral("go-previous-symbolic"), QStringLiteral("Back")))
-    , m_forward(new GlassButton(QStringLiteral("go-next-symbolic"), QStringLiteral("Forward")))
-    , m_up(new GlassButton(QStringLiteral("go-up-symbolic"), QStringLiteral("Enclosing Folder"), this))
+    , m_back(new GlassButton(QStringLiteral(":/icons/actions/go-back.svg"), QStringLiteral("Back (Alt+Left)")))
+    , m_forward(new GlassButton(QStringLiteral(":/icons/actions/go-forward.svg"), QStringLiteral("Forward (Alt+Right)")))
+    , m_up(new GlassButton(QStringLiteral(":/icons/actions/go-up.svg"), QStringLiteral("Enclosing Folder (Alt+Up)"), this))
     , m_address(new AddressField(homePath, this))
     , m_viewModes(new QButtonGroup(this))
     , m_views(new Capsule(this))
@@ -251,6 +251,7 @@ Toolbar::Toolbar(const QString &homePath, QWidget *parent)
 
     auto *navigation = new Capsule(this);
     navigation->addButton(m_back);
+    navigation->addDivider();
     navigation->addButton(m_forward);
     connect(m_back, &QAbstractButton::clicked, this, &Toolbar::backClicked);
     connect(m_forward, &QAbstractButton::clicked, this, &Toolbar::forwardClicked);
@@ -279,7 +280,6 @@ Toolbar::Toolbar(const QString &homePath, QWidget *parent)
     m_group->setChevron(true);
     m_share->setStandalone(true);
     m_tags->setStandalone(true);
-    m_tags->setLabel(QStringLiteral("Edit Tags"));
     m_more->setStandalone(true);
     connect(m_group, &QAbstractButton::clicked, this, &Toolbar::groupClicked);
     connect(m_share, &QAbstractButton::clicked, this, &Toolbar::shareClicked);
@@ -332,7 +332,6 @@ void Toolbar::fitToWidth()
     }
     m_views->setVisible(true);
     m_viewPicker->setVisible(false);
-    m_tags->setLabel(QStringLiteral("Edit Tags"));
     // The view buttons fold into one before the path has to: Finder does the same with its view control.
     m_address->setMinimumWidth(ADDRESS_ROOMY_WIDTH);
     if (overflow() > 0) {
@@ -342,10 +341,6 @@ void Toolbar::fitToWidth()
     m_address->setMinimumWidth(ADDRESS_MIN_WIDTH);
     if (const int excess = overflow(); excess > 0) {
         m_search->setFixedWidth(qMax(SEARCH_MIN_WIDTH, style::SEARCH_WIDTH - excess));
-    }
-    // Edit Tags keeps its icon a while after its words go.
-    if (overflow() > 0) {
-        m_tags->setLabel(QString());
     }
     for (QWidget *button : std::as_const(m_collapsible)) {
         if (overflow() <= 0) {

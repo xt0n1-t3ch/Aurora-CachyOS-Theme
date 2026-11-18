@@ -30,9 +30,10 @@ struct CrumbLayout {
 };
 
 /// Lays out segments of natural widths `widths` from `start`, with `separator` pixels between two labels (where the
-/// chevron is drawn), in `room` pixels. When they do not fit, the segments between the first and the last fold into
-/// one ellipsis `ellipsisWidth` wide, the outermost first, as Finder's path bar does. When even that is too wide, the
-/// last segment, the folder on screen, gets what is left (never less than zero) and its label is elided.
+/// chevron is drawn), in `room` pixels. A long folder on screen shrinks to a comfortable readable width before any
+/// enclosing folder folds away; when the segments still do not fit, they fold into a leading ellipsis `ellipsisWidth`
+/// wide, outermost first, as Windows' address bar does, so the closest parent folders stay in reach. The last segment
+/// gets whatever room remains (never less than zero) and its label is elided.
 [[nodiscard]] CrumbLayout layoutCrumbs(const QList<qreal> &widths, qreal start, qreal separator, qreal ellipsisWidth, qreal room);
 
 /// The part of a segment a pointer is over.

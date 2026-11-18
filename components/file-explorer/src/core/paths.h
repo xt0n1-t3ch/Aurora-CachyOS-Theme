@@ -51,6 +51,10 @@ struct PathContext {
 /// this PC, or a location that is no folder (Trash, a search).
 [[nodiscard]] QList<QUrl> columnFolders(const QUrl &folder, const QString &homePath);
 
+/// Whether `ancestor` is a folder strictly above `descendant` in the same hierarchy (never a sibling whose name
+/// starts with the same letters, and never a query URL).
+[[nodiscard]] bool isStrictAncestorUrl(const QUrl &ancestor, const QUrl &descendant);
+
 /// The text Copy Path puts on the clipboard: each item's path (a local item's file path, anything else its URL as a
 /// person reads it), one per line in the given order, with no line break after the last.
 [[nodiscard]] QString copiedPaths(const QList<QUrl> &items);

@@ -11,6 +11,25 @@ it changes. A change that needs a fresh install, or that an earlier backup canno
 
 ## [Unreleased]
 
+### Changed
+
+- File Explorer's Back, Forward and Enclosing Folder buttons draw full arrows instead of bare chevrons, with a divider
+  between Back and Forward, so the Enclosing Folder button reads as going up one level rather than unfolding a menu.
+  The Tags button in the toolbar is now an icon like Share beside it, giving the address bar room for a deeper path.
+
+### Fixed
+
+- In File Explorer, a folder with a long name no longer pushes its parent folders behind `...` in the address bar and
+  the path bar. The folder on screen shortens its own label first, and when a path still does not fit it folds from
+  the start inward, as Windows' File Explorer does, so the folders right above the one you are in stay on screen to
+  click.
+- Opening a nested folder directly in File Explorer, such as from a download's Show in Folder, starts with Back ready
+  to step out through the folders above it instead of dimmed. Going up with the Enclosing Folder button or a parent
+  folder in the path bar also keeps Back pointing outward and Forward pointing back into the subfolder; previously it
+  added the parent after the subfolder and left the two arrows working the wrong way round.
+- Clicking or double-clicking a dimmed button in File Explorer's toolbar no longer drags or maximizes the window, and
+  pressing the mouse's Back or Forward button twice in quick succession no longer drops the second step.
+
 ## [1.3.6] - 2026-11-16
 
 ### Fixed
