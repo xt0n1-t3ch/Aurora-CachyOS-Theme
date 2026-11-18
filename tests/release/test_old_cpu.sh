@@ -47,6 +47,12 @@ check "the plan names the emulated processor" "$(grep -c '^on Opteron_G1' "$work
 check "a program missing from the table fails" "$(plan "$work/empty.txt")" 1
 check "the failure names the program" "$(grep -c '/usr/bin/demo has no line in' "$work/out")" 1
 check "nothing runs when a program is missing" "$(grep -c '^run \|^load ' "$work/out")" 0
+check "root runs arch-nspawn directly without another sudo" \
+    "$(PYTHONPATH="$root/scripts" python3 -c 'import old_cpu; print(old_cpu.command("/c", ("run", "/p", []), euid=0)[0])')" "arch-nspawn"
+check "an unprivileged run with SUDO_ASKPASS uses sudo -A" \
+    "$(PYTHONPATH="$root/scripts" python3 -c 'import old_cpu; print(" ".join(old_cpu.command("/c", ("run", "/p", []), euid=1000, askpass="/ask")[:2]))')" "sudo -A"
+check "an unprivileged run without SUDO_ASKPASS uses sudo -n" \
+    "$(PYTHONPATH="$root/scripts" python3 -c 'import old_cpu; print(" ".join(old_cpu.command("/c", ("run", "/p", []), euid=1000, askpass="")[:2]))')" "sudo -n"
 check "the repository's table names programs only by absolute path" \
     "$(grep -v '^#' "$root/packaging/repo/old-cpu-runs.txt" | grep -v '^$' | grep -vc '^/')" 0
 exit "$failures"

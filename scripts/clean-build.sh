@@ -84,5 +84,6 @@ for package in "${packages[@]}"; do
     sudo cp "$package" "$copy/root/"
     sudo arch-nspawn "$copy" pacman -U --noconfirm "/root/$(basename "$package")"
     sudo arch-nspawn "$copy" pacman -S --needed --noconfirm python
-    python3 -I "$ROOT/scripts/old_cpu.py" "$copy" "$package"
+    # Run under this shell's sudo ticket: without a terminal, sudo scopes its timestamp to the caller's PID.
+    sudo python3 -I "$ROOT/scripts/old_cpu.py" "$copy" "$package"
 done

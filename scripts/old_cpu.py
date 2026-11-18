@@ -98,11 +98,14 @@ def plan(chroot, package, runs):
     return steps, missing
 
 
-def command(chroot, step):
+def command(chroot, step, euid=None, askpass=None):
     """The command that runs one step in the chroot on the emulated processor."""
     action, path, args = step
     inside = [path, *args] if action == "run" else ["/usr/bin/python3", "-c", LOAD, path]
-    return ["sudo", "-n", "arch-nspawn", chroot, f"--bind-ro={QEMU}:{QEMU_INSIDE}",
+    effective_uid = os.geteuid() if euid is None else euid
+    effective_askpass = os.environ.get("SUDO_ASKPASS", "") if askpass is None else askpass
+    prefix = [] if effective_uid == 0 else ["sudo", "-A" if effective_askpass else "-n"]
+    return [*prefix, "arch-nspawn", chroot, f"--bind-ro={QEMU}:{QEMU_INSIDE}",
             "--setenv=QT_QPA_PLATFORM=offscreen", QEMU_INSIDE, "-cpu", CPU, *inside]
 
 
